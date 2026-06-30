@@ -11,5 +11,9 @@
     { "id": "graphite", "name": "Графит", "color": "#4a4a4a", "pricePerM2": 100 },
     { "id": "mirror", "name": "Зеркало", "color": "#cfe8ec", "pricePerM2": 100 }
   ],
-  "fittingsPrice": 0
+  "fittings": [
+    { "id": "rail", "name": "Направляющие (компл. на дверь)", "price": 100, "perDoor": true },
+    { "id": "handle", "name": "Ручка", "price": 100, "perDoor": true },
+    { "id": "hardware_set", "name": "Крепёж и доводчики (на шкаф)", "price": 100, "perDoor": false }
+  ]
 }

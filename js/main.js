@@ -155,10 +155,15 @@ function updatePrice(doorCount, doorWidth, doorHeight) {
 
   const korpusPrice = korpusM2 * getMaterial('korpus', state.korpusId).pricePerM2;
   const fasadPrice = fasadM2 * getMaterial('fasad', state.fasadId).pricePerM2;
-  const total = korpusPrice + fasadPrice;
+  const fittingsPrice = (materials.fittings || []).reduce(
+    (sum, f) => sum + f.price * (f.perDoor ? doorCount : 1),
+    0
+  );
+  const total = korpusPrice + fasadPrice + fittingsPrice;
 
   document.getElementById('priceKorpus').textContent = formatRub(korpusPrice);
   document.getElementById('priceFasad').textContent = formatRub(fasadPrice);
+  document.getElementById('priceFittings').textContent = formatRub(fittingsPrice);
   document.getElementById('priceTotal').textContent = formatRub(total);
 }
 
