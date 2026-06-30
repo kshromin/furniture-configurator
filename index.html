@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Конфигуратор шкафа-купе</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="viewport"></div>
+
+  <div id="panel">
+    <h2>Шкаф-купе</h2>
+
+    <div class="field">
+      <label>Ширина, мм <span id="widthVal"></span></label>
+      <input type="range" id="width" min="600" max="3000" step="10" value="1800">
+    </div>
+    <div class="field">
+      <label>Высота, мм <span id="heightVal"></span></label>
+      <input type="range" id="height" min="1800" max="2700" step="10" value="2400">
+    </div>
+    <div class="field">
+      <label>Глубина, мм <span id="depthVal"></span></label>
+      <input type="range" id="depth" min="400" max="700" step="10" value="600">
+    </div>
+
+    <div class="field">
+      <label>Цвет корпуса</label>
+      <div id="korpusSwatches" class="swatches"></div>
+    </div>
+
+    <div class="field">
+      <label>Цвет фасада</label>
+      <div id="fasadSwatches" class="swatches"></div>
+    </div>
+
+    <div class="price-box">
+      <div class="price-row"><span>Корпус</span><span id="priceKorpus">0 ₽</span></div>
+      <div class="price-row"><span>Фасады</span><span id="priceFasad">0 ₽</span></div>
+      <div class="price-row total"><span>Итого</span><span id="priceTotal">0 ₽</span></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

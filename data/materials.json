@@ -1,0 +1,15 @@
+{
+  "korpus": [
+    { "id": "white", "name": "Белый", "color": "#f2f2f0", "pricePerM2": 100 },
+    { "id": "gray", "name": "Серый", "color": "#9a9a9a", "pricePerM2": 100 },
+    { "id": "graphite", "name": "Графит", "color": "#4a4a4a", "pricePerM2": 100 },
+    { "id": "beige", "name": "Бежевый", "color": "#d8cdb8", "pricePerM2": 100 }
+  ],
+  "fasad": [
+    { "id": "white", "name": "Белый", "color": "#f2f2f0", "pricePerM2": 100 },
+    { "id": "gray", "name": "Серый", "color": "#9a9a9a", "pricePerM2": 100 },
+    { "id": "graphite", "name": "Графит", "color": "#4a4a4a", "pricePerM2": 100 },
+    { "id": "mirror", "name": "Зеркало", "color": "#cfe8ec", "pricePerM2": 100 }
+  ],
+  "fittingsPrice": 0
+}
