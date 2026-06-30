@@ -12,8 +12,17 @@
     { "id": "mirror", "name": "Зеркало", "color": "#cfe8ec", "pricePerM2": 100 }
   ],
   "fittings": [
-    { "id": "rail", "name": "Направляющие (компл. на дверь)", "price": 100, "perDoor": true },
-    { "id": "handle", "name": "Ручка", "price": 100, "perDoor": true },
-    { "id": "hardware_set", "name": "Крепёж и доводчики (на шкаф)", "price": 100, "perDoor": false }
+    { "id": "rail", "name": "Направляющие (компл. на дверь)", "price": 100, "per": "door" },
+    { "id": "handle", "name": "Ручка", "price": 100, "per": "door" },
+    { "id": "hardware_set", "name": "Крепёж и доводчики (на изделие)", "price": 100, "per": "item" },
+    { "id": "shelf_support", "name": "Опоры полки (компл.)", "price": 100, "per": "shelf" },
+    { "id": "drawer_slide", "name": "Направляющие ящика (компл.)", "price": 100, "per": "drawer" },
+    { "id": "rod", "name": "Штанга для одежды", "price": 100, "per": "rod" }
+  ],
+  "presets": [
+    { "name": "Компакт 1.2м", "type": "wardrobe", "width": 1200, "height": 2400, "depth": 600, "korpusId": "white", "fasadId": "white", "shelves": 3, "drawers": 0, "rod": true },
+    { "name": "Стандарт 1.8м", "type": "wardrobe", "width": 1800, "height": 2400, "depth": 600, "korpusId": "white", "fasadId": "gray", "shelves": 4, "drawers": 2, "rod": true },
+    { "name": "Большой 2.6м зеркало", "type": "wardrobe", "width": 2600, "height": 2500, "depth": 600, "korpusId": "graphite", "fasadId": "mirror", "shelves": 5, "drawers": 2, "rod": true },
+    { "name": "Комод 4 ящика", "type": "chest", "width": 900, "height": 900, "depth": 450, "korpusId": "white", "fasadId": "white", "drawers": 4 }
   ]
 }

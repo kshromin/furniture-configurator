@@ -2,14 +2,27 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<title>Конфигуратор шкафа-купе</title>
+<title>Конфигуратор мебели</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div id="viewport"></div>
 
   <div id="panel">
-    <h2>Шкаф-купе</h2>
+    <h2 id="title">Шкаф-купе</h2>
+
+    <div class="field">
+      <label>Готовые варианты</label>
+      <div id="presets" class="presets"></div>
+    </div>
+
+    <div class="field">
+      <label>Тип мебели</label>
+      <select id="furnitureType">
+        <option value="wardrobe">Шкаф-купе</option>
+        <option value="chest">Комод</option>
+      </select>
+    </div>
 
     <div class="field">
       <label>Ширина, мм <span id="widthVal"></span></label>
@@ -17,11 +30,11 @@
     </div>
     <div class="field">
       <label>Высота, мм <span id="heightVal"></span></label>
-      <input type="range" id="height" min="1800" max="2700" step="10" value="2400">
+      <input type="range" id="height" min="600" max="2700" step="10" value="2400">
     </div>
     <div class="field">
       <label>Глубина, мм <span id="depthVal"></span></label>
-      <input type="range" id="depth" min="400" max="700" step="10" value="600">
+      <input type="range" id="depth" min="350" max="700" step="10" value="600">
     </div>
 
     <div class="field">
@@ -34,11 +47,48 @@
       <div id="fasadSwatches" class="swatches"></div>
     </div>
 
+    <div id="fillFields">
+      <div class="field">
+        <label>Полки <span id="shelvesVal"></span></label>
+        <input type="range" id="shelves" min="0" max="8" step="1" value="3">
+      </div>
+      <div class="field">
+        <label>Ящики <span id="drawersVal"></span></label>
+        <input type="range" id="drawers" min="0" max="4" step="1" value="0">
+      </div>
+      <div class="field checkbox-field">
+        <label><input type="checkbox" id="rod" checked> Штанга для одежды</label>
+      </div>
+    </div>
+
     <div class="price-box">
       <div class="price-row"><span>Корпус</span><span id="priceKorpus">0 ₽</span></div>
       <div class="price-row"><span>Фасады</span><span id="priceFasad">0 ₽</span></div>
+      <div class="price-row"><span>Наполнение</span><span id="priceFill">0 ₽</span></div>
       <div class="price-row"><span>Фурнитура</span><span id="priceFittings">0 ₽</span></div>
       <div class="price-row total"><span>Итого</span><span id="priceTotal">0 ₽</span></div>
+    </div>
+
+    <button id="orderBtn" class="order-btn">Оставить заявку</button>
+  </div>
+
+  <div id="orderOverlay" class="overlay">
+    <div class="order-modal">
+      <h3>Заявка на расчёт</h3>
+      <div id="orderSummary" class="order-summary"></div>
+      <div class="field">
+        <label>Имя</label>
+        <input type="text" id="orderName" placeholder="Как к вам обращаться">
+      </div>
+      <div class="field">
+        <label>Телефон</label>
+        <input type="text" id="orderPhone" placeholder="+7 900 000 0000">
+      </div>
+      <div id="orderResult" class="order-result"></div>
+      <div class="order-actions">
+        <button id="orderCancel" class="btn-secondary">Отмена</button>
+        <button id="orderSubmit" class="btn-primary">Отправить</button>
+      </div>
     </div>
   </div>
 

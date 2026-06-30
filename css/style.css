@@ -93,3 +93,141 @@ html, body {
   font-size: 16px;
   color: #111;
 }
+
+select {
+  width: 100%;
+  height: 34px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 13px;
+  color: #333;
+}
+
+.checkbox-field label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkbox-field input {
+  width: 16px;
+  height: 16px;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.preset-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #f8f8f8;
+  font-size: 12px;
+  color: #333;
+  cursor: pointer;
+}
+
+.preset-btn:hover {
+  background: #eef3ff;
+  border-color: #2f6fed;
+}
+
+.order-btn {
+  width: 100%;
+  margin-top: 14px;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: #2f6fed;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.order-btn:hover {
+  background: #2559c7;
+}
+
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.overlay.visible {
+  display: flex;
+}
+
+.order-modal {
+  width: 360px;
+  max-width: 90vw;
+  background: #fff;
+  border-radius: 10px;
+  padding: 22px;
+}
+
+.order-modal h3 {
+  margin: 0 0 14px;
+  font-size: 17px;
+  color: #222;
+}
+
+.order-summary {
+  font-size: 13px;
+  color: #555;
+  background: #f5f6f8;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+
+.order-modal input[type="text"] {
+  width: 100%;
+  height: 36px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  padding: 0 10px;
+  font-size: 14px;
+}
+
+.order-result {
+  font-size: 13px;
+  min-height: 18px;
+  margin-bottom: 8px;
+}
+
+.order-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.btn-primary, .btn-secondary {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: #2f6fed;
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn-secondary {
+  background: #eee;
+  color: #333;
+}
