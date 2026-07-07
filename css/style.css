@@ -1,42 +1,175 @@
 * { box-sizing: border-box; }
 html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
+  margin: 0; padding: 0;
+  width: 100%; height: 100%;
   font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   overflow: hidden;
   background: #e8e8e8;
 }
 
+/* ── Viewport (3D canvas) ── */
 #viewport {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 340px;
+  top: 0; left: 0;
+  right: 370px; /* sidebar 70 + panel 300 */
   bottom: 0;
 }
 
-#panel {
+/* ── Sidebar (иконки вкладок) ── */
+#sidebar {
   position: absolute;
-  top: 0;
-  right: 0;
-  width: 340px;
-  height: 100%;
-  background: #ffffff;
+  top: 0; right: 300px;
+  width: 70px; height: 100%;
+  background: #f0f0f0;
   border-left: 1px solid #ddd;
-  padding: 20px;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0;
+  gap: 4px;
+  z-index: 10;
 }
 
-#panel h2 {
-  margin: 0 0 16px;
-  font-size: 18px;
+.tab-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  padding: 10px 4px 8px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  color: #777;
+  gap: 5px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.tab-btn svg {
+  width: 26px; height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tab-btn span {
+  font-size: 8px;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.tab-btn:hover {
+  background: #e4e4e4;
+  color: #444;
+}
+
+.tab-btn.active {
+  background: #fff;
+  color: #2f6fed;
+  border-color: #2f6fed;
+}
+
+/* ── Panel (контент вкладки) ── */
+#panel {
+  position: absolute;
+  top: 0; right: 0;
+  width: 300px; height: 100%;
+  background: #fff;
+  border-left: 1px solid #ddd;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Полоса типа изделия ── */
+#typeBar {
+  flex-shrink: 0;
+  padding: 7px 16px;
+  background: #eef3ff;
+  border-bottom: 1px solid #d0dcf8;
+  font-size: 12px;
+  font-weight: 700;
+  color: #2f6fed;
+  letter-spacing: 0.2px;
+  display: none;
+}
+
+.tab-pane {
+  display: none;
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 16px 0;
+}
+
+.tab-pane.active { display: flex; flex-direction: column; }
+
+.pane-title {
+  font-size: 15px;
+  font-weight: 700;
   color: #222;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+/* ── Тип изделия — сетка кнопок ── */
+.type-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 6px 10px;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  background: #fafafa;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  color: #555;
+  transition: all 0.15s;
+}
+
+.type-btn svg {
+  width: 36px; height: 36px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.type-btn:hover { background: #f0f4ff; color: #2f6fed; border-color: #a8c0f8; }
+.type-btn.active { background: #eef3ff; color: #2f6fed; border-color: #2f6fed; }
+
+/* ── Группы полей ── */
+.field-group {
+  margin-bottom: 16px;
+}
+
+.field-group-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
 }
 
 .field {
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 
 .field label {
@@ -44,63 +177,24 @@ html, body {
   justify-content: space-between;
   font-size: 13px;
   color: #555;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
 }
 
-.field input[type="range"] {
-  width: 100%;
-}
-
-.swatches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.swatch {
-  width: 36px;
-  height: 36px;
-  border-radius: 6px;
-  border: 2px solid transparent;
-  cursor: pointer;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15);
-}
-
-.swatch.selected {
-  border-color: #2f6fed;
-}
-
-.price-box {
-  margin-top: 24px;
-  padding: 14px;
-  background: #f5f6f8;
-  border-radius: 8px;
-}
-
-.price-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 14px;
-  color: #444;
-  padding: 4px 0;
-}
-
-.price-row.total {
-  margin-top: 6px;
-  padding-top: 10px;
-  border-top: 1px solid #ddd;
+.field-val {
   font-weight: 600;
-  font-size: 16px;
-  color: #111;
+  color: #222;
 }
 
-select {
+.field input[type="range"] { width: 100%; }
+
+.field select {
   width: 100%;
   height: 34px;
   border-radius: 6px;
   border: 1px solid #ccc;
   font-size: 13px;
   color: #333;
+  padding: 0 8px;
 }
 
 .checkbox-field label {
@@ -108,51 +202,430 @@ select {
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  justify-content: flex-start;
 }
 
-.checkbox-field input {
-  width: 16px;
-  height: 16px;
-}
+.checkbox-field input { width: 16px; height: 16px; }
 
-.presets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
+/* ── Пресеты ── */
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
 
 .preset-btn {
-  padding: 6px 10px;
+  padding: 5px 10px;
   border-radius: 6px;
   border: 1px solid #ccc;
   background: #f8f8f8;
-  font-size: 12px;
+  font-size: 11px;
   color: #333;
   cursor: pointer;
 }
 
-.preset-btn:hover {
-  background: #eef3ff;
-  border-color: #2f6fed;
+.preset-btn:hover { background: #eef3ff; border-color: #2f6fed; color: #2f6fed; }
+
+/* ── Фасад — типы ── */
+.fasad-type-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.order-btn {
-  width: 100%;
-  margin-top: 14px;
-  padding: 12px;
-  border: none;
+.fasad-type-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  background: #fafafa;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #555;
+  text-align: left;
+  transition: all 0.15s;
+}
+
+.fasad-type-btn svg {
+  width: 36px; height: 44px;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.fasad-type-btn:hover { background: #f0f4ff; color: #2f6fed; border-color: #a8c0f8; }
+.fasad-type-btn.active { background: #eef3ff; color: #2f6fed; border-color: #2f6fed; }
+
+/* ── Материалы ── */
+.mat-section {
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.mat-section:last-child { border-bottom: none; }
+
+.mat-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+/* ── Цветовые образцы ── */
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+.swatch {
+  width: 40px; height: 40px;
   border-radius: 8px;
-  background: #2f6fed;
-  color: #fff;
+  border: 2px solid transparent;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12);
+  position: relative;
+  transition: transform 0.1s, border-color 0.1s;
+}
+
+.swatch:hover { transform: scale(1.08); }
+.swatch.selected { border-color: #2f6fed; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12), 0 0 0 3px rgba(47,111,237,0.18); }
+
+.swatch-name {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #2f6fed;
+  font-weight: 600;
+  min-height: 14px;
+}
+
+/* ── Сворачиваемые доп. опции ── */
+.extra-details {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.extra-details summary {
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.extra-details summary::before {
+  content: '▸';
+  font-size: 10px;
+  transition: transform 0.15s;
+  display: inline-block;
+}
+
+.extra-details[open] summary::before { transform: rotate(90deg); }
+.extra-details summary:hover { color: #555; background: #f8f8f8; }
+
+.extra-details .field-group { padding: 0 14px; }
+.extra-details .field-group:last-child { padding-bottom: 12px; }
+
+/* ── Цена (всегда внизу) ── */
+#price-footer {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  background: #f8f9fb;
+  border-top: 1px solid #e8e8e8;
+}
+
+.price-rows { margin-bottom: 10px; }
+
+.price-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #555;
+  padding: 3px 0;
+}
+
+.price-row.total {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid #ddd;
+  font-weight: 700;
   font-size: 15px;
+  color: #111;
+}
+
+/* ── Бейдж на иконке Заказ ── */
+.tab-btn-order { position: relative; }
+.order-badge {
+  position: absolute;
+  top: 6px; right: 6px;
+  min-width: 16px; height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #e84040;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* ── Карточки во вкладке Заказ ── */
+.order-card {
+  border: 1px solid #e4e4e4;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: #fafafa;
+}
+
+.order-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.order-card-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: #aaa;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.order-card-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #222;
+  line-height: 1.4;
+}
+
+.order-card-remove {
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.order-card-remove:hover { color: #e44; }
+
+.order-card-price {
+  font-size: 15px;
+  font-weight: 700;
+  color: #2f6fed;
+  margin-bottom: 8px;
+}
+
+.order-card-edit {
+  width: 100%;
+  padding: 7px;
+  border: 1px solid #2f6fed;
+  border-radius: 6px;
+  background: transparent;
+  color: #2f6fed;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
 
-.order-btn:hover {
-  background: #2559c7;
+.order-card-edit:hover { background: #eef3ff; }
+.order-card-edit.editing {
+  background: #fff3cd;
+  border-color: #e6a800;
+  color: #a07000;
 }
 
+.order-grand-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111;
+  padding: 12px 0 0;
+  border-top: 2px solid #e0e0e0;
+  margin-top: 4px;
+}
+
+/* ── Футер: текущая позиция + счётчик ── */
+.price-row.current-total {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid #e0e0e0;
+  font-weight: 600;
+  color: #333;
+}
+
+.order-counter-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: #eef3ff;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #555;
+}
+
+.order-counter-link {
+  background: none;
+  border: none;
+  color: #2f6fed;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.add-item-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px;
+  border: 2px dashed #2f6fed;
+  border-radius: 8px;
+  background: transparent;
+  color: #2f6fed;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.add-item-btn:hover { background: #eef3ff; }
+
+.order-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 11px;
+  border: none;
+  border-radius: 8px;
+  background: #2f6fed;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.order-btn:hover { background: #2559c7; }
+
+/* ── Профиль дверей купе ── */
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.profile-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 4px 8px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fafafa;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.15s;
+}
+
+.profile-btn svg {
+  width: 20px;
+  height: 44px;
+}
+
+.profile-btn span {
+  font-size: 10px;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.profile-btn:hover { border-color: #a8c0f8; color: #2f6fed; }
+.profile-btn.active { border-color: #2f6fed; background: #eef3ff; color: #2f6fed; }
+
+/* ── Наполнение дверей ── */
+.door-fill-btns {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.door-fill-btn, .door-fill-btn2 {
+  flex: 1;
+  padding: 8px 4px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fafafa;
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.door-fill-btn:hover, .door-fill-btn2:hover { border-color: #a8c0f8; color: #2f6fed; }
+.door-fill-btn.active, .door-fill-btn2.active { border-color: #2f6fed; background: #eef3ff; color: #2f6fed; }
+
+/* ── Карточки популярных проектов ── */
+.presets-list { display: flex; flex-direction: column; gap: 8px; }
+
+.preset-card {
+  border: 1px solid #e4e4e4;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #fafafa;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.preset-card:hover { border-color: #2f6fed; background: #eef3ff; }
+
+.preset-card-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #222;
+  margin-bottom: 4px;
+}
+
+.preset-card-desc {
+  font-size: 11px;
+  color: #888;
+  line-height: 1.5;
+}
+
+.preset-card-price {
+  font-size: 13px;
+  font-weight: 700;
+  color: #2f6fed;
+  margin-top: 6px;
+}
+
+/* ── Плейсхолдер вкладки ── */
+.placeholder-note {
+  margin-top: 20px;
+  padding: 16px;
+  background: #f5f6f8;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #888;
+  line-height: 1.6;
+}
+
+/* ── Модальное окно заявки ── */
 .overlay {
   display: none;
   position: fixed;
@@ -163,9 +636,7 @@ select {
   z-index: 1000;
 }
 
-.overlay.visible {
-  display: flex;
-}
+.overlay.visible { display: flex; }
 
 .order-modal {
   width: 360px;
@@ -175,11 +646,7 @@ select {
   padding: 22px;
 }
 
-.order-modal h3 {
-  margin: 0 0 14px;
-  font-size: 17px;
-  color: #222;
-}
+.order-modal h3 { margin: 0 0 14px; font-size: 17px; color: #222; }
 
 .order-summary {
   font-size: 13px;
@@ -200,34 +667,15 @@ select {
   font-size: 14px;
 }
 
-.order-result {
-  font-size: 13px;
-  min-height: 18px;
-  margin-bottom: 8px;
-}
+.order-result { font-size: 13px; min-height: 18px; margin-bottom: 8px; }
 
-.order-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-}
+.order-actions { display: flex; gap: 10px; margin-top: 10px; }
 
 .btn-primary, .btn-secondary {
-  flex: 1;
-  padding: 10px;
-  border-radius: 8px;
-  border: none;
-  font-size: 14px;
-  cursor: pointer;
+  flex: 1; padding: 10px;
+  border-radius: 8px; border: none;
+  font-size: 14px; cursor: pointer;
 }
 
-.btn-primary {
-  background: #2f6fed;
-  color: #fff;
-  font-weight: 600;
-}
-
-.btn-secondary {
-  background: #eee;
-  color: #333;
-}
+.btn-primary { background: #2f6fed; color: #fff; font-weight: 600; }
+.btn-secondary { background: #eee; color: #333; }

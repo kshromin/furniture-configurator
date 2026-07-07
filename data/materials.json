@@ -1,28 +1,84 @@
 {
-  "korpus": [
-    { "id": "white", "name": "Белый", "color": "#f2f2f0", "pricePerM2": 100 },
-    { "id": "gray", "name": "Серый", "color": "#9a9a9a", "pricePerM2": 100 },
-    { "id": "graphite", "name": "Графит", "color": "#4a4a4a", "pricePerM2": 100 },
-    { "id": "beige", "name": "Бежевый", "color": "#d8cdb8", "pricePerM2": 100 }
-  ],
-  "fasad": [
-    { "id": "white", "name": "Белый", "color": "#f2f2f0", "pricePerM2": 100 },
-    { "id": "gray", "name": "Серый", "color": "#9a9a9a", "pricePerM2": 100 },
-    { "id": "graphite", "name": "Графит", "color": "#4a4a4a", "pricePerM2": 100 },
-    { "id": "mirror", "name": "Зеркало", "color": "#cfe8ec", "pricePerM2": 100 }
-  ],
+  "korpus": {
+    "producers": [
+      {
+        "id": "egger",
+        "name": "ЭГГЕР",
+        "colors": [
+          { "id": "w980",  "name": "Белый альпийский", "color": "#f4f3f0", "pricePerM2": 900 },
+          { "id": "u727",  "name": "Серый камень",      "color": "#9a9a9a", "pricePerM2": 950 },
+          { "id": "u961",  "name": "Графит",            "color": "#4a4a4a", "pricePerM2": 950 },
+          { "id": "h3840", "name": "Дуб Сонома",        "color": "#c8a97a", "pricePerM2": 1050 },
+          { "id": "h1334", "name": "Орех Термо",        "color": "#7a5c3a", "pricePerM2": 1100 }
+        ]
+      },
+      {
+        "id": "tomsk",
+        "name": "ТОМСК",
+        "colors": [
+          { "id": "t01", "name": "Белый",  "color": "#f2f2f0", "pricePerM2": 650 },
+          { "id": "t02", "name": "Серый",  "color": "#b0b0b0", "pricePerM2": 650 },
+          { "id": "t03", "name": "Венге",  "color": "#3b2a1a", "pricePerM2": 700 },
+          { "id": "t04", "name": "Бук",    "color": "#d4a96a", "pricePerM2": 700 }
+        ]
+      }
+    ]
+  },
+  "fasad": {
+    "producers": [
+      {
+        "id": "egger",
+        "name": "ЭГГЕР",
+        "colors": [
+          { "id": "fw980",   "name": "Белый альпийский", "color": "#f4f3f0", "pricePerM2": 900 },
+          { "id": "fu727",   "name": "Серый камень",     "color": "#9a9a9a", "pricePerM2": 950 },
+          { "id": "fu961",   "name": "Графит",           "color": "#4a4a4a", "pricePerM2": 950 },
+          { "id": "fmirror", "name": "Зеркало",          "color": "#cfe8ec", "pricePerM2": 1200 }
+        ]
+      },
+      {
+        "id": "tomsk",
+        "name": "ТОМСК",
+        "colors": [
+          { "id": "ft01", "name": "Белый", "color": "#f2f2f0", "pricePerM2": 650 },
+          { "id": "ft02", "name": "Серый", "color": "#b0b0b0", "pricePerM2": 650 },
+          { "id": "ft03", "name": "Венге", "color": "#3b2a1a", "pricePerM2": 700 }
+        ]
+      }
+    ]
+  },
+  "fill": {
+    "producers": [
+      {
+        "id": "egger",
+        "name": "ЭГГЕР",
+        "colors": [
+          { "id": "nw980",  "name": "Белый альпийский", "color": "#f4f3f0", "pricePerM2": 900 },
+          { "id": "nh3840", "name": "Дуб Сонома",       "color": "#c8a97a", "pricePerM2": 1050 }
+        ]
+      },
+      {
+        "id": "tomsk",
+        "name": "ТОМСК",
+        "colors": [
+          { "id": "nt01", "name": "Белый", "color": "#f2f2f0", "pricePerM2": 650 },
+          { "id": "nt04", "name": "Бук",   "color": "#d4a96a", "pricePerM2": 700 }
+        ]
+      }
+    ]
+  },
   "fittings": [
-    { "id": "rail", "name": "Направляющие (компл. на дверь)", "price": 100, "per": "door" },
-    { "id": "handle", "name": "Ручка", "price": 100, "per": "door" },
-    { "id": "hardware_set", "name": "Крепёж и доводчики (на изделие)", "price": 100, "per": "item" },
-    { "id": "shelf_support", "name": "Опоры полки (компл.)", "price": 100, "per": "shelf" },
-    { "id": "drawer_slide", "name": "Направляющие ящика (компл.)", "price": 100, "per": "drawer" },
-    { "id": "rod", "name": "Штанга для одежды", "price": 100, "per": "rod" }
+    { "id": "rail",          "name": "Направляющие (компл. на дверь)",  "price": 800,  "per": "door"   },
+    { "id": "handle",        "name": "Ручка",                           "price": 300,  "per": "door"   },
+    { "id": "hardware_set",  "name": "Крепёж и доводчики (на изделие)", "price": 500,  "per": "item"   },
+    { "id": "shelf_support", "name": "Опоры полки (компл.)",            "price": 150,  "per": "shelf"  },
+    { "id": "drawer_slide",  "name": "Направляющие ящика (компл.)",     "price": 600,  "per": "drawer" },
+    { "id": "rod",           "name": "Штанга для одежды",               "price": 400,  "per": "rod"    }
   ],
   "presets": [
-    { "name": "Компакт 1.2м", "type": "wardrobe", "width": 1200, "height": 2400, "depth": 600, "korpusId": "white", "fasadId": "white", "shelves": 3, "drawers": 0, "rod": true },
-    { "name": "Стандарт 1.8м", "type": "wardrobe", "width": 1800, "height": 2400, "depth": 600, "korpusId": "white", "fasadId": "gray", "shelves": 4, "drawers": 2, "rod": true },
-    { "name": "Большой 2.6м зеркало", "type": "wardrobe", "width": 2600, "height": 2500, "depth": 600, "korpusId": "graphite", "fasadId": "mirror", "shelves": 5, "drawers": 2, "rod": true },
-    { "name": "Комод 4 ящика", "type": "chest", "width": 900, "height": 900, "depth": 450, "korpusId": "white", "fasadId": "white", "drawers": 4 }
+    { "name": "Компакт 1.2м",         "type": "wardrobe", "width": 1200, "height": 2400, "depth": 600, "korpusProducer": "egger",  "korpusId": "w980",  "fasadProducer": "egger",  "fasadId": "fw980",  "fillProducer": "egger",  "fillId": "nw980",  "sections": 2, "shelves": 3, "drawers": 0, "rod": true  },
+    { "name": "Стандарт 1.8м",        "type": "wardrobe", "width": 1800, "height": 2400, "depth": 600, "korpusProducer": "tomsk",  "korpusId": "t01",   "fasadProducer": "egger",  "fasadId": "fu727",  "fillProducer": "tomsk",  "fillId": "nt01",   "sections": 2, "shelves": 4, "drawers": 2, "rod": true  },
+    { "name": "Большой 2.6м зеркало", "type": "wardrobe", "width": 2600, "height": 2500, "depth": 600, "korpusProducer": "egger",  "korpusId": "u961",  "fasadProducer": "egger",  "fasadId": "fmirror","fillProducer": "egger",  "fillId": "nw980",  "sections": 3, "shelves": 5, "drawers": 2, "rod": true  },
+    { "name": "Комод 4 ящика",        "type": "chest",    "width": 900,  "height": 900,  "depth": 450, "korpusProducer": "tomsk",  "korpusId": "t01",   "fasadProducer": "tomsk",  "fasadId": "ft01",   "fillProducer": "tomsk",  "fillId": "nt01",   "sections": 1, "shelves": 0, "drawers": 4, "rod": false }
   ]
 }
