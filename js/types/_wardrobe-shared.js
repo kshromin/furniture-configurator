@@ -12,11 +12,26 @@ export const DOOR_DEPTH_ZONE = 90;
 // этом не вылезают наружу — весь ряд идёт строго от стойки до стойки (см. buildSlidingDoors).
 export const DOOR_OVERLAP = 30;
 
-// Дверь купе = рамка + наполнение (зеркало/ЛДСП/стекло). Пока рисуем одной панелью,
-// но держим отрисовку в одном месте — когда рамка и наполнение станут разными материалами,
-// красить их по отдельности нужно будет только здесь.
-function buildSlidingDoor(x, y, z, w, h, color) {
-  addPanel(w, h, PANEL_THICKNESS, color, [x, y, z], 0.85);
+// Рамка двери купе — по умолчанию серебристый алюминиевый профиль; сама дверь на 90мм
+// зоны глубины (ширину/глубину рамки и цвет вынесем в настройки, когда дойдём до этого).
+export const DOOR_FRAME_WIDTH = 40; // видимая ширина профиля по периметру
+export const DOOR_FRAME_DEPTH = 40; // толщина рамки (она же — толщина двери по Z)
+const DOOR_FRAME_COLOR = 0xc4c4c8;
+const RAIL_COLOR = 0xb0b0b4;
+export const TOP_RAIL_HEIGHT = 50;
+export const BOTTOM_RAIL_HEIGHT = 10;
+
+// Дверь купе = рамка по периметру + наполнение внутри неё (зеркало/ЛДСП/стекло).
+// Наполнение сейчас той же толщины, что и панели короба, и красится в цвет фасада —
+// когда рамка/наполнение станут настраиваться раздельно (разный цвет рамки, разный материал
+// наполнения), менять нужно будет только эту функцию.
+function buildSlidingDoor(x, y, z, w, h, fillColor) {
+  const fw = DOOR_FRAME_WIDTH;
+  addPanel(w, fw, DOOR_FRAME_DEPTH, DOOR_FRAME_COLOR, [x, y + h / 2 - fw / 2, z]); // верхний брусок рамки
+  addPanel(w, fw, DOOR_FRAME_DEPTH, DOOR_FRAME_COLOR, [x, y - h / 2 + fw / 2, z]); // нижний брусок рамки
+  addPanel(fw, h - 2 * fw, DOOR_FRAME_DEPTH, DOOR_FRAME_COLOR, [x - w / 2 + fw / 2, y, z]); // левый брусок
+  addPanel(fw, h - 2 * fw, DOOR_FRAME_DEPTH, DOOR_FRAME_COLOR, [x + w / 2 - fw / 2, y, z]); // правый брусок
+  addPanel(w - 2 * fw, h - 2 * fw, PANEL_THICKNESS, fillColor, [x, y, z], 0.85); // наполнение
 }
 
 // Общий короб для шкафа-купе / распашного / открытого — сегодня они выглядят одинаково
@@ -67,13 +82,24 @@ export function buildWardrobeBox() {
     const gap = 4;
     const span = width - 2 * t; // от стойки до стойки
     const doorW = (span + (doorCount - 1) * DOOR_OVERLAP) / doorCount;
-    const railFront = depth / 2 - t / 2;                  // у самого края короба
-    const railBack   = depth / 2 - DOOR_DEPTH_ZONE + t / 2; // в глубине дверной зоны
+    const doorZoneZ = depth / 2 - DOOR_DEPTH_ZONE / 2;
+    const railFront = depth / 2 - DOOR_FRAME_DEPTH / 2;                      // у самого края короба
+    const railBack   = depth / 2 - DOOR_DEPTH_ZONE + DOOR_FRAME_DEPTH / 2;   // в глубине дверной зоны
+
+    // верхняя направляющая (глубокий короб-профиль) и нижняя (тонкая планка) — обе на всю дверную зону
+    addPanel(span, TOP_RAIL_HEIGHT, DOOR_DEPTH_ZONE, RAIL_COLOR, [0, y0 + height - t - TOP_RAIL_HEIGHT / 2, doorZoneZ]);
+    addPanel(span, BOTTOM_RAIL_HEIGHT, DOOR_DEPTH_ZONE, RAIL_COLOR, [0, y0 + t + BOTTOM_RAIL_HEIGHT / 2, doorZoneZ]);
+
+    const doorBottom = y0 + t + BOTTOM_RAIL_HEIGHT + gap;
+    const doorTop = y0 + height - t - TOP_RAIL_HEIGHT - gap;
+    const doorH = doorTop - doorBottom;
+    const doorCenterY = (doorBottom + doorTop) / 2;
+
     for (let i = 0; i < doorCount; i++) {
       const leftEdge = -span / 2 + i * (doorW - DOOR_OVERLAP);
       const x = leftEdge + doorW / 2;
       const z = i % 2 === 0 ? railFront : railBack;
-      buildSlidingDoor(x, y0 + height / 2, z, doorW, height - 2 * gap, fColor);
+      buildSlidingDoor(x, doorCenterY, z, doorW, doorH, fColor);
     }
   }
 

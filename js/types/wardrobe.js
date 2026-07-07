@@ -1,6 +1,8 @@
 import { state, PANEL_THICKNESS } from '../core/state.js';
 import { korpusBoxAreaM2 } from '../core/pricing.js';
-import { buildWardrobeBox, getDoorCount, DOOR_DEPTH_ZONE, DOOR_OVERLAP } from './_wardrobe-shared.js';
+import {
+  buildWardrobeBox, getDoorCount, DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_RAIL_HEIGHT, BOTTOM_RAIL_HEIGHT,
+} from './_wardrobe-shared.js';
 
 export default {
   id: 'wardrobe',
@@ -30,7 +32,8 @@ export default {
     const gap = 4;
     const span = width - 2 * t; // от стойки до стойки, как в buildWardrobeBox
     const dw = (span + (dc - 1) * DOOR_OVERLAP) / dc;
-    const fasadM2 = (dc * dw * (height - 2 * gap)) / 1e6;
+    const doorH = height - 2 * t - TOP_RAIL_HEIGHT - BOTTOM_RAIL_HEIGHT - 2 * gap; // высота двери за вычетом направляющих
+    const fasadM2 = (dc * dw * doorH) / 1e6;
 
     let fillM2 = 0;
     const innerWidth = width - 2 * t;
