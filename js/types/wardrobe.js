@@ -6,7 +6,7 @@ export default {
   id: 'wardrobe',
   name: 'Шкаф-купе',
   ctx: {
-    variant: { extra: true },
+    variant: { doors: true, extra: true },
     fill:    { sections: true, shelves: true, drawers: true, rod: true, color: true },
     fasad:   { available: true },
   },
