@@ -90,6 +90,14 @@ export function syncUIFromState() {
   setSlider('drawers',  state.drawers,  '');
   document.getElementById('rod').checked = state.rod;
 
+  document.getElementById('plinthEnabled').checked = state.plinthEnabled;
+  document.getElementById('plinthHeightField').style.display = state.plinthEnabled ? 'block' : 'none';
+  setSlider('plinthHeight', state.plinthHeight);
+
+  ['noSideLeft', 'noSideRight', 'noCeiling', 'noBottom'].forEach(key => {
+    document.getElementById(key).checked = state[key];
+  });
+
   document.querySelectorAll('.type-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.type === state.type);
   });
@@ -202,22 +210,20 @@ export function bindToggleDoors() {
 
 // ---------- вкладка «Внешнее» — доп. опции ----------
 export function bindVariantControls() {
-  const antresolCb = document.getElementById('antresolEnabled');
-  const antresolFld = document.getElementById('antresolHeightField');
-  antresolCb.addEventListener('change', () => {
-    antresolFld.style.display = antresolCb.checked ? 'block' : 'none';
-  });
-  document.getElementById('antresolHeight').addEventListener('input', e => {
-    document.getElementById('antresolHeightVal').textContent = e.target.value + ' мм';
-  });
-
   const plinthCb = document.getElementById('plinthEnabled');
   const plinthFld = document.getElementById('plinthHeightField');
   plinthCb.addEventListener('change', () => {
+    state.plinthEnabled = plinthCb.checked;
     plinthFld.style.display = plinthCb.checked ? 'block' : 'none';
+    buildFurniture();
   });
-  document.getElementById('plinthHeight').addEventListener('input', e => {
-    document.getElementById('plinthHeightVal').textContent = e.target.value + ' мм';
+
+  // Без крыши/дна/стоек — просто убирают соответствующую панель короба.
+  ['noSideLeft', 'noSideRight', 'noCeiling', 'noBottom'].forEach(key => {
+    document.getElementById(key).addEventListener('change', e => {
+      state[key] = e.target.checked;
+      buildFurniture();
+    });
   });
 }
 

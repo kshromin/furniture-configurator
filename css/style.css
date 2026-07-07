@@ -325,6 +325,7 @@ html, body {
   border-radius: 8px;
   margin-bottom: 12px;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .extra-details summary {

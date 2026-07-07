@@ -126,53 +126,35 @@
         </div>
 
         <div class="field-group">
-          <div class="field-group-title">Антресоль</div>
-          <div class="field checkbox-field">
-            <label><input type="checkbox" id="antresolEnabled"> Добавить антресоль</label>
-          </div>
-          <div class="field" id="antresolHeightField" style="display:none">
-            <label>Высота <span class="field-val" id="antresolHeightVal">400 мм</span></label>
-            <input type="range" id="antresolHeight" min="200" max="600" step="10" value="400">
-          </div>
-        </div>
-
-        <div class="field-group">
           <div class="field-group-title">Цоколь</div>
           <div class="field checkbox-field">
-            <label><input type="checkbox" id="plinthEnabled"> Добавить цоколь</label>
+            <label><input type="checkbox" id="plinthEnabled" checked> Цоколь</label>
           </div>
-          <div class="field" id="plinthHeightField" style="display:none">
-            <label>Высота <span class="field-val" id="plinthHeightVal">70 мм</span></label>
-            <input type="range" id="plinthHeight" min="40" max="150" step="10" value="70">
-          </div>
-        </div>
-
-        <div class="field-group">
-          <div class="field-group-title">Боковые элементы</div>
-          <div class="field checkbox-field">
-            <label><input type="checkbox" id="sideLeft"> Левая боковая стойка</label>
-          </div>
-          <div class="field checkbox-field">
-            <label><input type="checkbox" id="sideRight"> Правая боковая стойка</label>
-          </div>
-          <div class="field checkbox-field">
-            <label><input type="checkbox" id="alignerLeft"> Левый выравнивающий элемент</label>
-          </div>
-          <div class="field checkbox-field">
-            <label><input type="checkbox" id="alignerRight"> Правый выравнивающий элемент</label>
+          <div class="field" id="plinthHeightField">
+            <div class="dim-label-row"><label>Высота</label><input type="number" class="dim-input" id="plinthHeightVal" min="40" max="150" step="10" value="50"></div>
+            <input type="range" id="plinthHeight" min="40" max="150" step="10" value="50">
           </div>
         </div>
 
         <div class="field-group">
           <div class="field-group-title">Конструкция</div>
           <div class="field checkbox-field">
-            <label><input type="checkbox" id="softSeat"> Мягкая сидушка</label>
+            <label><input type="checkbox" id="noSideLeft"> Без левой стойки</label>
           </div>
           <div class="field checkbox-field">
-            <label><input type="checkbox" id="noCeiling"> Без верхней крышки</label>
+            <label><input type="checkbox" id="noSideRight"> Без правой стойки</label>
+          </div>
+          <div class="field checkbox-field">
+            <label><input type="checkbox" id="noCeiling"> Без крыши</label>
           </div>
           <div class="field checkbox-field">
             <label><input type="checkbox" id="noBottom"> Без дна</label>
+          </div>
+          <div class="field checkbox-field">
+            <label><input type="checkbox" id="alignerLeft"> Левый выравнивающий элемент</label>
+          </div>
+          <div class="field checkbox-field">
+            <label><input type="checkbox" id="alignerRight"> Правый выравнивающий элемент</label>
           </div>
         </div>
       </details>

@@ -12,6 +12,12 @@ export const state = {
   fillProducer:   null, fillId:   null,
   showDoors: true,
   backWall: 'none',           // none | ldsp | hdf
+  plinthEnabled: true,
+  plinthHeight: 50,
+  noSideLeft: false,
+  noSideRight: false,
+  noCeiling: false,
+  noBottom: false,
   fasadDoorType: 'sliding',  // sliding | swing | none
   profile: 'standard',       // standard | slim | anod | black
   doorFill: 'ldsp',          // ldsp | mirror | glass
