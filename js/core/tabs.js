@@ -54,23 +54,31 @@ export function updateAllContexts() {
 
 // ---------- sliders / generic fields ----------
 export function setSlider(id, value, suffix) {
-  const input = document.getElementById(id);
-  if (!input) return;
-  input.value = value;
-  const label = document.getElementById(id + 'Val');
-  if (label) label.textContent = value + (suffix || '');
+  const range = document.getElementById(id);
+  const numInput = document.getElementById(id + 'Val');
+  if (range) range.value = value;
+  if (numInput) numInput.value = value;
 }
 
 export function bindSlider(id, key, suffix) {
-  const input = document.getElementById(id);
-  const label = document.getElementById(id + 'Val');
-  if (!input) return;
-  input.addEventListener('input', () => {
-    state[key] = Number(input.value);
-    if (label) label.textContent = input.value + (suffix || '');
+  const range = document.getElementById(id);
+  const numInput = document.getElementById(id + 'Val');
+  if (!range) return;
+
+  function apply(val) {
+    const min = Number(range.min), max = Number(range.max);
+    val = Math.max(min, Math.min(max, Math.round(val / 10) * 10));
+    state[key] = val;
+    range.value = val;
+    if (numInput) numInput.value = val;
     if (key === 'width' || key === 'height') updateTypeBar();
     buildFurniture();
-  });
+  }
+
+  range.addEventListener('input', () => apply(Number(range.value)));
+  if (numInput) {
+    numInput.addEventListener('change', () => apply(Number(numInput.value)));
+  }
 }
 
 export function syncUIFromState() {
@@ -165,6 +173,19 @@ export function bindFasadTab() {
   document.getElementById('glassType').addEventListener('change', e => { state.glassType = e.target.value; });
 
   renderProducerSelect('fasad', 'fasadProducer', 'fasadSwatches');
+}
+
+// ---------- кнопка «Не показывать двери» ----------
+export function bindToggleDoors() {
+  const btn = document.getElementById('toggleDoorsBtn');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    state.showDoors = !state.showDoors;
+    btn.classList.toggle('active', !state.showDoors);
+    document.getElementById('toggleDoorsBtnLabel').textContent =
+      state.showDoors ? 'Не показывать двери' : 'Показать двери';
+    buildFurniture();
+  });
 }
 
 // ---------- вкладка «Внешнее» — доп. опции ----------

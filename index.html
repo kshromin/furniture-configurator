@@ -15,10 +15,6 @@
       <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
       <span>Тип</span>
     </button>
-    <button class="tab-btn" data-tab="presets" title="Популярные проекты">
-      <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      <span>Проекты</span>
-    </button>
     <button class="tab-btn" data-tab="variant" title="Внешнее исполнение">
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
       <span>Внешнее</span>
@@ -35,6 +31,10 @@
       <div class="order-badge" id="orderBadge" style="display:none">0</div>
       <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
       <span>Заказ</span>
+    </button>
+    <button class="tab-btn" data-tab="presets" title="Популярные проекты">
+      <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <span>Проекты</span>
     </button>
   </nav>
 
@@ -87,16 +87,16 @@
 
       <div class="field-group">
         <div class="field">
-          <label>Ширина <span class="field-val" id="widthVal"></span></label>
-          <input type="range" id="width" min="600" max="3000" step="10" value="1800">
+          <div class="dim-label-row"><label>Ширина</label><input type="number" class="dim-input" id="widthVal" min="600" max="5000" step="10" value="1800"></div>
+          <input type="range" id="width" min="600" max="5000" step="10" value="1800">
         </div>
         <div class="field">
-          <label>Высота <span class="field-val" id="heightVal"></span></label>
-          <input type="range" id="height" min="600" max="2700" step="10" value="2400">
+          <div class="dim-label-row"><label>Высота</label><input type="number" class="dim-input" id="heightVal" min="600" max="3200" step="10" value="2400"></div>
+          <input type="range" id="height" min="600" max="3200" step="10" value="2400">
         </div>
         <div class="field">
-          <label>Глубина <span class="field-val" id="depthVal"></span></label>
-          <input type="range" id="depth" min="350" max="700" step="10" value="600">
+          <div class="dim-label-row"><label>Глубина</label><input type="number" class="dim-input" id="depthVal" min="200" max="1000" step="10" value="600"></div>
+          <input type="range" id="depth" min="200" max="1000" step="10" value="600">
         </div>
       </div>
 
@@ -105,6 +105,13 @@
     <!-- 2. Внешнее исполнение -->
     <div class="tab-pane" id="tab-variant">
       <div class="pane-title">Внешнее исполнение</div>
+
+      <div class="field-group" data-variant-ctx="doors">
+        <button class="toggle-doors-btn" id="toggleDoorsBtn">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="8" height="18" rx="1"/><rect x="13" y="3" width="8" height="18" rx="1"/></svg>
+          <span id="toggleDoorsBtnLabel">Не показывать двери</span>
+        </button>
+      </div>
 
       <div class="field-group">
         <div class="field-group-title">Цвет корпуса</div>
