@@ -175,6 +175,18 @@ export function bindFasadTab() {
   renderProducerSelect('fasad', 'fasadProducer', 'fasadSwatches');
 }
 
+// ---------- кнопки «Задняя стенка» ----------
+export function bindBackWall() {
+  document.querySelectorAll('#backWallGroup .opt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#backWallGroup .opt-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.backWall = btn.dataset.back;
+      buildFurniture();
+    });
+  });
+}
+
 // ---------- кнопка «Не показывать двери» ----------
 export function bindToggleDoors() {
   const btn = document.getElementById('toggleDoorsBtn');

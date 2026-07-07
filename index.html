@@ -113,27 +113,15 @@
         </button>
       </div>
 
-      <div class="field-group">
-        <div class="field-group-title">Цвет корпуса</div>
-        <div class="field">
-          <label>Производитель</label>
-          <select id="korpusProducer"></select>
-        </div>
-        <div id="korpusSwatches" class="swatches"></div>
-        <div id="korpusColorName" class="swatch-name"></div>
-      </div>
-
       <details class="extra-details" data-variant-ctx="extra">
-        <summary>Дополнительные опции</summary>
+        <summary>Опции</summary>
 
         <div class="field-group" style="margin-top:12px">
           <div class="field-group-title">Задняя стенка</div>
-          <div class="field">
-            <select id="backWall">
-              <option value="none">Без задней стенки</option>
-              <option value="ldsp" selected>ЛДСП 16 мм</option>
-              <option value="hdf">ХДФ 4 мм</option>
-            </select>
+          <div class="btn-group" id="backWallGroup">
+            <button class="opt-btn active" data-back="none">Без стенки</button>
+            <button class="opt-btn" data-back="ldsp">ЛДСП</button>
+            <button class="opt-btn" data-back="hdf">ХДФ</button>
           </div>
         </div>
 
@@ -188,6 +176,17 @@
           </div>
         </div>
       </details>
+
+      <div class="field-group">
+        <div class="field-group-title">Цвет корпуса</div>
+        <div class="field">
+          <label>Производитель</label>
+          <select id="korpusProducer"></select>
+        </div>
+        <div id="korpusSwatches" class="swatches"></div>
+        <div id="korpusColorName" class="swatch-name"></div>
+      </div>
+
     </div>
 
     <!-- 3. Наполнение -->
@@ -366,6 +365,7 @@
     <div id="price-footer">
       <div class="price-rows">
         <div class="price-row"><span>Корпус</span><span id="priceKorpus">0 ₽</span></div>
+        <div class="price-row"><span>Задняя стенка</span><span id="priceBackWall">—</span></div>
         <div class="price-row"><span>Фасады</span><span id="priceFasad">0 ₽</span></div>
         <div class="price-row"><span>Наполнение</span><span id="priceFill">0 ₽</span></div>
         <div class="price-row"><span>Фурнитура</span><span id="priceFittings">0 ₽</span></div>

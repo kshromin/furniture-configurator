@@ -36,7 +36,11 @@ export default {
       fillM2 += (sections * shelves * sw * innerDepth) / 1e6;
     }
 
-    return { korpusM2, fasadM2, fillM2 };
+    const backWallM2 = state.backWall !== 'none'
+      ? ((width - 2 * t) * (height - 2 * t)) / 1e6
+      : 0;
+
+    return { korpusM2, fasadM2, fillM2, backWallM2 };
   },
 
   describe() {

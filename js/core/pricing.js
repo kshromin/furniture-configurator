@@ -9,10 +9,10 @@ export function fmt(v) { return Math.round(v).toLocaleString('ru-RU') + ' ₽'; 
 export function korpusBoxAreaM2(dividers = 0) {
   const { width, height } = state;
   const t = PANEL_THICKNESS;
+  // top + bottom + sides + dividers (без задней стенки — она считается отдельно)
   const areaMm2 =
     width * t * 2 +
     t * (height - 2 * t) * 2 +
-    (width - 2 * t) * (height - 2 * t) +
     dividers * t * (height - 2 * t);
   return areaMm2 / 1e6;
 }
@@ -25,30 +25,36 @@ export function defaultFasadAreaM2() {
   return (iW * (height - 2 * t)) / 1e6;
 }
 
+const BACK_WALL_RATE = { ldsp: 2000, hdf: 500 };
+
 export function updatePrice(counts) {
   const type = TYPES[state.type] || TYPES['wardrobe'];
-  const { korpusM2 = 0, fasadM2 = 0, fillM2 = 0 } = type.areas(counts);
+  const { korpusM2 = 0, fasadM2 = 0, fillM2 = 0, backWallM2 = 0 } = type.areas(counts);
 
   const kMat = getColor('korpus');
   const fMat = getColor('fasad');
   const nMat = getColor('fill');
 
-  const korpusPrice = korpusM2 * kMat.pricePerM2;
-  const fasadPrice  = fasadM2  * fMat.pricePerM2;
-  const fillPrice   = fillM2   * nMat.pricePerM2;
+  const korpusPrice   = korpusM2   * kMat.pricePerM2;
+  const fasadPrice    = fasadM2    * fMat.pricePerM2;
+  const fillPrice     = fillM2     * nMat.pricePerM2;
+  const backWallPrice = backWallM2 * (BACK_WALL_RATE[state.backWall] || 0);
 
   const fittingsPrice = (materials.fittings || []).reduce((sum, f) => {
     const n = f.per === 'front' ? counts.door + counts.drawer : (counts[f.per] || 0);
     return sum + f.price * n;
   }, 0);
 
-  const total = korpusPrice + fasadPrice + fillPrice + fittingsPrice;
+  const total = korpusPrice + fasadPrice + fillPrice + backWallPrice + fittingsPrice;
 
   document.getElementById('priceKorpus').textContent   = fmt(korpusPrice);
   document.getElementById('priceFasad').textContent    = fmt(fasadPrice);
   document.getElementById('priceFill').textContent     = fmt(fillPrice);
   document.getElementById('priceFittings').textContent = fmt(fittingsPrice);
   document.getElementById('priceTotal').textContent    = fmt(total);
+
+  const bwEl = document.getElementById('priceBackWall');
+  if (bwEl) bwEl.textContent = backWallPrice > 0 ? fmt(backWallPrice) : '—';
 
   state.lastTotal = total;
 }

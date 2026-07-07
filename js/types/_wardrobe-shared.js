@@ -18,7 +18,11 @@ export function buildWardrobeBox() {
   addPanel(width, t, depth, kColor, [0, height - t / 2, 0]);
   addPanel(t, height - 2 * t, depth, kColor, [-width / 2 + t / 2, height / 2, 0]);
   addPanel(t, height - 2 * t, depth, kColor, [width / 2 - t / 2, height / 2, 0]);
-  addPanel(width - 2 * t, height - 2 * t, 4, kColor, [0, height / 2, -depth / 2 + 2]);
+  if (state.backWall !== 'none') {
+    const bwColor = state.backWall === 'hdf' ? 0xffffff : kColor;
+    const bwThick = state.backWall === 'hdf' ? 4 : t;
+    addPanel(width - 2 * t, height - 2 * t, bwThick, bwColor, [0, height / 2, -depth / 2 + bwThick / 2]);
+  }
 
   const innerWidth = width - 2 * t;
   const sectionWidth = (innerWidth - (sections - 1) * t) / sections;
@@ -30,11 +34,13 @@ export function buildWardrobeBox() {
   }
 
   const doorCount = getDoorCount(width);
-  const gap = 4;
-  const doorW = (width - gap * (doorCount + 1)) / doorCount;
-  for (let i = 0; i < doorCount; i++) {
-    const x = -width / 2 + gap + doorW / 2 + i * (doorW + gap);
-    addPanel(doorW, height - 2 * gap, t, fColor, [x, height / 2, depth / 2 - t / 2], 0.85);
+  if (state.showDoors) {
+    const gap = 4;
+    const doorW = (width - gap * (doorCount + 1)) / doorCount;
+    for (let i = 0; i < doorCount; i++) {
+      const x = -width / 2 + gap + doorW / 2 + i * (doorW + gap);
+      addPanel(doorW, height - 2 * gap, t, fColor, [x, height / 2, depth / 2 - t / 2], 0.85);
+    }
   }
 
   const innerDepth = depth - 60;

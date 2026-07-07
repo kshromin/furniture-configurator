@@ -4,7 +4,7 @@ import { renderPresets } from './core/presets.js';
 import { buildFurniture } from './core/build.js';
 import {
   bindTypeButtons, bindSlider, bindFasadTab, bindVariantControls,
-  bindTabSwitching, syncUIFromState,
+  bindTabSwitching, bindToggleDoors, bindBackWall, syncUIFromState,
 } from './core/tabs.js';
 import { addCurrentToOrder, renderOrderCards, bindOrderForm } from './core/order.js';
 
@@ -45,6 +45,8 @@ async function init() {
   });
 
   bindVariantControls();
+  bindBackWall();
+  bindToggleDoors();
   bindOrderForm();
 
   syncUIFromState();

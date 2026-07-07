@@ -654,6 +654,24 @@ html, body {
 .toggle-doors-btn:hover { border-color: #a8c0f8; color: #2f6fed; }
 .toggle-doors-btn.active { border-color: #2f6fed; background: #eef3ff; color: #2f6fed; }
 
+/* ── Группа кнопок-опций ── */
+.btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.opt-btn {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fafafa;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.opt-btn:hover { border-color: #a8c0f8; color: #2f6fed; }
+.opt-btn.active { border-color: #2f6fed; background: #eef3ff; color: #2f6fed; }
+
 /* ── Плейсхолдер вкладки ── */
 .placeholder-note {
   margin-top: 20px;

@@ -10,6 +10,8 @@ export const state = {
   korpusProducer: null, korpusId: null,
   fasadProducer:  null, fasadId:  null,
   fillProducer:   null, fillId:   null,
+  showDoors: true,
+  backWall: 'none',           // none | ldsp | hdf
   fasadDoorType: 'sliding',  // sliding | swing | none
   profile: 'standard',       // standard | slim | anod | black
   doorFill: 'ldsp',          // ldsp | mirror | glass
