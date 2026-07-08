@@ -202,11 +202,25 @@
           <div class="field checkbox-field">
             <label><input type="checkbox" id="alignerLeft"> Левый выравнивающий элемент</label>
           </div>
+          <div id="alignerLeftField" style="display:none;margin-top:6px">
+            <div class="dim-label-row"><label>Ширина</label><input type="number" class="dim-input" id="alignerLeftWVal" min="10" max="150" step="1" value="50"></div>
+            <input type="range" id="alignerLeftW" min="10" max="150" step="1" value="50">
+          </div>
+
           <div class="field checkbox-field">
             <label><input type="checkbox" id="alignerRight"> Правый выравнивающий элемент</label>
           </div>
+          <div id="alignerRightField" style="display:none;margin-top:6px">
+            <div class="dim-label-row"><label>Ширина</label><input type="number" class="dim-input" id="alignerRightWVal" min="10" max="150" step="1" value="50"></div>
+            <input type="range" id="alignerRightW" min="10" max="150" step="1" value="50">
+          </div>
+
           <div class="field checkbox-field">
             <label><input type="checkbox" id="alignerTop"> Верхний выравнивающий элемент</label>
+          </div>
+          <div id="alignerTopField" style="display:none;margin-top:6px">
+            <div class="dim-label-row"><label>Высота</label><input type="number" class="dim-input" id="alignerTopHVal" min="10" max="150" step="1" value="50"></div>
+            <input type="range" id="alignerTopH" min="10" max="150" step="1" value="50">
           </div>
         </div>
       </details>

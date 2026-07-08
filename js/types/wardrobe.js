@@ -22,14 +22,16 @@ export default {
     const plinthH = (plinthEnabled && !noBottom) ? plinthHeight : 0;
     const height = state.height - plinthH;
 
+    const { spanW, leftOff, rightOff, topOff, bottomOff } = effectiveDoorSpan();
+    const stojkaH = height - topOff - bottomOff;
+
     let korpusM2 = korpusBoxAreaM2(sections - 1, height, {
       top: noCeiling, bottom: noBottom, left: noSideLeft, right: noSideRight,
-    });
+    }, stojkaH);
     if (plinthH > 0) {
       korpusM2 += (width * (depth - 40)) / 1e6; // цоколь — тот же материал, что корпус
     }
 
-    const { spanW, topOff, bottomOff } = effectiveDoorSpan();
     const dc = getDoorCount(spanW);
     const gap = 4;
     const dw = (spanW + (dc - 1) * DOOR_OVERLAP) / dc;
@@ -50,11 +52,17 @@ export default {
     const topBoxM2    = elemM2(state.noCeiling,   state.topReplace,    state.topBoxH,    true);
     const bottomBoxM2 = elemM2(state.noBottom,    state.bottomReplace, state.bottomBoxH, true);
 
+    // Выравнивающие элементы — та же геометрия, что и addPanel в buildWardrobeBox
+    const alignerM2 =
+      (state.alignerLeft  ? (state.alignerLeftW  * stojkaH) / 1e6 : 0) +
+      (state.alignerRight ? (state.alignerRightW * stojkaH) / 1e6 : 0) +
+      (state.alignerTop   ? (width * state.alignerTopH) / 1e6 : 0);
+
     let fillM2 = 0;
-    const innerWidth = width - 2 * t;
+    const innerWidth = width - leftOff - rightOff;
     const sw = (innerWidth - (sections - 1) * t) / sections - 10;
     if (drawers > 0) {
-      const blkH = Math.min(700, (height - 2 * t - 20) * 0.4);
+      const blkH = Math.min(700, (height - topOff - bottomOff - 20) * 0.4);
       fillM2 += (sections * sw * blkH) / 1e6;
     }
     if (shelves > 0) {
@@ -63,10 +71,10 @@ export default {
     }
 
     const backWallM2 = state.backWall !== 'none'
-      ? ((width - 2 * t) * (height - 2 * t)) / 1e6
+      ? ((width - leftOff - rightOff) * stojkaH) / 1e6
       : 0;
 
-    return { korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2, fasadM2, fillM2, backWallM2 };
+    return { korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2, fasadM2, fillM2, backWallM2 };
   },
 
   describe() {

@@ -8,17 +8,20 @@ export function fmt(v) { return Math.round(v).toLocaleString('ru-RU') + ' ₽'; 
 // dividers — число дополнительных вертикальных перегородок (только у шкафа-купе они платные, см. wardrobe.js).
 // heightOverride — высота собственно короба, если она меньше state.height (например, часть высоты занял цоколь).
 // skip — какие панели короба отсутствуют (без крыши/дна/стоек), их площадь не учитывается.
-export function korpusBoxAreaM2(dividers = 0, heightOverride, skip = {}) {
+// sideHeightOverride — реальная высота стоек/перегородок, если она отличается от height-2t
+// (например, крыши/дна нет, и стойка вытянута до самого края короба).
+export function korpusBoxAreaM2(dividers = 0, heightOverride, skip = {}, sideHeightOverride) {
   const { width } = state;
   const height = heightOverride ?? state.height;
   const t = PANEL_THICKNESS;
+  const sideHeight = sideHeightOverride ?? (height - 2 * t);
   // top + bottom + sides + dividers (без задней стенки — она считается отдельно)
   const areaMm2 =
     (skip.top    ? 0 : width * t) +
     (skip.bottom ? 0 : width * t) +
-    (skip.left   ? 0 : t * (height - 2 * t)) +
-    (skip.right  ? 0 : t * (height - 2 * t)) +
-    dividers * t * (height - 2 * t);
+    (skip.left   ? 0 : t * sideHeight) +
+    (skip.right  ? 0 : t * sideHeight) +
+    dividers * t * sideHeight;
   return areaMm2 / 1e6;
 }
 

@@ -9,27 +9,34 @@ export function getDoorCount(width) { return Math.max(2, Math.min(4, Math.round(
 // "планка" = та же толщина что и панель (пролёт не меняется относительно варианта "со стойкой").
 // "короб" = занимает boxW/boxH из габарита изделия → пролёт уменьшается на размер короба.
 // "ничего" (убрана без замены) → пролёт расширяется на толщину убранной панели.
+// Выравнивающий элемент — планка у переднего края рядом со стойкой/крышей (та же толщина,
+// что и панель, но шириной/высотой по умолчанию 50мм). Сдвигает стойку/крышу вглубь на свой
+// размер, поэтому дверной пролёт (и цена) должны знать про него так же, как про планку/короб.
 export function effectiveDoorSpan() {
   const { width, noSideLeft, noSideRight, noCeiling, noBottom,
           leftReplace, rightReplace, topReplace, bottomReplace,
-          leftBoxW, rightBoxW, topBoxH, bottomBoxH } = state;
+          leftBoxW, rightBoxW, topBoxH, bottomBoxH,
+          alignerLeft, alignerLeftW, alignerRight, alignerRightW, alignerTop, alignerTopH } = state;
   const t = PANEL_THICKNESS;
 
-  function off(noPanel, replace, boxSize) {
-    if (!noPanel)              return t;     // панель на месте
-    if (replace === 'planka')  return t;     // планка = та же толщина
-    if (replace === 'box')     return boxSize;
-    return 0;                               // ничего
+  function off(noPanel, replace, boxSize, alignerOn, alignerSize) {
+    let base;
+    if (!noPanel)                   base = t;     // панель на месте
+    else if (replace === 'planka')  base = t;     // планка = та же толщина
+    else if (replace === 'box')     base = boxSize;
+    else                             base = 0;     // ничего
+    return base + (alignerOn ? alignerSize : 0);
   }
 
-  const leftOff   = off(noSideLeft,  leftReplace,   leftBoxW);
-  const rightOff  = off(noSideRight, rightReplace,  rightBoxW);
-  const topOff    = off(noCeiling,   topReplace,    topBoxH);
-  const bottomOff = off(noBottom,    bottomReplace, bottomBoxH);
+  const leftOff   = off(noSideLeft,  leftReplace,   leftBoxW,   alignerLeft,  alignerLeftW);
+  const rightOff  = off(noSideRight, rightReplace,  rightBoxW,  alignerRight, alignerRightW);
+  const topOff    = off(noCeiling,   topReplace,    topBoxH,    alignerTop,   alignerTopH);
+  const bottomOff = off(noBottom,    bottomReplace, bottomBoxH, false,        0);
 
   return {
     spanW:     width - leftOff - rightOff,
     leftOff,
+    rightOff,
     topOff,
     bottomOff,
   };
@@ -83,14 +90,32 @@ export function buildWardrobeBox() {
     addPanel(width, plinthH, depth - 40, kColor, [0, plinthH / 2, -20]);
   }
 
+  // Выравнивающие элементы — тонкие планки (толщиной с панель) у самого переднего края,
+  // рядом со стойкой/крышей; сама стойка/крыша сдвигается вглубь на их размер.
+  const alLeftW  = state.alignerLeft  ? state.alignerLeftW  : 0;
+  const alRightW = state.alignerRight ? state.alignerRightW : 0;
+  const alTopH   = state.alignerTop   ? state.alignerTopH   : 0;
+  const alignZ = depth / 2 - t / 2;
+
+  // Реальные границы короба — с учётом планок/коробов/выравнивающих элементов (та же логика,
+  // что и для дверного пролёта). Стойки, задняя стенка и наполнение опираются на них, а не на
+  // голую толщину панели — иначе при снятой крыше/дне (или сдвиге от выравнивателя) они не
+  // дотянутся до реального края короба или, наоборот, вылезут за него.
+  const { spanW, leftOff, rightOff, topOff, bottomOff } = effectiveDoorSpan();
+  const stojkaH = height - topOff - bottomOff;
+  const stojkaCenterY = y0 + bottomOff + stojkaH / 2;
+
   if (!noBottom)    addPanel(width, t, depth, kColor, [0, y0 + t / 2, 0]);
-  if (!noCeiling)   addPanel(width, t, depth, kColor, [0, y0 + height - t / 2, 0]);
-  if (!noSideLeft)  addPanel(t, height - 2 * t, depth, kColor, [-width / 2 + t / 2, y0 + height / 2, 0]);
-  if (!noSideRight) addPanel(t, height - 2 * t, depth, kColor, [width / 2 - t / 2, y0 + height / 2, 0]);
+  if (!noCeiling)   addPanel(width, t, depth, kColor, [0, y0 + height - alTopH - t / 2, 0]);
+  if (!noSideLeft)  addPanel(t, stojkaH, depth, kColor, [-width / 2 + alLeftW + t / 2, stojkaCenterY, 0]);
+  if (!noSideRight) addPanel(t, stojkaH, depth, kColor, [width / 2 - alRightW - t / 2, stojkaCenterY, 0]);
+  if (state.alignerLeft)  addPanel(alLeftW,  stojkaH, t, kColor, [-width / 2 + alLeftW / 2, stojkaCenterY, alignZ]);
+  if (state.alignerRight) addPanel(alRightW, stojkaH, t, kColor, [width / 2 - alRightW / 2, stojkaCenterY, alignZ]);
+  if (state.alignerTop)   addPanel(width, alTopH, t, kColor, [0, y0 + height - alTopH / 2, alignZ]);
   if (state.backWall !== 'none') {
     const bwColor = state.backWall === 'hdf' ? 0xffffff : kColor;
     const bwThick = state.backWall === 'hdf' ? 4 : t;
-    addPanel(width - 2 * t, height - 2 * t, bwThick, bwColor, [0, y0 + height / 2, -depth / 2 + bwThick / 2]);
+    addPanel(width - leftOff - rightOff, stojkaH, bwThick, bwColor, [0, stojkaCenterY, -depth / 2 + bwThick / 2]);
   }
 
   // Наполнение (перегородки, полки) не занимает дверную зону и прижато к задней стенке —
@@ -98,12 +123,12 @@ export function buildWardrobeBox() {
   const innerDepth = depth - DOOR_DEPTH_ZONE;
   const innerZ = -DOOR_DEPTH_ZONE / 2;
 
-  const innerWidth = width - 2 * t;
+  const innerWidth = width - leftOff - rightOff;
   const sectionWidth = (innerWidth - (sections - 1) * t) / sections;
   for (let i = 1; i < sections; i++) {
-    addPanel(t, height - 2 * t, innerDepth, kColor, [
-      -width / 2 + t + i * (sectionWidth + t) - t / 2,
-      y0 + height / 2, innerZ,
+    addPanel(t, stojkaH, innerDepth, kColor, [
+      -width / 2 + leftOff + i * (sectionWidth + t) - t / 2,
+      stojkaCenterY, innerZ,
     ]);
   }
 
@@ -132,7 +157,6 @@ export function buildWardrobeBox() {
       addPanel(width, h, DOOR_DEPTH_ZONE, kColor, [0, h / 2, elemZ]);
   }
 
-  const { spanW, leftOff, topOff, bottomOff } = effectiveDoorSpan();
   const spanCenterX = -width / 2 + leftOff + spanW / 2;
 
   const doorCount = getDoorCount(spanW);
@@ -159,10 +183,10 @@ export function buildWardrobeBox() {
     }
   }
 
-  const fillBottom = t + 10, fillTop = height - t - 10;
+  const fillBottom = bottomOff + 10, fillTop = height - topOff - 10;
 
   for (let s = 0; s < sections; s++) {
-    const cx = -width / 2 + t + s * (sectionWidth + t) + sectionWidth / 2;
+    const cx = -width / 2 + leftOff + s * (sectionWidth + t) + sectionWidth / 2;
     const sw = sectionWidth - 10;
     let drawerTop = fillBottom;
 

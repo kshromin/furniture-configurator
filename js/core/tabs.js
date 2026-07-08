@@ -98,6 +98,12 @@ export function syncUIFromState() {
     const el = document.getElementById(key);
     if (el) el.checked = state[key];
   });
+  document.getElementById('alignerLeftField').style.display  = state.alignerLeft  ? 'block' : 'none';
+  document.getElementById('alignerRightField').style.display = state.alignerRight ? 'block' : 'none';
+  document.getElementById('alignerTopField').style.display   = state.alignerTop   ? 'block' : 'none';
+  setSlider('alignerLeftW', state.alignerLeftW);
+  setSlider('alignerRightW', state.alignerRightW);
+  setSlider('alignerTopH', state.alignerTopH);
 
   document.querySelectorAll('.type-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.type === state.type);
@@ -295,10 +301,41 @@ export function bindVariantControls() {
   bindSide('noCeiling',   'topReplaceBlock',    'topReplaceGroup',    'noCeiling',   'topReplace',    'topBoxHField',    'topBoxH',    'topBoxHVal',    'topBoxH');
   bindSide('noBottom',    'bottomReplaceBlock', 'bottomReplaceGroup', 'noBottom',    'bottomReplace', 'bottomBoxHField', 'bottomBoxH', 'bottomBoxHVal', 'bottomBoxH');
 
-  // Простые чекбоксы без sub-блока
-  ['alignerLeft', 'alignerRight', 'alignerTop'].forEach(key => {
-    const el = document.getElementById(key);
-    if (el) el.addEventListener('change', e => { state[key] = e.target.checked; buildFurniture(); });
+  // Выравнивающие элементы — планка у переднего края рядом со стойкой/крышей, стойка/крыша сдвигается на её размер
+  function bindAligner(cbId, fieldId, sizeSliderId, sizeKey) {
+    const cb = document.getElementById(cbId);
+    const field = document.getElementById(fieldId);
+    cb.addEventListener('change', e => {
+      state[cbId] = e.target.checked;
+      field.style.display = e.target.checked ? 'block' : 'none';
+      buildFurniture();
+    });
+    bindSlider(sizeSliderId, sizeKey, ' мм');
+  }
+  bindAligner('alignerLeft',  'alignerLeftField',  'alignerLeftW',  'alignerLeftW');
+  bindAligner('alignerRight', 'alignerRightField', 'alignerRightW', 'alignerRightW');
+  bindAligner('alignerTop',   'alignerTopField',   'alignerTopH',   'alignerTopH');
+
+  // Выравнивающий элемент имеет смысл только вместе со стойкой/крышей — если её сняли
+  // («Без левой стойки» и т.п.), соответствующий выравнивающий элемент отключаем и блокируем.
+  function syncAlignerAvailability(noCbId, alignerKey) {
+    const noCb = document.getElementById(noCbId);
+    const alignerCb = document.getElementById(alignerKey);
+    const alignerFld = document.getElementById(alignerKey + 'Field');
+    const disabled = noCb.checked;
+    alignerCb.disabled = disabled;
+    alignerCb.closest('label').style.opacity = disabled ? '0.4' : '';
+    if (disabled && alignerCb.checked) {
+      alignerCb.checked = false;
+      state[alignerKey] = false;
+      alignerFld.style.display = 'none';
+    }
+  }
+  [['noSideLeft', 'alignerLeft'], ['noSideRight', 'alignerRight'], ['noCeiling', 'alignerTop']].forEach(([noKey, alignerKey]) => {
+    document.getElementById(noKey).addEventListener('change', () => {
+      syncAlignerAvailability(noKey, alignerKey);
+      buildFurniture();
+    });
   });
 
   bindSlider('plinthHeight', 'plinthHeight', ' мм');

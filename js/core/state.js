@@ -18,7 +18,9 @@ export const state = {
   noSideRight: false, rightReplace: 'planka', rightBoxW: 66,
   noCeiling: false,   topReplace: 'planka',   topBoxH: 66,
   noBottom: false,    bottomReplace: 'planka', bottomBoxH: 66,
-  alignerTop: false,
+  alignerLeft: false,  alignerLeftW: 50,
+  alignerRight: false, alignerRightW: 50,
+  alignerTop: false,   alignerTopH: 50,
   fasadDoorType: 'sliding',  // sliding | swing | none
   profile: 'standard',       // standard | slim | anod | black
   doorFill: 'ldsp',          // ldsp | mirror | glass
