@@ -1,4 +1,4 @@
-export const PANEL_THICKNESS = 18;
+export const PANEL_THICKNESS = 16;
 
 export let materials = { korpus: { producers: [] }, fasad: { producers: [] }, fill: { producers: [] }, fittings: [], presets: [] };
 export function setMaterials(m) { materials = m; }
@@ -14,10 +14,11 @@ export const state = {
   backWall: 'none',           // none | ldsp | hdf
   plinthEnabled: true,
   plinthHeight: 50,
-  noSideLeft: false,
-  noSideRight: false,
-  noCeiling: false,
+  noSideLeft: false,  leftReplace: 'none',  leftBoxW: 66,
+  noSideRight: false, rightReplace: 'none', rightBoxW: 66,
+  noCeiling: false,   topReplace: 'none',   topBoxH: 66,
   noBottom: false,
+  alignerTop: false,
   fasadDoorType: 'sliding',  // sliding | swing | none
   profile: 'standard',       // standard | slim | anod | black
   doorFill: 'ldsp',          // ldsp | mirror | glass

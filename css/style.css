@@ -673,6 +673,14 @@ html, body {
 .opt-btn:hover { border-color: #a8c0f8; color: #2f6fed; }
 .opt-btn.active { border-color: #2f6fed; background: #eef3ff; color: #2f6fed; }
 
+.side-replace-block {
+  margin: 4px 0 8px 16px;
+  padding: 8px 10px;
+  border-left: 2px solid #e0e7f3;
+  border-radius: 0 8px 8px 0;
+  background: #f5f7fc;
+}
+
 /* ── Плейсхолдер вкладки ── */
 .placeholder-note {
   margin-top: 20px;

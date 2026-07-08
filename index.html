@@ -138,23 +138,64 @@
 
         <div class="field-group">
           <div class="field-group-title">Конструкция</div>
+
           <div class="field checkbox-field">
             <label><input type="checkbox" id="noSideLeft"> Без левой стойки</label>
           </div>
+          <div class="side-replace-block" id="leftReplaceBlock" style="display:none">
+            <div class="btn-group" id="leftReplaceGroup">
+              <button class="opt-btn active" data-replace="none">Ничего</button>
+              <button class="opt-btn" data-replace="planka">Планка</button>
+              <button class="opt-btn" data-replace="box">Короб</button>
+            </div>
+            <div id="leftBoxWField" style="display:none;margin-top:6px">
+              <div class="dim-label-row"><label>Ширина короба</label><input type="number" class="dim-input" id="leftBoxWVal" min="66" max="600" step="1" value="66"></div>
+              <input type="range" id="leftBoxW" min="66" max="600" step="1" value="66">
+            </div>
+          </div>
+
           <div class="field checkbox-field">
             <label><input type="checkbox" id="noSideRight"> Без правой стойки</label>
           </div>
+          <div class="side-replace-block" id="rightReplaceBlock" style="display:none">
+            <div class="btn-group" id="rightReplaceGroup">
+              <button class="opt-btn active" data-replace="none">Ничего</button>
+              <button class="opt-btn" data-replace="planka">Планка</button>
+              <button class="opt-btn" data-replace="box">Короб</button>
+            </div>
+            <div id="rightBoxWField" style="display:none;margin-top:6px">
+              <div class="dim-label-row"><label>Ширина короба</label><input type="number" class="dim-input" id="rightBoxWVal" min="66" max="600" step="1" value="66"></div>
+              <input type="range" id="rightBoxW" min="66" max="600" step="1" value="66">
+            </div>
+          </div>
+
           <div class="field checkbox-field">
             <label><input type="checkbox" id="noCeiling"> Без крыши</label>
           </div>
+          <div class="side-replace-block" id="topReplaceBlock" style="display:none">
+            <div class="btn-group" id="topReplaceGroup">
+              <button class="opt-btn active" data-replace="none">Ничего</button>
+              <button class="opt-btn" data-replace="planka">Планка</button>
+              <button class="opt-btn" data-replace="box">Верхний короб</button>
+            </div>
+            <div id="topBoxHField" style="display:none;margin-top:6px">
+              <div class="dim-label-row"><label>Высота короба</label><input type="number" class="dim-input" id="topBoxHVal" min="66" max="400" step="1" value="66"></div>
+              <input type="range" id="topBoxH" min="66" max="400" step="1" value="66">
+            </div>
+          </div>
+
           <div class="field checkbox-field">
             <label><input type="checkbox" id="noBottom"> Без дна</label>
           </div>
+
           <div class="field checkbox-field">
             <label><input type="checkbox" id="alignerLeft"> Левый выравнивающий элемент</label>
           </div>
           <div class="field checkbox-field">
             <label><input type="checkbox" id="alignerRight"> Правый выравнивающий элемент</label>
+          </div>
+          <div class="field checkbox-field">
+            <label><input type="checkbox" id="alignerTop"> Верхний выравнивающий элемент</label>
           </div>
         </div>
       </details>

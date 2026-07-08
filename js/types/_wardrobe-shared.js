@@ -5,6 +5,34 @@ import { getColor } from '../core/materials.js';
 
 export function getDoorCount(width) { return Math.max(2, Math.min(4, Math.round(width / 900))); }
 
+// Вычисляет ширину/высоту дверного пролёта с учётом стоек/крыши/коробов/планок.
+// "планка" = та же толщина что и панель (пролёт не меняется относительно варианта "со стойкой").
+// "короб" = занимает boxW/boxH из габарита изделия → пролёт уменьшается на размер короба.
+// "ничего" (убрана без замены) → пролёт расширяется на толщину убранной панели.
+export function effectiveDoorSpan() {
+  const { width, noSideLeft, noSideRight, noCeiling,
+          leftReplace, rightReplace, topReplace,
+          leftBoxW, rightBoxW, topBoxH } = state;
+  const t = PANEL_THICKNESS;
+
+  function sideOff(noSide, replace, boxW) {
+    if (!noSide)               return t;      // стойка на месте
+    if (replace === 'planka')  return t;      // планка = та же толщина
+    if (replace === 'box')     return boxW;   // короб занимает boxW
+    return 0;                                 // ничего
+  }
+
+  const leftOff  = sideOff(noSideLeft,  leftReplace,  leftBoxW);
+  const rightOff = sideOff(noSideRight, rightReplace, rightBoxW);
+  const topOff   = sideOff(noCeiling,   topReplace,   topBoxH);
+
+  return {
+    spanW:    width - leftOff - rightOff,
+    leftOff,                              // X-смещение левой границы от -width/2
+    topOff,                               // Y-смещение верхней границы от верха короба
+  };
+}
+
 // Двери купе едут по рельсам, вынесенным в переднюю зону короба (как у Командор) —
 // это съедает часть глубины у наполнения, но не у самого короба (короб — на полную глубину).
 export const DOOR_DEPTH_ZONE = 90;
@@ -77,27 +105,38 @@ export function buildWardrobeBox() {
     ]);
   }
 
-  const doorCount = getDoorCount(width);
+  // Визуализация коробов (в габарит изделия, глубина = дверная зона 90мм)
+  const boxZcenter = depth / 2 - DOOR_DEPTH_ZONE / 2;
+  const totalH = state.height;
+  if (state.noSideLeft  && state.leftReplace  === 'box')
+    addPanel(state.leftBoxW,  totalH, DOOR_DEPTH_ZONE, kColor, [-width / 2 + state.leftBoxW / 2,  totalH / 2, boxZcenter]);
+  if (state.noSideRight && state.rightReplace === 'box')
+    addPanel(state.rightBoxW, totalH, DOOR_DEPTH_ZONE, kColor, [width / 2 - state.rightBoxW / 2,  totalH / 2, boxZcenter]);
+  if (state.noCeiling   && state.topReplace   === 'box')
+    addPanel(width, state.topBoxH, DOOR_DEPTH_ZONE, kColor, [0, totalH - state.topBoxH / 2, boxZcenter]);
+
+  const { spanW, leftOff, topOff } = effectiveDoorSpan();
+  const spanCenterX = -width / 2 + leftOff + spanW / 2;
+
+  const doorCount = getDoorCount(spanW);
   if (state.showDoors) {
     const gap = 4;
-    const span = width - 2 * t; // от стойки до стойки
-    const doorW = (span + (doorCount - 1) * DOOR_OVERLAP) / doorCount;
+    const doorW = (spanW + (doorCount - 1) * DOOR_OVERLAP) / doorCount;
     const doorZoneZ = depth / 2 - DOOR_DEPTH_ZONE / 2;
-    const railFront = depth / 2 - DOOR_FRAME_DEPTH / 2;                      // у самого края короба
-    const railBack   = depth / 2 - DOOR_DEPTH_ZONE + DOOR_FRAME_DEPTH / 2;   // в глубине дверной зоны
+    const railFront = depth / 2 - DOOR_FRAME_DEPTH / 2;
+    const railBack  = depth / 2 - DOOR_DEPTH_ZONE + DOOR_FRAME_DEPTH / 2;
 
-    // верхняя направляющая (глубокий короб-профиль) и нижняя (тонкая планка) — обе на всю дверную зону
-    addPanel(span, TOP_RAIL_HEIGHT, DOOR_DEPTH_ZONE, RAIL_COLOR, [0, y0 + height - t - TOP_RAIL_HEIGHT / 2, doorZoneZ]);
-    addPanel(span, BOTTOM_RAIL_HEIGHT, DOOR_DEPTH_ZONE, RAIL_COLOR, [0, y0 + t + BOTTOM_RAIL_HEIGHT / 2, doorZoneZ]);
+    addPanel(spanW, TOP_RAIL_HEIGHT,    DOOR_DEPTH_ZONE, RAIL_COLOR, [spanCenterX, y0 + height - topOff - TOP_RAIL_HEIGHT / 2,    doorZoneZ]);
+    addPanel(spanW, BOTTOM_RAIL_HEIGHT, DOOR_DEPTH_ZONE, RAIL_COLOR, [spanCenterX, y0 + t + BOTTOM_RAIL_HEIGHT / 2, doorZoneZ]);
 
-    const doorBottom = y0 + t + BOTTOM_RAIL_HEIGHT + gap;
-    const doorTop = y0 + height - t - TOP_RAIL_HEIGHT - gap;
-    const doorH = doorTop - doorBottom;
+    const doorBottom  = y0 + t + BOTTOM_RAIL_HEIGHT + gap;
+    const doorTop     = y0 + height - topOff - TOP_RAIL_HEIGHT - gap;
+    const doorH       = doorTop - doorBottom;
     const doorCenterY = (doorBottom + doorTop) / 2;
 
     for (let i = 0; i < doorCount; i++) {
-      const leftEdge = -span / 2 + i * (doorW - DOOR_OVERLAP);
-      const x = leftEdge + doorW / 2;
+      const leftEdge = -spanW / 2 + i * (doorW - DOOR_OVERLAP);
+      const x = spanCenterX + leftEdge + doorW / 2;
       const z = i % 2 === 0 ? railFront : railBack;
       buildSlidingDoor(x, doorCenterY, z, doorW, doorH, fColor);
     }

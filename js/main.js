@@ -35,7 +35,6 @@ async function init() {
   bindSlider('sections', 'sections', '');
   bindSlider('shelves',  'shelves',  '');
   bindSlider('drawers',  'drawers',  '');
-  bindSlider('plinthHeight', 'plinthHeight', ' мм');
   document.getElementById('rod').addEventListener('change', e => { state.rod = e.target.checked; buildFurniture(); });
 
   bindFasadTab();

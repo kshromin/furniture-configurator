@@ -94,8 +94,9 @@ export function syncUIFromState() {
   document.getElementById('plinthHeightField').style.display = state.plinthEnabled ? 'block' : 'none';
   setSlider('plinthHeight', state.plinthHeight);
 
-  ['noSideLeft', 'noSideRight', 'noCeiling', 'noBottom'].forEach(key => {
-    document.getElementById(key).checked = state[key];
+  ['noSideLeft', 'noSideRight', 'noCeiling', 'noBottom', 'alignerLeft', 'alignerRight', 'alignerTop'].forEach(key => {
+    const el = document.getElementById(key);
+    if (el) el.checked = state[key];
   });
 
   document.querySelectorAll('.type-btn').forEach(b => {
@@ -209,22 +210,100 @@ export function bindToggleDoors() {
 }
 
 // ---------- вкладка «Внешнее» — доп. опции ----------
+
+function bindReplaceBlock(cbId, blockId, groupId, stateKey, boxFieldId, boxSliderId, boxValId, boxStateKey) {
+  const cb = document.getElementById(cbId);
+  const block = document.getElementById(blockId);
+
+  function syncBlock() {
+    block.style.display = cb.checked ? 'block' : 'none';
+  }
+
+  cb.addEventListener('change', e => {
+    state[stateKey] = e.target.checked;
+    syncBlock();
+    buildFurniture();
+  });
+
+  document.querySelectorAll(`#${groupId} .opt-btn`).forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll(`#${groupId} .opt-btn`).forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state[stateKey.replace('no', '').replace('SideLeft', 'left').replace('SideRight', 'right').replace('Ceiling', 'top') + 'Replace'] = btn.dataset.replace;
+      // map to correct state key
+      const replaceKey = groupId.replace('ReplaceGroup', 'Replace').replace('left', 'left').replace('right', 'right').replace('top', 'top');
+      state[replaceKey] = btn.dataset.replace;
+      document.getElementById(boxFieldId).style.display = btn.dataset.replace === 'box' ? 'block' : 'none';
+      buildFurniture();
+    });
+  });
+
+  bindSlider(boxSliderId, boxStateKey, ' мм');
+}
+
 export function bindVariantControls() {
-  const plinthCb = document.getElementById('plinthEnabled');
+  const plinthCb  = document.getElementById('plinthEnabled');
   const plinthFld = document.getElementById('plinthHeightField');
+  const noBottomCb = document.getElementById('noBottom');
+
+  function syncPlinth() {
+    const disabled = noBottomCb.checked;
+    plinthCb.disabled = disabled;
+    plinthCb.closest('label').style.opacity = disabled ? '0.4' : '';
+    if (disabled && plinthCb.checked) {
+      plinthCb.checked = false;
+      state.plinthEnabled = false;
+      plinthFld.style.display = 'none';
+    }
+  }
+
   plinthCb.addEventListener('change', () => {
     state.plinthEnabled = plinthCb.checked;
     plinthFld.style.display = plinthCb.checked ? 'block' : 'none';
     buildFurniture();
   });
 
-  // Без крыши/дна/стоек — просто убирают соответствующую панель короба.
-  ['noSideLeft', 'noSideRight', 'noCeiling', 'noBottom'].forEach(key => {
-    document.getElementById(key).addEventListener('change', e => {
-      state[key] = e.target.checked;
+  noBottomCb.addEventListener('change', e => {
+    state.noBottom = e.target.checked;
+    syncPlinth();
+    buildFurniture();
+  });
+
+  // Крыша и стойки с sub-блоками выбора замены
+  function bindSide(cbId, blockId, groupId, noKey, replaceKey, boxFieldId, boxSlider, boxValId, boxKey) {
+    const cb    = document.getElementById(cbId);
+    const block = document.getElementById(blockId);
+
+    cb.addEventListener('change', e => {
+      state[noKey] = e.target.checked;
+      block.style.display = e.target.checked ? 'block' : 'none';
       buildFurniture();
     });
+
+    document.querySelectorAll(`#${groupId} .opt-btn`).forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll(`#${groupId} .opt-btn`).forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state[replaceKey] = btn.dataset.replace;
+        document.getElementById(boxFieldId).style.display = btn.dataset.replace === 'box' ? 'block' : 'none';
+        buildFurniture();
+      });
+    });
+
+    bindSlider(boxSlider, boxKey, ' мм');
+  }
+
+  bindSide('noSideLeft',  'leftReplaceBlock',  'leftReplaceGroup',  'noSideLeft',  'leftReplace',  'leftBoxWField',  'leftBoxW',  'leftBoxWVal',  'leftBoxW');
+  bindSide('noSideRight', 'rightReplaceBlock', 'rightReplaceGroup', 'noSideRight', 'rightReplace', 'rightBoxWField', 'rightBoxW', 'rightBoxWVal', 'rightBoxW');
+  bindSide('noCeiling',   'topReplaceBlock',   'topReplaceGroup',   'noCeiling',   'topReplace',   'topBoxHField',   'topBoxH',   'topBoxHVal',   'topBoxH');
+
+  // Простые чекбоксы без sub-блока
+  ['alignerLeft', 'alignerRight', 'alignerTop'].forEach(key => {
+    const el = document.getElementById(key);
+    if (el) el.addEventListener('change', e => { state[key] = e.target.checked; buildFurniture(); });
   });
+
+  bindSlider('plinthHeight', 'plinthHeight', ' мм');
 }
 
 // ---------- переключение вкладок сайдбара ----------
