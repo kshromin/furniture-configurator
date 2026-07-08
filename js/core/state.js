@@ -14,10 +14,10 @@ export const state = {
   backWall: 'none',           // none | ldsp | hdf
   plinthEnabled: true,
   plinthHeight: 50,
-  noSideLeft: false,  leftReplace: 'none',  leftBoxW: 66,
-  noSideRight: false, rightReplace: 'none', rightBoxW: 66,
-  noCeiling: false,   topReplace: 'none',   topBoxH: 66,
-  noBottom: false,
+  noSideLeft: false,  leftReplace: 'planka',  leftBoxW: 66,
+  noSideRight: false, rightReplace: 'planka', rightBoxW: 66,
+  noCeiling: false,   topReplace: 'planka',   topBoxH: 66,
+  noBottom: false,    bottomReplace: 'planka', bottomBoxH: 66,
   alignerTop: false,
   fasadDoorType: 'sliding',  // sliding | swing | none
   profile: 'standard',       // standard | slim | anod | black

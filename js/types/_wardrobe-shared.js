@@ -10,26 +10,28 @@ export function getDoorCount(width) { return Math.max(2, Math.min(4, Math.round(
 // "короб" = занимает boxW/boxH из габарита изделия → пролёт уменьшается на размер короба.
 // "ничего" (убрана без замены) → пролёт расширяется на толщину убранной панели.
 export function effectiveDoorSpan() {
-  const { width, noSideLeft, noSideRight, noCeiling,
-          leftReplace, rightReplace, topReplace,
-          leftBoxW, rightBoxW, topBoxH } = state;
+  const { width, noSideLeft, noSideRight, noCeiling, noBottom,
+          leftReplace, rightReplace, topReplace, bottomReplace,
+          leftBoxW, rightBoxW, topBoxH, bottomBoxH } = state;
   const t = PANEL_THICKNESS;
 
-  function sideOff(noSide, replace, boxW) {
-    if (!noSide)               return t;      // стойка на месте
-    if (replace === 'planka')  return t;      // планка = та же толщина
-    if (replace === 'box')     return boxW;   // короб занимает boxW
-    return 0;                                 // ничего
+  function off(noPanel, replace, boxSize) {
+    if (!noPanel)              return t;     // панель на месте
+    if (replace === 'planka')  return t;     // планка = та же толщина
+    if (replace === 'box')     return boxSize;
+    return 0;                               // ничего
   }
 
-  const leftOff  = sideOff(noSideLeft,  leftReplace,  leftBoxW);
-  const rightOff = sideOff(noSideRight, rightReplace, rightBoxW);
-  const topOff   = sideOff(noCeiling,   topReplace,   topBoxH);
+  const leftOff   = off(noSideLeft,  leftReplace,   leftBoxW);
+  const rightOff  = off(noSideRight, rightReplace,  rightBoxW);
+  const topOff    = off(noCeiling,   topReplace,    topBoxH);
+  const bottomOff = off(noBottom,    bottomReplace, bottomBoxH);
 
   return {
-    spanW:    width - leftOff - rightOff,
-    leftOff,                              // X-смещение левой границы от -width/2
-    topOff,                               // Y-смещение верхней границы от верха короба
+    spanW:     width - leftOff - rightOff,
+    leftOff,
+    topOff,
+    bottomOff,
   };
 }
 
@@ -105,17 +107,32 @@ export function buildWardrobeBox() {
     ]);
   }
 
-  // Визуализация коробов (в габарит изделия, глубина = дверная зона 90мм)
-  const boxZcenter = depth / 2 - DOOR_DEPTH_ZONE / 2;
+  // Визуализация планок и коробов (глубина = дверная зона, внутри габарита изделия)
+  const elemZ = depth / 2 - DOOR_DEPTH_ZONE / 2;
   const totalH = state.height;
-  if (state.noSideLeft  && state.leftReplace  === 'box')
-    addPanel(state.leftBoxW,  totalH, DOOR_DEPTH_ZONE, kColor, [-width / 2 + state.leftBoxW / 2,  totalH / 2, boxZcenter]);
-  if (state.noSideRight && state.rightReplace === 'box')
-    addPanel(state.rightBoxW, totalH, DOOR_DEPTH_ZONE, kColor, [width / 2 - state.rightBoxW / 2,  totalH / 2, boxZcenter]);
-  if (state.noCeiling   && state.topReplace   === 'box')
-    addPanel(width, state.topBoxH, DOOR_DEPTH_ZONE, kColor, [0, totalH - state.topBoxH / 2, boxZcenter]);
 
-  const { spanW, leftOff, topOff } = effectiveDoorSpan();
+  function drawSideElem(noSide, replace, boxW, xCenter) {
+    if (!noSide) return;
+    if (replace === 'planka')
+      addPanel(t, totalH, DOOR_DEPTH_ZONE, kColor, [xCenter, totalH / 2, elemZ]);
+    else if (replace === 'box')
+      addPanel(boxW, totalH, DOOR_DEPTH_ZONE, kColor, [xCenter, totalH / 2, elemZ]);
+  }
+  drawSideElem(state.noSideLeft,  state.leftReplace,  state.leftBoxW,  -width / 2 + (state.leftReplace === 'box' ? state.leftBoxW : t) / 2);
+  drawSideElem(state.noSideRight, state.rightReplace, state.rightBoxW,  width / 2 - (state.rightReplace === 'box' ? state.rightBoxW : t) / 2);
+
+  if (state.noCeiling) {
+    const h = state.topReplace === 'box' ? state.topBoxH : t;
+    if (state.topReplace !== 'none')
+      addPanel(width, h, DOOR_DEPTH_ZONE, kColor, [0, totalH - h / 2, elemZ]);
+  }
+  if (state.noBottom) {
+    const h = state.bottomReplace === 'box' ? state.bottomBoxH : t;
+    if (state.bottomReplace !== 'none')
+      addPanel(width, h, DOOR_DEPTH_ZONE, kColor, [0, h / 2, elemZ]);
+  }
+
+  const { spanW, leftOff, topOff, bottomOff } = effectiveDoorSpan();
   const spanCenterX = -width / 2 + leftOff + spanW / 2;
 
   const doorCount = getDoorCount(spanW);
@@ -126,10 +143,10 @@ export function buildWardrobeBox() {
     const railFront = depth / 2 - DOOR_FRAME_DEPTH / 2;
     const railBack  = depth / 2 - DOOR_DEPTH_ZONE + DOOR_FRAME_DEPTH / 2;
 
-    addPanel(spanW, TOP_RAIL_HEIGHT,    DOOR_DEPTH_ZONE, RAIL_COLOR, [spanCenterX, y0 + height - topOff - TOP_RAIL_HEIGHT / 2,    doorZoneZ]);
-    addPanel(spanW, BOTTOM_RAIL_HEIGHT, DOOR_DEPTH_ZONE, RAIL_COLOR, [spanCenterX, y0 + t + BOTTOM_RAIL_HEIGHT / 2, doorZoneZ]);
+    addPanel(spanW, TOP_RAIL_HEIGHT,    DOOR_DEPTH_ZONE, RAIL_COLOR, [spanCenterX, y0 + height - topOff - TOP_RAIL_HEIGHT / 2,       doorZoneZ]);
+    addPanel(spanW, BOTTOM_RAIL_HEIGHT, DOOR_DEPTH_ZONE, RAIL_COLOR, [spanCenterX, y0 + bottomOff + BOTTOM_RAIL_HEIGHT / 2, doorZoneZ]);
 
-    const doorBottom  = y0 + t + BOTTOM_RAIL_HEIGHT + gap;
+    const doorBottom  = y0 + bottomOff + BOTTOM_RAIL_HEIGHT + gap;
     const doorTop     = y0 + height - topOff - TOP_RAIL_HEIGHT - gap;
     const doorH       = doorTop - doorBottom;
     const doorCenterY = (doorBottom + doorTop) / 2;

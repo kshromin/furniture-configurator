@@ -29,17 +29,26 @@ export default {
       korpusM2 += (width * (depth - 40)) / 1e6; // цоколь — тот же материал, что корпус
     }
 
-    const { spanW, topOff } = effectiveDoorSpan();
+    const { spanW, topOff, bottomOff } = effectiveDoorSpan();
     const dc = getDoorCount(spanW);
     const gap = 4;
     const dw = (spanW + (dc - 1) * DOOR_OVERLAP) / dc;
-    const doorH = height - topOff - t - TOP_RAIL_HEIGHT - BOTTOM_RAIL_HEIGHT - 2 * gap;
+    const doorH = height - topOff - bottomOff - TOP_RAIL_HEIGHT - BOTTOM_RAIL_HEIGHT - 2 * gap;
     const fasadM2 = (dc * dw * doorH) / 1e6;
 
-    // Площадь коробов (материал — корпус)
-    const leftBoxM2  = (state.noSideLeft  && state.leftReplace  === 'box') ? (state.leftBoxW  * state.height * 2 + state.leftBoxW  * DOOR_DEPTH_ZONE * 2 + state.height * DOOR_DEPTH_ZONE) / 1e6 : 0;
-    const rightBoxM2 = (state.noSideRight && state.rightReplace === 'box') ? (state.rightBoxW * state.height * 2 + state.rightBoxW * DOOR_DEPTH_ZONE * 2 + state.height * DOOR_DEPTH_ZONE) / 1e6 : 0;
-    const topBoxM2   = (state.noCeiling   && state.topReplace   === 'box') ? (width * state.topBoxH * 2 + width * DOOR_DEPTH_ZONE + state.topBoxH * DOOR_DEPTH_ZONE * 2) / 1e6 : 0;
+    // Площадь коробов и планок (материал — корпус)
+    const H = state.height;
+    function elemM2(noSide, replace, boxW, isHoriz) {
+      if (!noSide || replace === 'none') return 0;
+      const w = replace === 'box' ? boxW : t;
+      return isHoriz
+        ? (width * w * 2 + width * DOOR_DEPTH_ZONE + w * DOOR_DEPTH_ZONE * 2) / 1e6
+        : (w * H * 2 + w * DOOR_DEPTH_ZONE * 2 + H * DOOR_DEPTH_ZONE) / 1e6;
+    }
+    const leftBoxM2   = elemM2(state.noSideLeft,  state.leftReplace,   state.leftBoxW,   false);
+    const rightBoxM2  = elemM2(state.noSideRight, state.rightReplace,  state.rightBoxW,  false);
+    const topBoxM2    = elemM2(state.noCeiling,   state.topReplace,    state.topBoxH,    true);
+    const bottomBoxM2 = elemM2(state.noBottom,    state.bottomReplace, state.bottomBoxH, true);
 
     let fillM2 = 0;
     const innerWidth = width - 2 * t;
@@ -57,7 +66,7 @@ export default {
       ? ((width - 2 * t) * (height - 2 * t)) / 1e6
       : 0;
 
-    return { korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2, fasadM2, fillM2, backWallM2 };
+    return { korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2, fasadM2, fillM2, backWallM2 };
   },
 
   describe() {

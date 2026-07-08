@@ -263,11 +263,8 @@ export function bindVariantControls() {
     buildFurniture();
   });
 
-  noBottomCb.addEventListener('change', e => {
-    state.noBottom = e.target.checked;
-    syncPlinth();
-    buildFurniture();
-  });
+  // noBottom обрабатывается через bindSide ниже; здесь только syncPlinth при его изменении
+  noBottomCb.addEventListener('change', () => syncPlinth());
 
   // Крыша и стойки с sub-блоками выбора замены
   function bindSide(cbId, blockId, groupId, noKey, replaceKey, boxFieldId, boxSlider, boxValId, boxKey) {
@@ -293,9 +290,10 @@ export function bindVariantControls() {
     bindSlider(boxSlider, boxKey, ' мм');
   }
 
-  bindSide('noSideLeft',  'leftReplaceBlock',  'leftReplaceGroup',  'noSideLeft',  'leftReplace',  'leftBoxWField',  'leftBoxW',  'leftBoxWVal',  'leftBoxW');
-  bindSide('noSideRight', 'rightReplaceBlock', 'rightReplaceGroup', 'noSideRight', 'rightReplace', 'rightBoxWField', 'rightBoxW', 'rightBoxWVal', 'rightBoxW');
-  bindSide('noCeiling',   'topReplaceBlock',   'topReplaceGroup',   'noCeiling',   'topReplace',   'topBoxHField',   'topBoxH',   'topBoxHVal',   'topBoxH');
+  bindSide('noSideLeft',  'leftReplaceBlock',   'leftReplaceGroup',   'noSideLeft',  'leftReplace',   'leftBoxWField',   'leftBoxW',   'leftBoxWVal',   'leftBoxW');
+  bindSide('noSideRight', 'rightReplaceBlock',  'rightReplaceGroup',  'noSideRight', 'rightReplace',  'rightBoxWField',  'rightBoxW',  'rightBoxWVal',  'rightBoxW');
+  bindSide('noCeiling',   'topReplaceBlock',    'topReplaceGroup',    'noCeiling',   'topReplace',    'topBoxHField',    'topBoxH',    'topBoxHVal',    'topBoxH');
+  bindSide('noBottom',    'bottomReplaceBlock', 'bottomReplaceGroup', 'noBottom',    'bottomReplace', 'bottomBoxHField', 'bottomBoxH', 'bottomBoxHVal', 'bottomBoxH');
 
   // Простые чекбоксы без sub-блока
   ['alignerLeft', 'alignerRight', 'alignerTop'].forEach(key => {
