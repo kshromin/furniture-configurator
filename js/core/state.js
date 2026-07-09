@@ -6,7 +6,13 @@ export function setMaterials(m) { materials = m; }
 export const state = {
   type: 'wardrobe',
   width: 1800, height: 2400, depth: 600,
-  sections: 2, shelves: 3, drawers: 0, rod: true,
+  // Секции шкафа-купе — у каждой своя ширина (мм) и своё наполнение. Ширины должны в сумме
+  // совпадать с внутренней шириной короба — за этим следит rebalanceSections() в _wardrobe-shared.js.
+  sections: [
+    { width: 876, shelves: 3, drawers: 0, rod: true },
+    { width: 876, shelves: 3, drawers: 0, rod: true },
+  ],
+  drawers: 0, // плоское значение для типов без секций (комод и т.п.)
   korpusProducer: null, korpusId: null,
   fasadProducer:  null, fasadId:  null,
   fillProducer:   null, fillId:   null,

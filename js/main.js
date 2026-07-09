@@ -4,7 +4,7 @@ import { renderPresets } from './core/presets.js';
 import { buildFurniture } from './core/build.js';
 import {
   bindTypeButtons, bindSlider, bindFasadTab, bindVariantControls,
-  bindTabSwitching, bindToggleDoors, bindBackWall, syncUIFromState,
+  bindTabSwitching, bindToggleDoors, bindBackWall, bindSectionsControls, syncUIFromState,
 } from './core/tabs.js';
 import { addCurrentToOrder, renderOrderCards, bindOrderForm } from './core/order.js';
 
@@ -32,10 +32,7 @@ async function init() {
   bindSlider('width',    'width',    ' мм');
   bindSlider('height',   'height',   ' мм');
   bindSlider('depth',    'depth',    ' мм');
-  bindSlider('sections', 'sections', '');
-  bindSlider('shelves',  'shelves',  '');
   bindSlider('drawers',  'drawers',  '');
-  document.getElementById('rod').addEventListener('change', e => { state.rod = e.target.checked; buildFurniture(); });
 
   bindFasadTab();
 
@@ -47,6 +44,7 @@ async function init() {
   bindVariantControls();
   bindBackWall();
   bindToggleDoors();
+  bindSectionsControls();
   bindOrderForm();
 
   syncUIFromState();

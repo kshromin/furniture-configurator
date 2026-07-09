@@ -6,9 +6,11 @@ import { korpusBoxAreaM2, defaultFasadAreaM2 } from '../core/pricing.js';
 export default {
   id: 'wardrobe-room',
   name: 'Гардероб',
+  // variant.extra выключен по той же причине, что и у комода: build() гардероба — заглушка
+  // из трёх стен, ни одно из полей «Опций» не читает.
   ctx: {
-    variant: { extra: true },
-    fill:    { sections: true, shelves: true, drawers: false, rod: true, color: true },
+    variant: { extra: false },
+    fill:    { sections: false, shelves: false, drawers: false, rod: false, color: true },
     fasad:   { available: false },
   },
 

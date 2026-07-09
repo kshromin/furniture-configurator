@@ -7,7 +7,7 @@ export default {
   name: 'Шкаф открытый',
   ctx: {
     variant: { extra: true },
-    fill:    { sections: true, shelves: true, drawers: false, rod: true, color: true },
+    fill:    { sections: false, shelves: false, drawers: false, rod: false, color: true, list: true },
     fasad:   { available: true },
   },
 

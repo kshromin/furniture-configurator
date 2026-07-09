@@ -2,6 +2,7 @@ import { state } from './state.js';
 import { TYPES } from '../types/registry.js';
 import { renderProducerSelect, renderSwatches } from './materials.js';
 import { buildFurniture } from './build.js';
+import { rebalanceSections, MIN_SECTION_WIDTH } from '../types/_wardrobe-shared.js';
 
 function activeType() { return TYPES[state.type] || TYPES['wardrobe']; }
 
@@ -85,10 +86,8 @@ export function syncUIFromState() {
   setSlider('width',    state.width,    ' мм');
   setSlider('height',   state.height,   ' мм');
   setSlider('depth',    state.depth,    ' мм');
-  setSlider('sections', state.sections, '');
-  setSlider('shelves',  state.shelves,  '');
   setSlider('drawers',  state.drawers,  '');
-  document.getElementById('rod').checked = state.rod;
+  renderSectionsList();
 
   document.getElementById('plinthEnabled').checked = state.plinthEnabled;
   document.getElementById('plinthHeightField').style.display = state.plinthEnabled ? 'block' : 'none';
@@ -211,6 +210,92 @@ export function bindToggleDoors() {
     btn.classList.toggle('active', !state.showDoors);
     document.getElementById('toggleDoorsBtnLabel').textContent =
       state.showDoors ? 'Не показывать двери' : 'Показать двери';
+    buildFurniture();
+  });
+}
+
+// ---------- вкладка «Внутр.» — список секций ----------
+export function renderSectionsList() {
+  const container = document.getElementById('sectionsListItems');
+  if (!container) return;
+  container.innerHTML = '';
+
+  state.sections.forEach((sec, i) => {
+    const card = document.createElement('div');
+    card.className = 'section-card';
+    const removeBtn = state.sections.length > 1
+      ? `<button class="section-remove-btn" data-idx="${i}" title="Удалить секцию">
+           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z"/></svg>
+         </button>`
+      : '';
+    card.innerHTML = `
+      <div class="section-card-header">
+        <span class="section-card-title">Секция ${i + 1}</span>
+        <div class="section-card-width">
+          <input type="number" class="dim-input section-width-input" data-idx="${i}" value="${Math.round(sec.width)}" min="${MIN_SECTION_WIDTH}">
+          <span class="section-card-unit">мм</span>
+          ${removeBtn}
+        </div>
+      </div>
+      <div class="section-card-grid">
+        <div class="section-field">
+          <label>Полки</label>
+          <input type="number" class="dim-input section-shelves-input" data-idx="${i}" value="${sec.shelves}" min="0" max="8">
+        </div>
+        <div class="section-field">
+          <label>Ящики</label>
+          <input type="number" class="dim-input section-drawers-input" data-idx="${i}" value="${sec.drawers}" min="0" max="4">
+        </div>
+        <div class="section-field checkbox-field">
+          <label><input type="checkbox" class="section-rod-input" data-idx="${i}" ${sec.rod ? 'checked' : ''}> Штанга</label>
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  container.querySelectorAll('.section-width-input').forEach(inp => {
+    inp.addEventListener('change', e => {
+      const i = Number(e.target.dataset.idx);
+      state.sections[i].width = Math.max(MIN_SECTION_WIDTH, Number(e.target.value));
+      rebalanceSections(i);
+      renderSectionsList();
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-shelves-input').forEach(inp => {
+    inp.addEventListener('change', e => {
+      state.sections[Number(e.target.dataset.idx)].shelves = Math.max(0, Number(e.target.value));
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-drawers-input').forEach(inp => {
+    inp.addEventListener('change', e => {
+      state.sections[Number(e.target.dataset.idx)].drawers = Math.max(0, Number(e.target.value));
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-rod-input').forEach(inp => {
+    inp.addEventListener('change', e => {
+      state.sections[Number(e.target.dataset.idx)].rod = e.target.checked;
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-remove-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.sections.splice(Number(btn.dataset.idx), 1);
+      rebalanceSections();
+      renderSectionsList();
+      buildFurniture();
+    });
+  });
+}
+
+export function bindSectionsControls() {
+  document.getElementById('addSectionBtn').addEventListener('click', () => {
+    state.sections.push({ width: MIN_SECTION_WIDTH, shelves: 3, drawers: 0, rod: true });
+    rebalanceSections();
+    renderSectionsList();
     buildFurniture();
   });
 }

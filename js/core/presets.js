@@ -2,22 +2,29 @@ import { state, materials } from './state.js';
 import { TYPES } from '../types/registry.js';
 import { syncUIFromState } from './tabs.js';
 import { buildFurniture } from './build.js';
+import { rebalanceSections } from '../types/_wardrobe-shared.js';
 
 export function applyPreset(p) {
-  state.type           = p.type || 'wardrobe';
-  state.width          = p.width;
-  state.height         = p.height;
-  state.depth          = p.depth;
-  state.sections       = p.sections || 2;
-  state.shelves        = p.shelves  || 0;
-  state.drawers        = p.drawers  || 0;
-  state.rod            = !!p.rod;
+  state.type    = p.type || 'wardrobe';
+  state.width   = p.width;
+  state.height  = p.height;
+  state.depth   = p.depth;
+  state.drawers = p.drawers || 0; // плоское значение — для комода и т.п.
+
+  // Пресеты хранят секции по-старому (одно число + общие полки/ящики/штанга на все секции) —
+  // раскладываем это в массив секций с равными ширинами, дальше rebalanceSections() их посчитает.
+  const n = p.sections || 2;
+  state.sections = Array.from({ length: n }, () => ({
+    width: 0, shelves: p.shelves || 0, drawers: p.drawers || 0, rod: !!p.rod,
+  }));
+
   state.korpusProducer = p.korpusProducer;
   state.korpusId       = p.korpusId;
   state.fasadProducer  = p.fasadProducer;
   state.fasadId        = p.fasadId;
   state.fillProducer   = p.fillProducer;
   state.fillId         = p.fillId;
+  rebalanceSections();
   syncUIFromState();
   buildFurniture();
 }

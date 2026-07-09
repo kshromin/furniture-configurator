@@ -42,6 +42,47 @@ export function effectiveDoorSpan() {
   };
 }
 
+// Секции наполнения имеют произвольную ширину, но сумма их ширин + перегородки между ними
+// обязана совпадать с внутренней шириной короба (effectiveDoorSpan().spanW). Эта функция
+// восстанавливает баланс после любого изменения, которое сдвигает границы короба (ширина
+// изделия, стойки/выравниватели) или состав секций (добавили/убрали секцию).
+// editedIndex — если пользователь только что руками поправил ширину одной секции, её значение
+// не трогаем, остальные пропорционально ужимаются/растягиваются под освободившееся место.
+export const MIN_SECTION_WIDTH = 150;
+
+export function rebalanceSections(editedIndex = null) {
+  const sections = state.sections;
+  const n = sections.length;
+  if (n === 0) return;
+  const t = PANEL_THICKNESS;
+  const { spanW } = effectiveDoorSpan();
+  const available = spanW - (n - 1) * t;
+
+  if (n === 1) { sections[0].width = available; return; }
+
+  if (editedIndex !== null) {
+    const maxForEdited = available - (n - 1) * MIN_SECTION_WIDTH;
+    sections[editedIndex].width = Math.min(Math.max(sections[editedIndex].width, MIN_SECTION_WIDTH), maxForEdited);
+  }
+
+  const otherIdx = sections.map((_, i) => i).filter(i => i !== editedIndex);
+  const fixedW = editedIndex !== null ? sections[editedIndex].width : 0;
+  const remaining = Math.max(otherIdx.length * MIN_SECTION_WIDTH, available - fixedW);
+  const otherTotal = otherIdx.reduce((s, i) => s + sections[i].width, 0);
+
+  otherIdx.forEach(i => {
+    // если у всех «остальных» секций ширина 0 (например, только что собраны из пресета) —
+    // делим доступное место поровну, иначе доля 0/0 обнулила бы всех, кроме последней
+    const share = otherTotal > 0 ? sections[i].width / otherTotal : 1 / otherIdx.length;
+    sections[i].width = Math.max(MIN_SECTION_WIDTH, Math.round(remaining * share));
+  });
+
+  // компенсируем накопленное округление в последней «нефиксированной» секции, чтобы сумма
+  // ширин точно совпала с available, а не отличалась на пару мм
+  const total = sections.reduce((s, sec) => s + sec.width, 0);
+  sections[otherIdx[otherIdx.length - 1]].width += available - total;
+}
+
 // Двери купе едут по рельсам, вынесенным в переднюю зону короба (как у Командор) —
 // это съедает часть глубины у наполнения, но не у самого короба (короб — на полную глубину).
 export const DOOR_DEPTH_ZONE = 90;
@@ -74,7 +115,7 @@ function buildSlidingDoor(x, y, z, w, h, fillColor) {
 // Общий короб для шкафа-купе / распашного / открытого — сегодня они выглядят одинаково
 // (двери купе рисуются всегда), различия по дверям будут добавлены отдельно для каждого типа.
 export function buildWardrobeBox() {
-  const { width, depth, shelves, drawers, rod, sections, plinthEnabled, plinthHeight, noSideLeft, noSideRight, noCeiling, noBottom } = state;
+  const { width, depth, plinthEnabled, plinthHeight, noSideLeft, noSideRight, noCeiling, noBottom } = state;
   const t = PANEL_THICKNESS;
   const kColor = getColor('korpus').color;
   const fColor = getColor('fasad').color;
@@ -123,13 +164,26 @@ export function buildWardrobeBox() {
   const innerDepth = depth - DOOR_DEPTH_ZONE;
   const innerZ = -DOOR_DEPTH_ZONE / 2;
 
-  const innerWidth = width - leftOff - rightOff;
-  const sectionWidth = (innerWidth - (sections - 1) * t) / sections;
-  for (let i = 1; i < sections; i++) {
-    addPanel(t, stojkaH, innerDepth, kColor, [
-      -width / 2 + leftOff + i * (sectionWidth + t) - t / 2,
-      stojkaCenterY, innerZ,
-    ]);
+  // Ширины секций хранятся как есть в state.sections; здесь только страховка на случай, если
+  // что-то изменило границы короба (габариты, стойки, выравниватели) и не вызвало rebalanceSections()
+  // само — без этого секции могли бы не долетать до края короба или вылезать за него.
+  const sections = state.sections;
+  {
+    const available = spanW - (sections.length - 1) * t;
+    const sum = sections.reduce((s, sec) => s + sec.width, 0);
+    if (Math.abs(sum - available) > 0.5) rebalanceSections();
+  }
+  const sectionCenters = [];
+  {
+    let cursorX = -width / 2 + leftOff;
+    sections.forEach((sec, i) => {
+      sectionCenters.push(cursorX + sec.width / 2);
+      cursorX += sec.width;
+      if (i < sections.length - 1) {
+        addPanel(t, stojkaH, innerDepth, nColor, [cursorX + t / 2, stojkaCenterY, innerZ]);
+        cursorX += t;
+      }
+    });
   }
 
   // Визуализация планок и коробов (глубина = дверная зона, внутри габарита изделия)
@@ -184,39 +238,43 @@ export function buildWardrobeBox() {
   }
 
   const fillBottom = bottomOff + 10, fillTop = height - topOff - 10;
+  let totalShelves = 0, totalDrawers = 0, totalRod = 0;
 
-  for (let s = 0; s < sections; s++) {
-    const cx = -width / 2 + leftOff + s * (sectionWidth + t) + sectionWidth / 2;
-    const sw = sectionWidth - 10;
+  sections.forEach((sec, s) => {
+    const cx = sectionCenters[s];
+    const sw = sec.width - 10;
     let drawerTop = fillBottom;
 
-    if (drawers > 0) {
+    if (sec.drawers > 0) {
       const blkH = Math.min(700, (fillTop - fillBottom) * 0.4);
-      const dh = (blkH - (drawers - 1) * 4) / drawers;
-      for (let i = 0; i < drawers; i++) {
+      const dh = (blkH - (sec.drawers - 1) * 4) / sec.drawers;
+      for (let i = 0; i < sec.drawers; i++) {
         const y = fillBottom + i * (dh + 4) + dh / 2;
         addPanel(sw, dh, t, fColor, [cx, y0 + y, depth / 2 - t - 20], 0.9);
       }
       drawerTop = fillBottom + blkH + 20;
+      totalDrawers += sec.drawers;
     }
 
-    if (shelves > 0) {
-      const usable = fillTop - drawerTop - (rod ? 250 : 0);
-      for (let i = 0; i < shelves; i++) {
-        const y = drawerTop + (usable * (i + 1)) / (shelves + 1);
+    if (sec.shelves > 0) {
+      const usable = fillTop - drawerTop - (sec.rod ? 250 : 0);
+      for (let i = 0; i < sec.shelves; i++) {
+        const y = drawerTop + (usable * (i + 1)) / (sec.shelves + 1);
         addPanel(sw, t, innerDepth, nColor, [cx, y0 + y, innerZ]);
       }
+      totalShelves += sec.shelves;
     }
 
-    if (rod) {
+    if (sec.rod) {
       const rodGeo = new THREE.CylinderGeometry(8, 8, sw, 12);
       const rodMat = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.8, roughness: 0.3 });
       const rodMesh = new THREE.Mesh(rodGeo, rodMat);
       rodMesh.rotation.z = Math.PI / 2;
       rodMesh.position.set(cx, y0 + fillTop - 60, depth / 2 - 100);
       furnitureGroup.add(rodMesh);
+      totalRod++;
     }
-  }
+  });
 
-  return { door: doorCount, drawer: drawers * sections, shelf: shelves * sections, rod: rod ? sections : 0, item: 1 };
+  return { door: doorCount, drawer: totalDrawers, shelf: totalShelves, rod: totalRod, item: 1 };
 }

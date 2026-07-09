@@ -241,21 +241,15 @@
     <div class="tab-pane" id="tab-fill">
       <div class="pane-title">Внутреннее наполнение</div>
       <div id="fillFields">
-        <div class="field" data-fill-ctx="sections">
-          <label>Секции <span class="field-val" id="sectionsVal"></span></label>
-          <input type="range" id="sections" min="1" max="5" step="1" value="2">
-        </div>
-        <div class="field" data-fill-ctx="shelves">
-          <label>Полки в секции <span class="field-val" id="shelvesVal"></span></label>
-          <input type="range" id="shelves" min="0" max="8" step="1" value="3">
-        </div>
         <div class="field" data-fill-ctx="drawers">
-          <label>Ящики в секции <span class="field-val" id="drawersVal"></span></label>
+          <label>Ящики <span class="field-val" id="drawersVal"></span></label>
           <input type="range" id="drawers" min="0" max="4" step="1" value="0">
         </div>
-        <div class="field checkbox-field" data-fill-ctx="rod">
-          <label><input type="checkbox" id="rod" checked> Штанга для одежды</label>
-        </div>
+      </div>
+
+      <div id="sectionsListBlock" data-fill-ctx="list">
+        <div id="sectionsListItems"></div>
+        <button id="addSectionBtn" class="add-item-btn" type="button">+ Добавить секцию</button>
       </div>
       <div id="fillColorGroup" class="field-group">
         <div class="field-group-title">Цвет наполнения</div>

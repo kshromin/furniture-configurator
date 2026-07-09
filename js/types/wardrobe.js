@@ -10,14 +10,14 @@ export default {
   name: 'Шкаф-купе',
   ctx: {
     variant: { doors: true, extra: true },
-    fill:    { sections: true, shelves: true, drawers: true, rod: true, color: true },
+    fill:    { sections: false, shelves: false, drawers: false, rod: false, color: true, list: true },
     fasad:   { available: true },
   },
 
   build: buildWardrobeBox,
 
   areas() {
-    const { width, depth, sections, shelves, drawers, plinthEnabled, plinthHeight, noSideLeft, noSideRight, noCeiling, noBottom } = state;
+    const { width, depth, sections, plinthEnabled, plinthHeight, noSideLeft, noSideRight, noCeiling, noBottom } = state;
     const t = PANEL_THICKNESS;
     const plinthH = (plinthEnabled && !noBottom) ? plinthHeight : 0;
     const height = state.height - plinthH;
@@ -25,7 +25,7 @@ export default {
     const { spanW, leftOff, rightOff, topOff, bottomOff } = effectiveDoorSpan();
     const stojkaH = height - topOff - bottomOff;
 
-    let korpusM2 = korpusBoxAreaM2(sections - 1, height, {
+    let korpusM2 = korpusBoxAreaM2(sections.length - 1, height, {
       top: noCeiling, bottom: noBottom, left: noSideLeft, right: noSideRight,
     }, stojkaH);
     if (plinthH > 0) {
@@ -59,16 +59,17 @@ export default {
       (state.alignerTop   ? (width * state.alignerTopH) / 1e6 : 0);
 
     let fillM2 = 0;
-    const innerWidth = width - leftOff - rightOff;
-    const sw = (innerWidth - (sections - 1) * t) / sections - 10;
-    if (drawers > 0) {
-      const blkH = Math.min(700, (height - topOff - bottomOff - 20) * 0.4);
-      fillM2 += (sections * sw * blkH) / 1e6;
-    }
-    if (shelves > 0) {
-      const innerDepth = depth - DOOR_DEPTH_ZONE;
-      fillM2 += (sections * shelves * sw * innerDepth) / 1e6;
-    }
+    const innerDepth = depth - DOOR_DEPTH_ZONE;
+    sections.forEach(sec => {
+      const sw = sec.width - 10;
+      if (sec.drawers > 0) {
+        const blkH = Math.min(700, (height - topOff - bottomOff - 20) * 0.4);
+        fillM2 += (sw * blkH) / 1e6;
+      }
+      if (sec.shelves > 0) {
+        fillM2 += (sec.shelves * sw * innerDepth) / 1e6;
+      }
+    });
 
     const backWallM2 = state.backWall !== 'none'
       ? ((width - leftOff - rightOff) * stojkaH) / 1e6
@@ -78,7 +79,10 @@ export default {
   },
 
   describe() {
-    const { sections, shelves, drawers, rod } = state;
-    return `, секций: ${sections}, полок: ${shelves}, ящиков: ${drawers}, штанга: ${rod ? 'да' : 'нет'}`;
+    const { sections } = state;
+    const totalShelves = sections.reduce((s, sec) => s + sec.shelves, 0);
+    const totalDrawers = sections.reduce((s, sec) => s + sec.drawers, 0);
+    const hasRod = sections.some(sec => sec.rod);
+    return `, секций: ${sections.length}, полок: ${totalShelves}, ящиков: ${totalDrawers}, штанга: ${hasRod ? 'да' : 'нет'}`;
   },
 };

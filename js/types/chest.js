@@ -6,8 +6,11 @@ import { korpusBoxAreaM2, defaultFasadAreaM2 } from '../core/pricing.js';
 export default {
   id: 'chest',
   name: 'Комод',
+  // variant.extra выключен: «Опции» (стойки/крыша/дно/выравниватели/цоколь) — только для
+  // buildWardrobeBox-типов, build() комода эти поля не читает. Наполнение комода — отдельная
+  // задача, этот файл сейчас трогаем только чтобы не протекало чужое состояние через вкладки.
   ctx: {
-    variant: { extra: true },
+    variant: { extra: false },
     fill:    { sections: false, shelves: false, drawers: true, rod: false, color: false },
     fasad:   { available: true },
   },
