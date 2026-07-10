@@ -1,8 +1,8 @@
 import { state, PANEL_THICKNESS } from '../core/state.js';
 import { korpusBoxAreaM2 } from '../core/pricing.js';
 import {
-  buildWardrobeBox, getDoorCount, effectiveDoorSpan,
-  DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_RAIL_HEIGHT, BOTTOM_RAIL_HEIGHT,
+  buildWardrobeBox, getDoorCount, effectiveDoorSpan, drawerBoxSize,
+  DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_RAIL_HEIGHT, BOTTOM_RAIL_HEIGHT, STIFFENER_HEIGHT,
 } from './_wardrobe-shared.js';
 
 export default {
@@ -22,8 +22,8 @@ export default {
     const plinthH = (plinthEnabled && !noBottom) ? plinthHeight : 0;
     const height = state.height - plinthH;
 
-    const { spanW, leftOff, rightOff, topOff, bottomOff } = effectiveDoorSpan();
-    const stojkaH = height - topOff - bottomOff;
+    const { spanW, leftOff, rightOff, topOff, bottomOff, stojkaTopOff, stojkaBottomOff } = effectiveDoorSpan();
+    const stojkaH = height - stojkaTopOff - stojkaBottomOff;
 
     let korpusM2 = korpusBoxAreaM2(sections.length - 1, height, {
       top: noCeiling, bottom: noBottom, left: noSideLeft, right: noSideRight,
@@ -36,7 +36,7 @@ export default {
     const gap = 4;
     const dw = (spanW + (dc - 1) * DOOR_OVERLAP) / dc;
     const doorH = height - topOff - bottomOff - TOP_RAIL_HEIGHT - BOTTOM_RAIL_HEIGHT - 2 * gap;
-    const fasadM2 = (dc * dw * doorH) / 1e6;
+    let fasadM2 = (dc * dw * doorH) / 1e6;
 
     // Площадь коробов и планок (материал — корпус)
     const H = state.height;
@@ -61,14 +61,20 @@ export default {
     let fillM2 = 0;
     const innerDepth = depth - DOOR_DEPTH_ZONE;
     sections.forEach(sec => {
-      const sw = sec.width - 10;
+      // Без зазора — совпадает с геометрией в buildWardrobeBox.
+      const sw = sec.width;
       if (sec.drawers > 0) {
-        const blkH = Math.min(700, (height - topOff - bottomOff - 20) * 0.4);
-        fillM2 += (sw * blkH) / 1e6;
+        // Фасад ящика — в площадь фасадов; короб (дно+2 боковины+задняя стенка) — в наполнение/ЛДСП.
+        fasadM2 += (sec.drawers * sw * sec.drawerHeight) / 1e6;
+        const { boxW, boxH, boxDepth } = drawerBoxSize(sw, sec.drawerHeight, sec.drawerDepth, depth);
+        const boxM2 = boxW * boxDepth + 2 * boxH * boxDepth + boxW * boxH;
+        fillM2 += (sec.drawers * boxM2) / 1e6;
       }
-      if (sec.shelves > 0) {
-        fillM2 += (sec.shelves * sw * innerDepth) / 1e6;
-      }
+      // Верхняя полка — всегда, нижняя — съёмная (sec.bottomShelf), плюс планка жёсткости (если
+      // задняя стенка не ЛДСП), плюс доп. полки сверху/снизу — см. геометрию в buildWardrobeBox.
+      fillM2 += ((1 + (sec.bottomShelf ? 1 : 0)) * sw * innerDepth) / 1e6;
+      if (state.backWall !== 'ldsp') fillM2 += (sw * STIFFENER_HEIGHT) / 1e6; // жёсткость — вертикальная пластина, площадь ширина×высота
+      fillM2 += ((sec.shelvesTop + sec.shelvesBottom) * sw * innerDepth) / 1e6;
     });
 
     const backWallM2 = state.backWall !== 'none'
@@ -80,9 +86,10 @@ export default {
 
   describe() {
     const { sections } = state;
-    const totalShelves = sections.reduce((s, sec) => s + sec.shelves, 0);
+    // +1 полка на секцию — верхняя, которая строится всегда, +1 если нижняя не убрана (см. _wardrobe-shared.js).
+    const totalShelves = sections.reduce((s, sec) => s + 1 + (sec.bottomShelf ? 1 : 0) + sec.shelvesTop + sec.shelvesBottom, 0);
     const totalDrawers = sections.reduce((s, sec) => s + sec.drawers, 0);
-    const hasRod = sections.some(sec => sec.rod);
-    return `, секций: ${sections.length}, полок: ${totalShelves}, ящиков: ${totalDrawers}, штанга: ${hasRod ? 'да' : 'нет'}`;
+    const totalRod = sections.reduce((s, sec) => s + Math.max(0, Math.min(2, sec.rod || 0)), 0);
+    return `, секций: ${sections.length}, полок: ${totalShelves}, ящиков: ${totalDrawers}, штанг: ${totalRod}`;
   },
 };

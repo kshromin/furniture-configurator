@@ -72,7 +72,8 @@
     { "id": "handle",        "name": "Ручка",                           "price": 300,  "per": "door"   },
     { "id": "hardware_set",  "name": "Крепёж и доводчики (на изделие)", "price": 500,  "per": "item"   },
     { "id": "shelf_support", "name": "Опоры полки (компл.)",            "price": 150,  "per": "shelf"  },
-    { "id": "drawer_slide",  "name": "Направляющие ящика (компл.)",     "price": 600,  "per": "drawer" },
+    { "id": "drawer_slide_soft",  "name": "Направляющие ящика (компл., с доводчиком)", "price": 600, "per": "drawerSoft"  },
+    { "id": "drawer_slide_basic", "name": "Направляющие ящика (компл., без доводчика)", "price": 450, "per": "drawerBasic" },
     { "id": "rod",           "name": "Штанга для одежды",               "price": 400,  "per": "rod"    }
   ],
   "presets": [

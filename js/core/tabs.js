@@ -2,7 +2,7 @@ import { state } from './state.js';
 import { TYPES } from '../types/registry.js';
 import { renderProducerSelect, renderSwatches } from './materials.js';
 import { buildFurniture } from './build.js';
-import { rebalanceSections, MIN_SECTION_WIDTH } from '../types/_wardrobe-shared.js';
+import { rebalanceSections, MIN_SECTION_WIDTH, maxDrawerDepth } from '../types/_wardrobe-shared.js';
 
 function activeType() { return TYPES[state.type] || TYPES['wardrobe']; }
 
@@ -74,6 +74,9 @@ export function bindSlider(id, key, suffix) {
     if (numInput) numInput.value = val;
     if (key === 'width' || key === 'height') updateTypeBar();
     buildFurniture();
+    // build() клампит state.sections[i].drawerDepth под новую глубину короба — перерисовываем
+    // карточки секций, чтобы поле ввода показывало актуальное (уже урезанное) значение и max.
+    if (key === 'depth') renderSectionsList();
   }
 
   range.addEventListener('input', () => apply(Number(range.value)));
@@ -219,6 +222,7 @@ export function renderSectionsList() {
   const container = document.getElementById('sectionsListItems');
   if (!container) return;
   container.innerHTML = '';
+  const maxDD = maxDrawerDepth(state.depth);
 
   state.sections.forEach((sec, i) => {
     const card = document.createElement('div');
@@ -239,15 +243,34 @@ export function renderSectionsList() {
       </div>
       <div class="section-card-grid">
         <div class="section-field">
-          <label>Полки</label>
-          <input type="number" class="dim-input section-shelves-input" data-idx="${i}" value="${sec.shelves}" min="0" max="8">
+          <label>Полки сверху</label>
+          <input type="number" class="dim-input section-shelves-top-input" data-idx="${i}" value="${sec.shelvesTop}" min="0" max="8">
+        </div>
+        <div class="section-field">
+          <label>Полки снизу</label>
+          <input type="number" class="dim-input section-shelves-bottom-input" data-idx="${i}" value="${sec.shelvesBottom}" min="0" max="8">
         </div>
         <div class="section-field">
           <label>Ящики</label>
           <input type="number" class="dim-input section-drawers-input" data-idx="${i}" value="${sec.drawers}" min="0" max="4">
         </div>
+        <div class="section-field">
+          <label>Высота фасада ящика</label>
+          <input type="number" class="dim-input section-drawer-height-input" data-idx="${i}" value="${sec.drawerHeight}" min="50" max="500" step="10">
+        </div>
+        <div class="section-field">
+          <label>Глубина ящика (250-${maxDD})</label>
+          <input type="number" class="dim-input section-drawer-depth-input" data-idx="${i}" value="${sec.drawerDepth}" min="250" max="${maxDD}" step="50">
+        </div>
         <div class="section-field checkbox-field">
-          <label><input type="checkbox" class="section-rod-input" data-idx="${i}" ${sec.rod ? 'checked' : ''}> Штанга</label>
+          <label><input type="checkbox" class="section-drawer-no-softclose-input" data-idx="${i}" ${sec.drawerSoftClose ? '' : 'checked'}> Без доводчика</label>
+        </div>
+        <div class="section-field">
+          <label>Штанга (0-2)</label>
+          <input type="number" class="dim-input section-rod-input" data-idx="${i}" value="${sec.rod}" min="0" max="2">
+        </div>
+        <div class="section-field checkbox-field">
+          <label><input type="checkbox" class="section-bottom-shelf-input" data-idx="${i}" ${sec.bottomShelf ? 'checked' : ''}> Нижняя полка</label>
         </div>
       </div>
     `;
@@ -263,9 +286,15 @@ export function renderSectionsList() {
       buildFurniture();
     });
   });
-  container.querySelectorAll('.section-shelves-input').forEach(inp => {
+  container.querySelectorAll('.section-shelves-top-input').forEach(inp => {
     inp.addEventListener('change', e => {
-      state.sections[Number(e.target.dataset.idx)].shelves = Math.max(0, Number(e.target.value));
+      state.sections[Number(e.target.dataset.idx)].shelvesTop = Math.max(0, Number(e.target.value));
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-shelves-bottom-input').forEach(inp => {
+    inp.addEventListener('change', e => {
+      state.sections[Number(e.target.dataset.idx)].shelvesBottom = Math.max(0, Number(e.target.value));
       buildFurniture();
     });
   });
@@ -275,9 +304,37 @@ export function renderSectionsList() {
       buildFurniture();
     });
   });
+  container.querySelectorAll('.section-drawer-height-input').forEach(inp => {
+    inp.addEventListener('change', e => {
+      state.sections[Number(e.target.dataset.idx)].drawerHeight = Math.max(50, Number(e.target.value));
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-drawer-depth-input').forEach(inp => {
+    inp.addEventListener('change', e => {
+      const localMax = maxDrawerDepth(state.depth);
+      const raw = Math.max(250, Math.min(localMax, Number(e.target.value)));
+      const snapped = Math.round(raw / 50) * 50;
+      e.target.value = snapped;
+      state.sections[Number(e.target.dataset.idx)].drawerDepth = snapped;
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-drawer-no-softclose-input').forEach(inp => {
+    inp.addEventListener('change', e => {
+      state.sections[Number(e.target.dataset.idx)].drawerSoftClose = !e.target.checked;
+      buildFurniture();
+    });
+  });
   container.querySelectorAll('.section-rod-input').forEach(inp => {
     inp.addEventListener('change', e => {
-      state.sections[Number(e.target.dataset.idx)].rod = e.target.checked;
+      state.sections[Number(e.target.dataset.idx)].rod = Math.max(0, Math.min(2, Number(e.target.value)));
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-bottom-shelf-input').forEach(inp => {
+    inp.addEventListener('change', e => {
+      state.sections[Number(e.target.dataset.idx)].bottomShelf = e.target.checked ? 1 : 0;
       buildFurniture();
     });
   });
@@ -293,7 +350,10 @@ export function renderSectionsList() {
 
 export function bindSectionsControls() {
   document.getElementById('addSectionBtn').addEventListener('click', () => {
-    state.sections.push({ width: MIN_SECTION_WIDTH, shelves: 3, drawers: 0, rod: true });
+    state.sections.push({
+      width: MIN_SECTION_WIDTH, shelvesTop: 0, shelvesBottom: 0, bottomShelf: 1,
+      drawers: 0, drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true, rod: 1,
+    });
     rebalanceSections();
     renderSectionsList();
     buildFurniture();
