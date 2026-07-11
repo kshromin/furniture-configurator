@@ -406,11 +406,15 @@
     <!-- Итог — всегда виден -->
     <div id="price-footer">
       <div class="price-rows">
-        <div class="price-row"><span>Корпус</span><span id="priceKorpus">0 ₽</span></div>
-        <div class="price-row"><span>Задняя стенка</span><span id="priceBackWall">—</span></div>
-        <div class="price-row"><span>Фасады</span><span id="priceFasad">0 ₽</span></div>
-        <div class="price-row"><span>Наполнение</span><span id="priceFill">0 ₽</span></div>
-        <div class="price-row"><span>Фурнитура</span><span id="priceFittings">0 ₽</span></div>
+        <!-- Подробная разбивка скрыта — данные по-прежнему пишутся в эти узлы (пригодится для
+             будущего вывода спецификации), просто не отображаются, чтобы не занимать место. -->
+        <div class="price-detail-rows" style="display:none">
+          <div class="price-row"><span>Корпус</span><span id="priceKorpus">0 ₽</span></div>
+          <div class="price-row"><span>Задняя стенка</span><span id="priceBackWall">—</span></div>
+          <div class="price-row"><span>Фасады</span><span id="priceFasad">0 ₽</span></div>
+          <div class="price-row"><span>Наполнение</span><span id="priceFill">0 ₽</span></div>
+          <div class="price-row"><span>Фурнитура</span><span id="priceFittings">0 ₽</span></div>
+        </div>
         <div class="price-row current-total"><span>Текущая позиция</span><span id="priceTotal">0 ₽</span></div>
       </div>
       <div id="orderCounterRow" class="order-counter-row" style="display:none">

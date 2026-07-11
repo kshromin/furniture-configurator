@@ -2,7 +2,7 @@ import { state } from './state.js';
 import { TYPES } from '../types/registry.js';
 import { renderProducerSelect, renderSwatches } from './materials.js';
 import { buildFurniture } from './build.js';
-import { rebalanceSections, MIN_SECTION_WIDTH, maxDrawerDepth, availableMeshDepths, availableValetLengths } from '../types/_wardrobe-shared.js';
+import { rebalanceSections, MIN_SECTION_WIDTH, maxDrawerDepth, availableMeshDepths, availableValetLengths, clampSectionSizes } from '../types/_wardrobe-shared.js';
 
 function activeType() { return TYPES[state.type] || TYPES['wardrobe']; }
 
@@ -222,6 +222,10 @@ export function renderSectionsList() {
   const container = document.getElementById('sectionsListItems');
   if (!container) return;
   container.innerHTML = '';
+  // Подрезаем сохранённые значения ДО рендера — иначе <select> может молча показать первый
+  // вариант списка (устаревшее значение не совпадает ни с одной опцией), пока не случится
+  // следующая пересборка (build()), которая сама эти значения тоже подрежет.
+  clampSectionSizes(state.sections, state.depth);
   const maxDD = maxDrawerDepth(state.depth);
   const meshDepths = availableMeshDepths(state.depth);
   const valetLengths = availableValetLengths(state.depth);
