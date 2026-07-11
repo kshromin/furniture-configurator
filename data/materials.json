@@ -74,7 +74,16 @@
     { "id": "shelf_support", "name": "Опоры полки (компл.)",            "price": 150,  "per": "shelf"  },
     { "id": "drawer_slide_soft",  "name": "Направляющие ящика (компл., с доводчиком)", "price": 600, "per": "drawerSoft"  },
     { "id": "drawer_slide_basic", "name": "Направляющие ящика (компл., без доводчика)", "price": 450, "per": "drawerBasic" },
-    { "id": "rod",           "name": "Штанга для одежды",               "price": 400,  "per": "rod"    }
+    { "id": "rod",           "name": "Штанга для одежды",               "price": 400,  "per": "rod"    },
+    { "id": "valet",         "name": "Торцевое вешало (выдвижное)",     "price": 1500, "per": "valet"  }
+  ],
+  "meshShelf": [
+    { "depth": 300, "color": "white",  "name": "Белая, 300мм",   "pricePerM": 900  },
+    { "depth": 300, "color": "silver", "name": "Серебро, 300мм", "pricePerM": 1100 },
+    { "depth": 400, "color": "white",  "name": "Белая, 400мм",   "pricePerM": 1100 },
+    { "depth": 400, "color": "silver", "name": "Серебро, 400мм", "pricePerM": 1300 },
+    { "depth": 500, "color": "white",  "name": "Белая, 500мм",   "pricePerM": 1300 },
+    { "depth": 500, "color": "silver", "name": "Серебро, 500мм", "pricePerM": 1500 }
   ],
   "presets": [
     { "name": "Компакт 1.2м",         "type": "wardrobe", "width": 1200, "height": 2400, "depth": 600, "korpusProducer": "egger",  "korpusId": "w980",  "fasadProducer": "egger",  "fasadId": "fw980",  "fillProducer": "egger",  "fillId": "nw980",  "sections": 2, "shelves": 3, "drawers": 0, "rod": true  },

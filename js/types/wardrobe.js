@@ -1,4 +1,4 @@
-import { state, PANEL_THICKNESS } from '../core/state.js';
+import { state, materials, PANEL_THICKNESS } from '../core/state.js';
 import { korpusBoxAreaM2 } from '../core/pricing.js';
 import {
   buildWardrobeBox, getDoorCount, effectiveDoorSpan, drawerBoxSize,
@@ -58,7 +58,12 @@ export default {
       (state.alignerRight ? (state.alignerRightW * stojkaH) / 1e6 : 0) +
       (state.alignerTop   ? (width * state.alignerTopH) / 1e6 : 0);
 
-    let fillM2 = 0;
+    function meshPricePerM(depth, color) {
+      const entry = (materials.meshShelf || []).find(m => m.depth === depth && m.color === color);
+      return entry ? entry.pricePerM : 0;
+    }
+
+    let fillM2 = 0, meshPrice = 0;
     const innerDepth = depth - DOOR_DEPTH_ZONE;
     sections.forEach(sec => {
       // Без зазора — совпадает с геометрией в buildWardrobeBox.
@@ -69,6 +74,11 @@ export default {
         const { boxW, boxH, boxDepth } = drawerBoxSize(sw, sec.drawerHeight, sec.drawerDepth, depth);
         const boxM2 = boxW * boxDepth + 2 * boxH * boxDepth + boxW * boxH;
         fillM2 += (sec.drawers * boxM2) / 1e6;
+      }
+      // Сетчатые полки — цена за погонный метр (ширина секции), а не за м², зависит от
+      // выбранной глубины и цвета (см. materials.json meshShelf).
+      if (sec.meshShelves > 0) {
+        meshPrice += sec.meshShelves * (sw / 1000) * meshPricePerM(sec.meshDepth, sec.meshColor);
       }
       // Верхняя полка — всегда, нижняя — съёмная (sec.bottomShelf), плюс планка жёсткости (если
       // задняя стенка не ЛДСП), плюс доп. полки сверху/снизу — см. геометрию в buildWardrobeBox.
@@ -81,7 +91,7 @@ export default {
       ? ((width - leftOff - rightOff) * stojkaH) / 1e6
       : 0;
 
-    return { korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2, fasadM2, fillM2, backWallM2 };
+    return { korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2, fasadM2, fillM2, backWallM2, meshPrice };
   },
 
   describe() {
@@ -90,6 +100,8 @@ export default {
     const totalShelves = sections.reduce((s, sec) => s + 1 + (sec.bottomShelf ? 1 : 0) + sec.shelvesTop + sec.shelvesBottom, 0);
     const totalDrawers = sections.reduce((s, sec) => s + sec.drawers, 0);
     const totalRod = sections.reduce((s, sec) => s + Math.max(0, Math.min(2, sec.rod || 0)), 0);
-    return `, секций: ${sections.length}, полок: ${totalShelves}, ящиков: ${totalDrawers}, штанг: ${totalRod}`;
+    const totalMesh = sections.reduce((s, sec) => s + sec.meshShelves, 0);
+    const totalValet = sections.reduce((s, sec) => s + (sec.valet ? 1 : 0), 0);
+    return `, секций: ${sections.length}, полок: ${totalShelves}, ящиков: ${totalDrawers}, штанг: ${totalRod}, сетчатых полок: ${totalMesh}, торцевых вешал: ${totalValet}`;
   },
 };

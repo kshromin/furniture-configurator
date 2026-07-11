@@ -1,6 +1,6 @@
 export const PANEL_THICKNESS = 16;
 
-export let materials = { korpus: { producers: [] }, fasad: { producers: [] }, fill: { producers: [] }, fittings: [], presets: [] };
+export let materials = { korpus: { producers: [] }, fasad: { producers: [] }, fill: { producers: [] }, fittings: [], meshShelf: [], presets: [] };
 export function setMaterials(m) { materials = m; }
 
 export const state = {
@@ -17,9 +17,17 @@ export const state = {
   // (дно/боковины/задняя стенка) — наполнение/ЛДСП, фасад — отдельная лицевая панель.
   // drawerHeight — высота фасада (мм), drawerDepth — глубина короба (250-600, шаг 50),
   // drawerSoftClose — направляющие с доводчиком (по умолчанию true).
+  // Сетчатые полки (metal mesh) — независимы от ящиков, тоже строятся снизу вверх, максимум 3шт
+  // на секцию. Ширина всегда во всю секцию (как обычная полка, от стойки до стойки), а вот
+  // глубина — фиксированный выбор 300/400/500мм (доступные варианты зависят от реальной глубины
+  // короба, см. maxMeshDepth). Цена — за погонный метр, зависит от глубины и цвета (см. materials.json).
+  // Торцевое вешало — выдвижная штанга-петля (телескопический рельс с П-образным прутком на
+  // конце), крепится к низу верхней полки, тянется вдоль глубины. valet: 0/1 (есть/нет),
+  // valetLength — заявленный размер (250-550, шаг 50), ограничен реальной доступной глубиной
+  // (как и у сетчатой полки).
   sections: [
-    { width: 876, shelvesTop: 0, shelvesBottom: 0, bottomShelf: 1, drawers: 0, drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true, rod: 1 },
-    { width: 876, shelvesTop: 0, shelvesBottom: 0, bottomShelf: 1, drawers: 0, drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true, rod: 1 },
+    { width: 876, shelvesTop: 0, shelvesBottom: 0, bottomShelf: 1, drawers: 0, drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true, rod: 1, meshShelves: 0, meshDepth: 400, meshColor: 'silver', valet: 0, valetLength: 400 },
+    { width: 876, shelvesTop: 0, shelvesBottom: 0, bottomShelf: 1, drawers: 0, drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true, rod: 1, meshShelves: 0, meshDepth: 400, meshColor: 'silver', valet: 0, valetLength: 400 },
   ],
   drawers: 0, // плоское значение для типов без секций (комод и т.п.)
   korpusProducer: null, korpusId: null,

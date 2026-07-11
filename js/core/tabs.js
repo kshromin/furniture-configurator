@@ -2,7 +2,7 @@ import { state } from './state.js';
 import { TYPES } from '../types/registry.js';
 import { renderProducerSelect, renderSwatches } from './materials.js';
 import { buildFurniture } from './build.js';
-import { rebalanceSections, MIN_SECTION_WIDTH, maxDrawerDepth } from '../types/_wardrobe-shared.js';
+import { rebalanceSections, MIN_SECTION_WIDTH, maxDrawerDepth, availableMeshDepths, availableValetLengths } from '../types/_wardrobe-shared.js';
 
 function activeType() { return TYPES[state.type] || TYPES['wardrobe']; }
 
@@ -223,6 +223,8 @@ export function renderSectionsList() {
   if (!container) return;
   container.innerHTML = '';
   const maxDD = maxDrawerDepth(state.depth);
+  const meshDepths = availableMeshDepths(state.depth);
+  const valetLengths = availableValetLengths(state.depth);
 
   state.sections.forEach((sec, i) => {
     const card = document.createElement('div');
@@ -271,6 +273,32 @@ export function renderSectionsList() {
         </div>
         <div class="section-field checkbox-field">
           <label><input type="checkbox" class="section-bottom-shelf-input" data-idx="${i}" ${sec.bottomShelf ? 'checked' : ''}> Нижняя полка</label>
+        </div>
+        <div class="section-field">
+          <label>Сетчатые полки (0-3)</label>
+          <input type="number" class="dim-input section-mesh-count-input" data-idx="${i}" value="${sec.meshShelves}" min="0" max="3">
+        </div>
+        <div class="section-field">
+          <label>Глубина сетки</label>
+          <select class="dim-input section-mesh-depth-input" data-idx="${i}">
+            ${meshDepths.map(d => `<option value="${d}" ${sec.meshDepth === d ? 'selected' : ''}>${d} мм</option>`).join('')}
+          </select>
+        </div>
+        <div class="section-field">
+          <label>Цвет сетки</label>
+          <select class="dim-input section-mesh-color-input" data-idx="${i}">
+            <option value="silver" ${sec.meshColor === 'silver' ? 'selected' : ''}>Серебро</option>
+            <option value="white" ${sec.meshColor === 'white' ? 'selected' : ''}>Белая</option>
+          </select>
+        </div>
+        <div class="section-field checkbox-field">
+          <label><input type="checkbox" class="section-valet-input" data-idx="${i}" ${sec.valet ? 'checked' : ''}> Торцевое вешало</label>
+        </div>
+        <div class="section-field">
+          <label>Размер вешала</label>
+          <select class="dim-input section-valet-length-input" data-idx="${i}">
+            ${valetLengths.map(v => `<option value="${v}" ${sec.valetLength === v ? 'selected' : ''}>${v} мм</option>`).join('')}
+          </select>
         </div>
       </div>
     `;
@@ -338,6 +366,36 @@ export function renderSectionsList() {
       buildFurniture();
     });
   });
+  container.querySelectorAll('.section-mesh-count-input').forEach(inp => {
+    inp.addEventListener('change', e => {
+      state.sections[Number(e.target.dataset.idx)].meshShelves = Math.max(0, Math.min(3, Number(e.target.value)));
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-mesh-depth-input').forEach(sel => {
+    sel.addEventListener('change', e => {
+      state.sections[Number(e.target.dataset.idx)].meshDepth = Number(e.target.value);
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-mesh-color-input').forEach(sel => {
+    sel.addEventListener('change', e => {
+      state.sections[Number(e.target.dataset.idx)].meshColor = e.target.value;
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-valet-input').forEach(inp => {
+    inp.addEventListener('change', e => {
+      state.sections[Number(e.target.dataset.idx)].valet = e.target.checked ? 1 : 0;
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-valet-length-input').forEach(sel => {
+    sel.addEventListener('change', e => {
+      state.sections[Number(e.target.dataset.idx)].valetLength = Number(e.target.value);
+      buildFurniture();
+    });
+  });
   container.querySelectorAll('.section-remove-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       state.sections.splice(Number(btn.dataset.idx), 1);
@@ -353,6 +411,7 @@ export function bindSectionsControls() {
     state.sections.push({
       width: MIN_SECTION_WIDTH, shelvesTop: 0, shelvesBottom: 0, bottomShelf: 1,
       drawers: 0, drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true, rod: 1,
+      meshShelves: 0, meshDepth: 400, meshColor: 'silver', valet: 0, valetLength: 400,
     });
     rebalanceSections();
     renderSectionsList();

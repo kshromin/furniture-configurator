@@ -17,7 +17,7 @@ export function applyPreset(p) {
   state.sections = Array.from({ length: n }, () => ({
     width: 0, shelvesTop: 0, shelvesBottom: p.shelves || 0, bottomShelf: 1,
     drawers: p.drawers || 0, drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true,
-    rod: p.rod ? 1 : 0,
+    rod: p.rod ? 1 : 0, meshShelves: 0, meshDepth: 400, meshColor: 'silver', valet: 0, valetLength: 400,
   }));
 
   state.korpusProducer = p.korpusProducer;

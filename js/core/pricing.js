@@ -37,7 +37,7 @@ const BACK_WALL_RATE = { ldsp: 2000, hdf: 500 };
 
 export function updatePrice(counts) {
   const type = TYPES[state.type] || TYPES['wardrobe'];
-  const { korpusM2 = 0, fasadM2 = 0, fillM2 = 0, backWallM2 = 0 } = type.areas(counts);
+  const { korpusM2 = 0, fasadM2 = 0, fillM2 = 0, backWallM2 = 0, meshPrice = 0 } = type.areas(counts);
 
   const kMat = getColor('korpus');
   const fMat = getColor('fasad');
@@ -45,7 +45,9 @@ export function updatePrice(counts) {
 
   const korpusPrice   = korpusM2   * kMat.pricePerM2;
   const fasadPrice    = fasadM2    * fMat.pricePerM2;
-  const fillPrice     = fillM2     * nMat.pricePerM2;
+  // Сетчатые полки считаются за погонный метр (своя цена на комбинацию глубина+цвет), а не
+  // за м² по общему тарифу наполнения — просто добавляем уже готовую сумму в ту же строку сметы.
+  const fillPrice     = fillM2     * nMat.pricePerM2 + meshPrice;
   const backWallPrice = backWallM2 * (BACK_WALL_RATE[state.backWall] || 0);
 
   const fittingsPrice = (materials.fittings || []).reduce((sum, f) => {
