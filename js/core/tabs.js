@@ -247,61 +247,38 @@ export function renderSectionsList() {
           ${removeBtn}
         </div>
       </div>
-      <div class="section-card-grid">
-        <div class="section-field">
-          <label>Полки сверху</label>
-          <input type="number" class="dim-input section-shelves-top-input" data-idx="${i}" value="${sec.shelvesTop}" min="0" max="8">
+      <div class="section-rows">
+        <div class="el-row" title="Полки ЛДСП">
+          <span class="el-row-label">Полки</span>
+          <input type="number" class="mini-input section-shelves-input" data-idx="${i}" value="${sec.shelves}" min="0" max="10" title="Количество полок (0-10)">
         </div>
-        <div class="section-field">
-          <label>Полки снизу</label>
-          <input type="number" class="dim-input section-shelves-bottom-input" data-idx="${i}" value="${sec.shelvesBottom}" min="0" max="8">
+        <div class="el-row" title="Штанга для одежды">
+          <span class="el-row-label">Штанга</span>
+          <input type="number" class="mini-input section-rod-input" data-idx="${i}" value="${sec.rod}" min="0" max="2" title="Количество штанг (0-2)">
         </div>
-        <div class="section-field">
-          <label>Ящики</label>
-          <input type="number" class="dim-input section-drawers-input" data-idx="${i}" value="${sec.drawers}" min="0" max="4">
-        </div>
-        <div class="section-field">
-          <label>Высота фасада ящика</label>
-          <input type="number" class="dim-input section-drawer-height-input" data-idx="${i}" value="${sec.drawerHeight}" min="50" max="500" step="10">
-        </div>
-        <div class="section-field">
-          <label>Глубина ящика (250-${maxDD})</label>
-          <input type="number" class="dim-input section-drawer-depth-input" data-idx="${i}" value="${sec.drawerDepth}" min="250" max="${maxDD}" step="50">
-        </div>
-        <div class="section-field checkbox-field">
-          <label><input type="checkbox" class="section-drawer-no-softclose-input" data-idx="${i}" ${sec.drawerSoftClose ? '' : 'checked'}> Без доводчика</label>
-        </div>
-        <div class="section-field">
-          <label>Штанга (0-2)</label>
-          <input type="number" class="dim-input section-rod-input" data-idx="${i}" value="${sec.rod}" min="0" max="2">
-        </div>
-        <div class="section-field checkbox-field">
-          <label><input type="checkbox" class="section-bottom-shelf-input" data-idx="${i}" ${sec.bottomShelf ? 'checked' : ''}> Нижняя полка</label>
-        </div>
-        <div class="section-field">
-          <label>Сетчатые полки (0-3)</label>
-          <input type="number" class="dim-input section-mesh-count-input" data-idx="${i}" value="${sec.meshShelves}" min="0" max="3">
-        </div>
-        <div class="section-field">
-          <label>Глубина сетки</label>
-          <select class="dim-input section-mesh-depth-input" data-idx="${i}">
-            ${meshDepths.map(d => `<option value="${d}" ${sec.meshDepth === d ? 'selected' : ''}>${d} мм</option>`).join('')}
+        <div class="el-row" title="Сетчатая полка">
+          <span class="el-row-label">Сетка</span>
+          <input type="number" class="mini-input section-mesh-count-input" data-idx="${i}" value="${sec.meshShelves}" min="0" max="3" title="Количество (0-3)">
+          <select class="mini-select section-mesh-depth-input" data-idx="${i}" title="Глубина">
+            ${meshDepths.map(d => `<option value="${d}" ${sec.meshDepth === d ? 'selected' : ''}>${d}</option>`).join('')}
           </select>
-        </div>
-        <div class="section-field">
-          <label>Цвет сетки</label>
-          <select class="dim-input section-mesh-color-input" data-idx="${i}">
-            <option value="silver" ${sec.meshColor === 'silver' ? 'selected' : ''}>Серебро</option>
+          <select class="mini-select section-mesh-color-input" data-idx="${i}" title="Цвет">
+            <option value="silver" ${sec.meshColor === 'silver' ? 'selected' : ''}>Хром</option>
             <option value="white" ${sec.meshColor === 'white' ? 'selected' : ''}>Белая</option>
           </select>
         </div>
-        <div class="section-field checkbox-field">
-          <label><input type="checkbox" class="section-valet-input" data-idx="${i}" ${sec.valet ? 'checked' : ''}> Торцевое вешало</label>
+        <div class="el-row" title="Ящик">
+          <span class="el-row-label">Ящики</span>
+          <input type="number" class="mini-input section-drawers-input" data-idx="${i}" value="${sec.drawers}" min="0" max="4" title="Количество (0-4)">
+          <input type="number" class="mini-input mini-input-wide section-drawer-height-input" data-idx="${i}" value="${sec.drawerHeight}" min="50" max="500" step="10" title="Высота фасада, мм">
+          <input type="number" class="mini-input mini-input-wide section-drawer-depth-input" data-idx="${i}" value="${sec.drawerDepth}" min="250" max="${maxDD}" step="50" title="Глубина короба, мм (250-${maxDD})">
+          <label class="el-row-check" title="Без доводчика"><input type="checkbox" class="section-drawer-no-softclose-input" data-idx="${i}" ${sec.drawerSoftClose ? '' : 'checked'}> SC</label>
         </div>
-        <div class="section-field">
-          <label>Размер вешала</label>
-          <select class="dim-input section-valet-length-input" data-idx="${i}">
-            ${valetLengths.map(v => `<option value="${v}" ${sec.valetLength === v ? 'selected' : ''}>${v} мм</option>`).join('')}
+        <div class="el-row" title="Торцевое вешало">
+          <span class="el-row-label">Вешало</span>
+          <label class="el-row-check" title="Есть/нет"><input type="checkbox" class="section-valet-input" data-idx="${i}" ${sec.valet ? 'checked' : ''}></label>
+          <select class="mini-select section-valet-length-input" data-idx="${i}" title="Размер, мм">
+            ${valetLengths.map(v => `<option value="${v}" ${sec.valetLength === v ? 'selected' : ''}>${v}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -318,15 +295,9 @@ export function renderSectionsList() {
       buildFurniture();
     });
   });
-  container.querySelectorAll('.section-shelves-top-input').forEach(inp => {
+  container.querySelectorAll('.section-shelves-input').forEach(inp => {
     inp.addEventListener('change', e => {
-      state.sections[Number(e.target.dataset.idx)].shelvesTop = Math.max(0, Number(e.target.value));
-      buildFurniture();
-    });
-  });
-  container.querySelectorAll('.section-shelves-bottom-input').forEach(inp => {
-    inp.addEventListener('change', e => {
-      state.sections[Number(e.target.dataset.idx)].shelvesBottom = Math.max(0, Number(e.target.value));
+      state.sections[Number(e.target.dataset.idx)].shelves = Math.max(0, Math.min(10, Number(e.target.value)));
       buildFurniture();
     });
   });
@@ -361,12 +332,6 @@ export function renderSectionsList() {
   container.querySelectorAll('.section-rod-input').forEach(inp => {
     inp.addEventListener('change', e => {
       state.sections[Number(e.target.dataset.idx)].rod = Math.max(0, Math.min(2, Number(e.target.value)));
-      buildFurniture();
-    });
-  });
-  container.querySelectorAll('.section-bottom-shelf-input').forEach(inp => {
-    inp.addEventListener('change', e => {
-      state.sections[Number(e.target.dataset.idx)].bottomShelf = e.target.checked ? 1 : 0;
       buildFurniture();
     });
   });
@@ -413,7 +378,7 @@ export function renderSectionsList() {
 export function bindSectionsControls() {
   document.getElementById('addSectionBtn').addEventListener('click', () => {
     state.sections.push({
-      width: MIN_SECTION_WIDTH, shelvesTop: 0, shelvesBottom: 0, bottomShelf: 1,
+      width: MIN_SECTION_WIDTH, shelves: 1,
       drawers: 0, drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true, rod: 1,
       meshShelves: 0, meshDepth: 400, meshColor: 'silver', valet: 0, valetLength: 400,
     });

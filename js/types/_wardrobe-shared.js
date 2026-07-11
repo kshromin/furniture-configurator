@@ -33,12 +33,16 @@ export function effectiveDoorSpan() {
   const topOff    = off(noCeiling,   topReplace,    topBoxH,    alignerTop,   alignerTopH);
   const bottomOff = off(noBottom,    bottomReplace, bottomBoxH, false,        0);
 
-  // Стойки/задняя стенка/перегородки/выравниватели идут во всю глубину короба, а планка/короб —
-  // только декоративная накладка в передней дверной зоне (см. drawSideElem). Поэтому их высота
-  // должна знать только про РЕАЛЬНУЮ крышу/дно, а не про декоративную замену — иначе они не
-  // дотягиваются до пола/потолка, хотя должны стоять на полу независимо от замены.
-  const stojkaTopOff    = noCeiling ? 0 : t + (alignerTop ? alignerTopH : 0);
-  const stojkaBottomOff = noBottom  ? 0 : t;
+  // Стойки/задняя стенка/перегородки/выравниватели/наполнение идут во всю глубину короба, а
+  // планка/короб — только декоративная накладка в передней дверной зоне (см. drawSideElem).
+  // Поэтому их размер должен знать только про РЕАЛЬНУЮ крышу/дно/стойку, а не про декоративную
+  // замену — иначе они не дотягиваются до стены, хотя должны стоять вплотную к ней независимо
+  // от замены. Дверной пролёт (spanW/leftOff/rightOff/topOff/bottomOff) — отдельно, без изменений
+  // (плаka намеренно не меняет ширину дверного проёма).
+  const stojkaTopOff    = noCeiling  ? 0 : t + (alignerTop   ? alignerTopH   : 0);
+  const stojkaBottomOff = noBottom   ? 0 : t;
+  const stojkaLeftOff   = noSideLeft  ? 0 : t + (alignerLeft  ? alignerLeftW  : 0);
+  const stojkaRightOff  = noSideRight ? 0 : t + (alignerRight ? alignerRightW : 0);
 
   return {
     spanW:     width - leftOff - rightOff,
@@ -48,13 +52,17 @@ export function effectiveDoorSpan() {
     bottomOff,
     stojkaTopOff,
     stojkaBottomOff,
+    stojkaLeftOff,
+    stojkaRightOff,
+    innerSpanW: width - stojkaLeftOff - stojkaRightOff,
   };
 }
 
 // Секции наполнения имеют произвольную ширину, но сумма их ширин + перегородки между ними
-// обязана совпадать с внутренней шириной короба (effectiveDoorSpan().spanW). Эта функция
-// восстанавливает баланс после любого изменения, которое сдвигает границы короба (ширина
-// изделия, стойки/выравниватели) или состав секций (добавили/убрали секцию).
+// обязана совпадать с реальной внутренней шириной короба (effectiveDoorSpan().innerSpanW —
+// доходит до стены независимо от планки/короба, в отличие от дверного пролёта spanW). Эта
+// функция восстанавливает баланс после любого изменения, которое сдвигает границы короба
+// (ширина изделия, стойки/выравниватели) или состав секций (добавили/убрали секцию).
 // editedIndex — если пользователь только что руками поправил ширину одной секции, её значение
 // не трогаем, остальные пропорционально ужимаются/растягиваются под освободившееся место.
 export const MIN_SECTION_WIDTH = 150;
@@ -64,8 +72,8 @@ export function rebalanceSections(editedIndex = null) {
   const n = sections.length;
   if (n === 0) return;
   const t = PANEL_THICKNESS;
-  const { spanW } = effectiveDoorSpan();
-  const available = spanW - (n - 1) * t;
+  const { innerSpanW } = effectiveDoorSpan();
+  const available = innerSpanW - (n - 1) * t;
 
   if (n === 1) { sections[0].width = available; return; }
 
@@ -118,9 +126,9 @@ export function drawerBoxSize(sw, dh, drawerDepth, depth) {
   return { boxW: sw - 20, boxH: dh - 20, boxDepth: Math.min(drawerDepth, boxDepthMax) };
 }
 
-// Дефолтная структура наполнения секции (см. DEVLOG сессия 10): верхняя и нижняя полки —
-// не настраиваются, просто задают границы зон над/под ними. shelvesTop/shelvesBottom из
-// state.sections[i] добавляют полки ДОПОЛНИТЕЛЬНО, в соответствующей зоне.
+// Дефолтная структура наполнения секции: верхняя полка не настраивается, просто задаёт верхнюю
+// границу зоны для доп. полок/штанги. sec.shelves (state.sections[i]) — экспериментальная
+// объединённая модель остальных полок, см. комментарий в state.js.
 export const TOP_SHELF_GAP = 550;    // от верхней границы наполнения до верхней полки
 export const BOTTOM_SHELF_GAP = 250; // от нижней границы наполнения до нижней полки
 export const ROD_BELOW_TOP_SHELF = 70; // штанга №1 — на столько ниже верхней полки
@@ -249,7 +257,10 @@ export function buildWardrobeBox() {
   // что и для дверного пролёта). Стойки, задняя стенка и наполнение опираются на них, а не на
   // голую толщину панели — иначе при снятой крыше/дне (или сдвиге от выравнивателя) они не
   // дотянутся до реального края короба или, наоборот, вылезут за него.
-  const { spanW, leftOff, rightOff, topOff, bottomOff, stojkaTopOff, stojkaBottomOff } = effectiveDoorSpan();
+  const {
+    spanW, leftOff, rightOff, topOff, bottomOff,
+    stojkaTopOff, stojkaBottomOff, stojkaLeftOff, stojkaRightOff, innerSpanW,
+  } = effectiveDoorSpan();
   const stojkaH = height - stojkaTopOff - stojkaBottomOff;
   const stojkaCenterY = y0 + stojkaBottomOff + stojkaH / 2;
 
@@ -263,7 +274,7 @@ export function buildWardrobeBox() {
   if (state.backWall !== 'none') {
     const bwColor = state.backWall === 'hdf' ? 0xffffff : kColor;
     const bwThick = state.backWall === 'hdf' ? 4 : t;
-    addPanel(width - leftOff - rightOff, stojkaH, bwThick, bwColor, [0, stojkaCenterY, -depth / 2 + bwThick / 2]);
+    addPanel(width - stojkaLeftOff - stojkaRightOff, stojkaH, bwThick, bwColor, [0, stojkaCenterY, -depth / 2 + bwThick / 2]);
   }
 
   // Наполнение (перегородки, полки) не занимает дверную зону и прижато к задней стенке —
@@ -273,17 +284,19 @@ export function buildWardrobeBox() {
 
   // Ширины секций хранятся как есть в state.sections; здесь только страховка на случай, если
   // что-то изменило границы короба (габариты, стойки, выравниватели) и не вызвало rebalanceSections()
-  // само — без этого секции могли бы не долетать до края короба или вылезать за него.
+  // само — без этого секции могли бы не долетать до края короба или вылезать за него. Считаем
+  // от innerSpanW (реальная ширина до стены), а не spanW (дверной пролёт) — наполнение должно
+  // доходить до стены независимо от планки/короба на стойке.
   const sections = state.sections;
   {
-    const available = spanW - (sections.length - 1) * t;
+    const available = innerSpanW - (sections.length - 1) * t;
     const sum = sections.reduce((s, sec) => s + sec.width, 0);
     if (Math.abs(sum - available) > 0.5) rebalanceSections();
   }
   clampSectionSizes(sections, depth);
   const sectionCenters = [];
   {
-    let cursorX = -width / 2 + leftOff;
+    let cursorX = -width / 2 + stojkaLeftOff;
     sections.forEach((sec, i) => {
       sectionCenters.push(cursorX + sec.width / 2);
       cursorX += sec.width;
@@ -486,11 +499,25 @@ export function buildWardrobeBox() {
     }
     addPanel(sw, t, innerDepth, nColor, [cx, y0 + topShelfY, innerZ]);
     totalShelves += 1;
-    // Нижняя, в отличие от верхней, съёмная — но её позиция всё равно остаётся границей зон
-    // для доп. полок снизу и штанги №2, даже когда сама панель не рисуется.
-    if (sec.bottomShelf) {
+    // bottomShelfY остаётся границей зон для штанги №2 и распределения доп. полок, даже когда
+    // ни одна полка там не нарисована (sec.shelves === 0).
+
+    // Полки (экспериментальная объединённая модель — см. state.js): первая полка счётчика
+    // всегда встаёт на прежнее место "нижней" полки, остальные распределяются равномерно между
+    // ней и верхней полкой. Точную расстановку впоследствии заменит перетаскивание мышкой —
+    // сейчас важно только чтобы каждая полка была отдельным управляемым элементом.
+    if (sec.shelves > 0) {
       addPanel(sw, t, innerDepth, nColor, [cx, y0 + bottomShelfY, innerZ]);
       totalShelves += 1;
+      if (sec.shelves > 1) {
+        const extra = sec.shelves - 1;
+        const usable = topShelfY - bottomShelfY;
+        for (let i = 0; i < extra; i++) {
+          const y = bottomShelfY + (usable * (i + 1)) / (extra + 1);
+          addPanel(sw, t, innerDepth, nColor, [cx, y0 + y, innerZ]);
+        }
+        totalShelves += extra;
+      }
     }
 
     if (sec.valet) {
@@ -498,11 +525,12 @@ export function buildWardrobeBox() {
       totalValet += 1;
     }
 
-    // Ящики стоят над нижней полкой (на её верхней грани), а если полку убрали — прямо на
-    // дне короба.
-    if (sec.drawers > 0) {
+    // Ящики стоят над нижней полкой (на её верхней грани), а если полки нет вообще — прямо на
+    // дне короба. Если снята боковая стойка (планка/короб/ничего — не важно) — направляющие
+    // ящика крепить некуда, ящики не ставим вообще, независимо от значения в поле.
+    if (sec.drawers > 0 && !noSideLeft && !noSideRight) {
       const gap = 4;
-      const baseY = sec.bottomShelf ? bottomShelfY + t / 2 : fillBottom;
+      const baseY = sec.shelves > 0 ? bottomShelfY + t / 2 : fillBottom;
       for (let i = 0; i < sec.drawers; i++) {
         const y = baseY + i * (sec.drawerHeight + gap) + sec.drawerHeight / 2;
         addDrawer(cx, y, sw, sec);
@@ -513,7 +541,7 @@ export function buildWardrobeBox() {
 
     // Сетчатые полки — независимое от ящиков поле, тоже строятся снизу вверх (максимум 3шт).
     if (sec.meshShelves > 0) {
-      const baseY = sec.bottomShelf ? bottomShelfY + t / 2 : fillBottom;
+      const baseY = sec.shelves > 0 ? bottomShelfY + t / 2 : fillBottom;
       for (let i = 0; i < sec.meshShelves; i++) {
         const y = baseY + MESH_THICKNESS / 2 + i * MESH_PITCH;
         addMeshShelf(cx, y0 + y, sw, sec.meshDepth, sec.meshColor);
@@ -528,24 +556,6 @@ export function buildWardrobeBox() {
       const stiffenerZ = -depth / 2 + STIFFENER_THICKNESS / 2;
       const stiffenerY = topShelfY - t / 2 - STIFFENER_HEIGHT / 2;
       addPanel(sw, STIFFENER_HEIGHT, STIFFENER_THICKNESS, nColor, [cx, y0 + stiffenerY, stiffenerZ]);
-    }
-
-    // Доп. полки сверху (между верхней границей и верхней полкой) и снизу (между верхней и нижней полкой).
-    if (sec.shelvesTop > 0) {
-      const usable = fillTop - topShelfY;
-      for (let i = 0; i < sec.shelvesTop; i++) {
-        const y = topShelfY + (usable * (i + 1)) / (sec.shelvesTop + 1);
-        addPanel(sw, t, innerDepth, nColor, [cx, y0 + y, innerZ]);
-      }
-      totalShelves += sec.shelvesTop;
-    }
-    if (sec.shelvesBottom > 0) {
-      const usable = topShelfY - bottomShelfY;
-      for (let i = 0; i < sec.shelvesBottom; i++) {
-        const y = bottomShelfY + (usable * (i + 1)) / (sec.shelvesBottom + 1);
-        addPanel(sw, t, innerDepth, nColor, [cx, y0 + y, innerZ]);
-      }
-      totalShelves += sec.shelvesBottom;
     }
 
     // Штанга №1 — фиксированно под верхней полкой; штанга №2 (если выбраны обе) — посередине

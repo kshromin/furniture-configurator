@@ -9,9 +9,12 @@ export const state = {
   // Секции шкафа-купе — у каждой своя ширина (мм) и своё наполнение. Ширины должны в сумме
   // совпадать с внутренней шириной короба — за этим следит rebalanceSections() в _wardrobe-shared.js.
   // Каждая секция по умолчанию уже содержит верхнюю полку + штангу (см. _wardrobe-shared.js) —
-  // shelvesTop/shelvesBottom считают ТОЛЬКО дополнительные полки сверх опорных верхней/нижней.
-  // Верхняя полка всегда есть (не считается, не убирается) — она опорная точка для штанги/жёсткости.
-  // Нижняя полка, в отличие от верхней, съёмная — bottomShelf: 1 (есть) / 0 (убрана).
+  // верхняя полка всегда есть (не считается, не убирается, не входит в shelves) — она опорная
+  // точка для штанги/жёсткости. shelves — ОБЩИЙ счётчик остальных полок (экспериментальная
+  // модель на замену прежнему разделению shelvesTop/shelvesBottom/bottomShelf): первая полка
+  // счётчика всегда рисуется на месте прежней "нижней" полки, остальные — по свободному
+  // алгоритму (готовим почву под будущее перетаскивание полок мышкой). shelves: 0 = совсем без
+  // нижней полки.
   // rod — количество штанг (0-2), а не флаг.
   // Ящики секции — по глубине вровень с внутренней перегородкой (за дверями купе), короб
   // (дно/боковины/задняя стенка) — наполнение/ЛДСП, фасад — отдельная лицевая панель.
@@ -26,8 +29,8 @@ export const state = {
   // valetLength — заявленный размер (250-550, шаг 50), ограничен реальной доступной глубиной
   // (как и у сетчатой полки).
   sections: [
-    { width: 876, shelvesTop: 0, shelvesBottom: 0, bottomShelf: 1, drawers: 0, drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true, rod: 1, meshShelves: 0, meshDepth: 400, meshColor: 'silver', valet: 0, valetLength: 400 },
-    { width: 876, shelvesTop: 0, shelvesBottom: 0, bottomShelf: 1, drawers: 0, drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true, rod: 1, meshShelves: 0, meshDepth: 400, meshColor: 'silver', valet: 0, valetLength: 400 },
+    { width: 876, shelves: 1, drawers: 0, drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true, rod: 1, meshShelves: 0, meshDepth: 400, meshColor: 'silver', valet: 0, valetLength: 400 },
+    { width: 876, shelves: 1, drawers: 0, drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true, rod: 1, meshShelves: 0, meshDepth: 400, meshColor: 'silver', valet: 0, valetLength: 400 },
   ],
   drawers: 0, // плоское значение для типов без секций (комод и т.п.)
   korpusProducer: null, korpusId: null,

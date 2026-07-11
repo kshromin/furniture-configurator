@@ -22,7 +22,10 @@ export default {
     const plinthH = (plinthEnabled && !noBottom) ? plinthHeight : 0;
     const height = state.height - plinthH;
 
-    const { spanW, leftOff, rightOff, topOff, bottomOff, stojkaTopOff, stojkaBottomOff } = effectiveDoorSpan();
+    const {
+      spanW, topOff, bottomOff,
+      stojkaTopOff, stojkaBottomOff, stojkaLeftOff, stojkaRightOff,
+    } = effectiveDoorSpan();
     const stojkaH = height - stojkaTopOff - stojkaBottomOff;
 
     let korpusM2 = korpusBoxAreaM2(sections.length - 1, height, {
@@ -68,7 +71,8 @@ export default {
     sections.forEach(sec => {
       // Без зазора — совпадает с геометрией в buildWardrobeBox.
       const sw = sec.width;
-      if (sec.drawers > 0) {
+      // Без боковой стойки ящики не ставятся (направляющие крепить некуда) — см. buildWardrobeBox.
+      if (sec.drawers > 0 && !noSideLeft && !noSideRight) {
         // Фасад ящика — в площадь фасадов; короб (дно+2 боковины+задняя стенка) — в наполнение/ЛДСП.
         fasadM2 += (sec.drawers * sw * sec.drawerHeight) / 1e6;
         const { boxW, boxH, boxDepth } = drawerBoxSize(sw, sec.drawerHeight, sec.drawerDepth, depth);
@@ -80,25 +84,26 @@ export default {
       if (sec.meshShelves > 0) {
         meshPrice += sec.meshShelves * (sw / 1000) * meshPricePerM(sec.meshDepth, sec.meshColor);
       }
-      // Верхняя полка — всегда, нижняя — съёмная (sec.bottomShelf), плюс планка жёсткости (если
-      // задняя стенка не ЛДСП), плюс доп. полки сверху/снизу — см. геометрию в buildWardrobeBox.
-      fillM2 += ((1 + (sec.bottomShelf ? 1 : 0)) * sw * innerDepth) / 1e6;
+      // Верхняя полка — всегда, плюс планка жёсткости (если задняя стенка не ЛДСП), плюс
+      // sec.shelves (экспериментальная объединённая модель) — см. геометрию в buildWardrobeBox.
+      fillM2 += (sw * innerDepth) / 1e6;
       if (state.backWall !== 'ldsp') fillM2 += (sw * STIFFENER_HEIGHT) / 1e6; // жёсткость — вертикальная пластина, площадь ширина×высота
-      fillM2 += ((sec.shelvesTop + sec.shelvesBottom) * sw * innerDepth) / 1e6;
+      fillM2 += (sec.shelves * sw * innerDepth) / 1e6;
     });
 
     const backWallM2 = state.backWall !== 'none'
-      ? ((width - leftOff - rightOff) * stojkaH) / 1e6
+      ? ((width - stojkaLeftOff - stojkaRightOff) * stojkaH) / 1e6
       : 0;
 
     return { korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2, fasadM2, fillM2, backWallM2, meshPrice };
   },
 
   describe() {
-    const { sections } = state;
-    // +1 полка на секцию — верхняя, которая строится всегда, +1 если нижняя не убрана (см. _wardrobe-shared.js).
-    const totalShelves = sections.reduce((s, sec) => s + 1 + (sec.bottomShelf ? 1 : 0) + sec.shelvesTop + sec.shelvesBottom, 0);
-    const totalDrawers = sections.reduce((s, sec) => s + sec.drawers, 0);
+    const { sections, noSideLeft, noSideRight } = state;
+    // +1 полка на секцию — верхняя, которая строится всегда (см. _wardrobe-shared.js).
+    const totalShelves = sections.reduce((s, sec) => s + 1 + sec.shelves, 0);
+    // Без боковой стойки ящики не ставятся — см. buildWardrobeBox.
+    const totalDrawers = (noSideLeft || noSideRight) ? 0 : sections.reduce((s, sec) => s + sec.drawers, 0);
     const totalRod = sections.reduce((s, sec) => s + Math.max(0, Math.min(2, sec.rod || 0)), 0);
     const totalMesh = sections.reduce((s, sec) => s + sec.meshShelves, 0);
     const totalValet = sections.reduce((s, sec) => s + (sec.valet ? 1 : 0), 0);
