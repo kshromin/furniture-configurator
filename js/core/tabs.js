@@ -3,10 +3,11 @@ import { TYPES } from '../types/registry.js';
 import { renderProducerSelect, renderSwatches } from './materials.js';
 import { buildFurniture } from './build.js';
 import { showToast } from './toast.js';
+import { renderStaticDimensions } from './dimensions.js';
 import {
   rebalanceSections, MIN_SECTION_WIDTH, maxDrawerDepth, availableMeshDepths, availableValetLengths, clampSectionSizes,
   basketSizeOptions, basketFits, requiredBasketProyom, canAddSection, canRemoveSection, BASKET_WIDTHS,
-  sectionVerticalBounds, findFreeSlot, defaultItemsForSection,
+  sectionVerticalBounds, findFreeSlot, defaultItemsForSection, isSectionWidthLocked,
 } from '../types/_wardrobe-shared.js';
 
 // Общий список допустимых проёмов под корзины (не привязан к конкретной выбранной ширине) —
@@ -298,6 +299,9 @@ export function renderSectionsList() {
           <button class="section-lock-btn ${sec.widthLocked ? 'active' : ''}" data-idx="${i}" title="Зафиксировать ширину секции — не изменится при добавлении/удалении других секций">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
           </button>
+          <button class="section-lock-btn section-dim-toggle ${sec.showDimensions === false ? '' : 'active'}" data-idx="${i}" title="Показывать размеры этой секции">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h18v8H3z"/><path d="M7 8v3M11 8v3M15 8v3"/></svg>
+          </button>
           ${removeBtn}
         </div>
       </div>
@@ -365,7 +369,19 @@ export function renderSectionsList() {
   container.querySelectorAll('.section-width-input').forEach(inp => {
     inp.addEventListener('change', e => {
       const i = Number(e.target.dataset.idx);
-      state.sections[i].width = Math.max(MIN_SECTION_WIDTH, Number(e.target.value));
+      const sec = state.sections[i];
+      // Если у ВСЕХ остальных секций ширина зафиксирована (замочком или корзиной), менять эту
+      // секцию нечем — rebalanceSections(i) не найдёт свободных соседей, чтобы забрать/отдать
+      // разницу, а build() при следующей сборке молча вернёт ширину назад (сумма должна совпадать
+      // с реальной шириной короба). Раньше это тихо откатывалось только в 3D, а поле ввода
+      // продолжало показывать введённое число — визуально казалось, что значение принялось.
+      const others = state.sections.filter((s, idx) => idx !== i);
+      if (others.length && others.every(isSectionWidthLocked)) {
+        showToast('Нельзя изменить ширину — все остальные секции зафиксированы замочком.');
+        e.target.value = Math.round(sec.width);
+        return;
+      }
+      sec.width = Math.max(MIN_SECTION_WIDTH, Number(e.target.value));
       rebalanceSections(i);
       renderSectionsList();
       buildFurniture();
@@ -477,11 +493,19 @@ export function renderSectionsList() {
       buildFurniture();
     });
   });
-  container.querySelectorAll('.section-lock-btn').forEach(btn => {
+  container.querySelectorAll('.section-lock-btn:not(.section-dim-toggle)').forEach(btn => {
     btn.addEventListener('click', () => {
       const sec = state.sections[Number(btn.dataset.idx)];
       sec.widthLocked = !sec.widthLocked;
       btn.classList.toggle('active', sec.widthLocked);
+    });
+  });
+  container.querySelectorAll('.section-dim-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sec = state.sections[Number(btn.dataset.idx)];
+      sec.showDimensions = sec.showDimensions === false ? true : false;
+      btn.classList.toggle('active', sec.showDimensions !== false);
+      renderStaticDimensions();
     });
   });
   container.querySelectorAll('.section-remove-btn').forEach(btn => {
@@ -519,6 +543,14 @@ export function bindSectionsControls() {
     rebalanceSections();
     renderSectionsList();
     buildFurniture();
+  });
+
+  // Размерные линии наполнения — HTML-оверлей поверх 3D-вида (js/core/dimensions.js), а не
+  // часть геометрии, поэтому переключение не требует полной пересборки (buildFurniture) —
+  // достаточно перерисовать сам оверлей.
+  document.getElementById('showDimensionsToggle').addEventListener('change', e => {
+    state.showDimensions = e.target.checked;
+    renderStaticDimensions();
   });
 }
 

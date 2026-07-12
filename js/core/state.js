@@ -86,6 +86,11 @@ export const state = {
     },
   ],
   drawers: 0, // плоское значение для типов без секций (комод и т.п.)
+  // Размерные линии наполнения (просвет между соседними элементами секции) — HTML-оверлей
+  // поверх 3D-вида, см. js/core/dimensions.js. Глобальный чекбокс + по-секционный (sec.
+  // showDimensions, undefined трактуется как true — не пишем в дефолтные секции, чтобы не
+  // раздувать их лишним полем).
+  showDimensions: true,
   korpusProducer: null, korpusId: null,
   fasadProducer:  null, fasadId:  null,
   fillProducer:   null, fillId:   null,

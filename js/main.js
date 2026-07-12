@@ -8,6 +8,7 @@ import {
 } from './core/tabs.js';
 import { addCurrentToOrder, renderOrderCards, bindOrderForm } from './core/order.js';
 import { initItemDrag } from './core/itemDrag.js';
+import { initDimensions } from './core/dimensions.js';
 
 async function init() {
   const res = await fetch('data/materials.json');
@@ -49,6 +50,7 @@ async function init() {
   bindOrderForm();
 
   initItemDrag();
+  initDimensions();
 
   syncUIFromState();
   buildFurniture();

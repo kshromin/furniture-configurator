@@ -2,6 +2,7 @@ import { state } from './state.js';
 import { furnitureGroup, focusCameraOnFurniture } from './scene.js';
 import { TYPES } from '../types/registry.js';
 import { updatePrice } from './pricing.js';
+import { renderStaticDimensions } from './dimensions.js';
 
 export function buildFurniture() {
   furnitureGroup.clear();
@@ -9,4 +10,5 @@ export function buildFurniture() {
   const counts = type.build();
   focusCameraOnFurniture();
   updatePrice(counts);
+  renderStaticDimensions();
 }

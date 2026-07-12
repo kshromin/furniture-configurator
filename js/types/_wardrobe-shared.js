@@ -177,8 +177,9 @@ export function drawerBoxSize(sw, dh, drawerDepth, depth) {
   return { boxW: sw - 20, boxH: dh - 20, boxDepth: Math.min(drawerDepth, boxDepthMax) };
 }
 
-// Верхняя полка секции не настраивается и не двигается мышкой — задаёт верхнюю границу зоны для
-// свободно перетаскиваемого наполнения (см. sectionVerticalBounds/state.js sec.items).
+// TOP_SHELF_GAP используется только один раз — как начальная Y-позиция структурной (pinned)
+// полки при первом создании набора items (см. defaultPinnedShelfY); дальше она обычный
+// перетаскиваемый элемент (см. state.js/sec.items) и мышкой двигается как любая другая полка.
 export const TOP_SHELF_GAP = 550;    // от верхней границы наполнения до верхней полки
 export const ROD_BELOW_TOP_SHELF = 70; // дефолтная штанга садится настолько ниже верхней полки (не в первую свободную щель снизу)
 // Жёсткость — вертикальная пластина, свисающая вниз от полки (перпендикулярно ей, не лежит
@@ -324,7 +325,7 @@ function valetBand(sec) {
   return [hi - VALET_DROP_HEIGHT, hi];
 }
 
-function itemBands(sec, excludeId) {
+export function itemBands(sec, excludeId) {
   const bands = sec.items.filter(it => it.id !== excludeId).map(it => {
     const [lo, hi] = itemRange(it, sec);
     return { id: it.id, lo, hi };
@@ -548,8 +549,13 @@ function buildSlidingDoor(x, y, z, w, h, fillColor) {
 // модули отдают "живые" биндинги, так что импортёры всегда видят актуальную ссылку.
 // lastBuildItemMeshes: ключ "sectionIndex|itemId" -> mesh[] (перетаскиваемые элементы).
 // lastBuildValetMeshes: ключ sectionIndex -> mesh[] (вешало — не перетаскивается свободно, снап).
+// lastBuildSectionCenters/lastBuildY0: мировые X-центры секций и смещение цоколя по Y — нужны
+// js/core/dimensions.js, чтобы проецировать точки размерных линий в мировые координаты той же
+// сборки, не дублируя формулу расчёта cursorX/y0 здесь и там.
 export let lastBuildItemMeshes = new Map();
 export let lastBuildValetMeshes = new Map();
+export let lastBuildSectionCenters = [];
+export let lastBuildY0 = 0;
 
 function tagItemMesh(mesh, sectionIndex, item) {
   if (!mesh) return;
@@ -577,6 +583,7 @@ export function buildWardrobeBox() {
   const t = PANEL_THICKNESS;
   lastBuildItemMeshes = new Map();
   lastBuildValetMeshes = new Map();
+  lastBuildSectionCenters = [];
   const kColor = getColor('korpus').color;
   const fColor = getColor('fasad').color;
   const nColor = getColor('fill').color;
@@ -586,6 +593,7 @@ export function buildWardrobeBox() {
   // Цоколь занимает нижнюю часть общей высоты изделия — короб над ним ниже на эту величину.
   const height = state.height - plinthH;
   const y0 = plinthH; // низ короба, всё остальное строится как раньше, но с этим смещением
+  lastBuildY0 = y0;
 
   if (plinthH > 0) {
     addPanel(width, plinthH, depth - 40, kColor, [0, plinthH / 2, -20]);
@@ -651,6 +659,7 @@ export function buildWardrobeBox() {
       }
     });
   }
+  lastBuildSectionCenters = sectionCenters;
 
   // Визуализация планок и коробов (глубина = дверная зона, внутри габарита изделия)
   const elemZ = depth / 2 - DOOR_DEPTH_ZONE / 2;
