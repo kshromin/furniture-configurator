@@ -7,6 +7,7 @@ import {
   bindTabSwitching, bindToggleDoors, bindBackWall, bindSectionsControls, syncUIFromState,
 } from './core/tabs.js';
 import { addCurrentToOrder, renderOrderCards, bindOrderForm } from './core/order.js';
+import { initItemDrag } from './core/itemDrag.js';
 
 async function init() {
   const res = await fetch('data/materials.json');
@@ -46,6 +47,8 @@ async function init() {
   bindToggleDoors();
   bindSectionsControls();
   bindOrderForm();
+
+  initItemDrag();
 
   syncUIFromState();
   buildFurniture();

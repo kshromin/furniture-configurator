@@ -1,12 +1,18 @@
-import { state } from './state.js';
+import { state, newItemId } from './state.js';
 import { TYPES } from '../types/registry.js';
 import { renderProducerSelect, renderSwatches } from './materials.js';
 import { buildFurniture } from './build.js';
 import { showToast } from './toast.js';
 import {
   rebalanceSections, MIN_SECTION_WIDTH, maxDrawerDepth, availableMeshDepths, availableValetLengths, clampSectionSizes,
-  basketSizeOptions, basketFits, requiredBasketProyom, canAddSection, canRemoveSection,
+  basketSizeOptions, basketFits, requiredBasketProyom, canAddSection, canRemoveSection, BASKET_WIDTHS,
+  sectionVerticalBounds, findFreeSlot, defaultItemsForSection,
 } from '../types/_wardrobe-shared.js';
+
+// Общий список допустимых проёмов под корзины (не привязан к конкретной выбранной ширине) —
+// добавляется в тосты о несовпадении, чтобы пользователь сразу видел все варианты, а не только
+// требование текущей корзины.
+const BASKET_PROYOMS_HINT = `Допустимые проёмы для корзин: ${BASKET_WIDTHS.map(requiredBasketProyom).join(', ')}мм.`;
 
 function activeType() { return TYPES[state.type] || TYPES['wardrobe']; }
 
@@ -268,6 +274,8 @@ export function renderSectionsList() {
   const meshDepths = availableMeshDepths(state.depth);
   const valetLengths = availableValetLengths(state.depth);
   const basketSizes = basketSizeOptions(state.depth);
+  // Наполнение секции — свободно перетаскиваемые мышкой items (см. state.js), не счётчики.
+  const byType = (sec, type) => sec.items.filter(it => it.type === type);
 
   state.sections.forEach((sec, i) => {
     const card = document.createElement('div');
@@ -294,17 +302,23 @@ export function renderSectionsList() {
         </div>
       </div>
       <div class="section-rows">
-        <div class="el-row" title="Полки ЛДСП">
+        <div class="el-row" title="Полки ЛДСП — таскаются мышкой в 3D-виде">
           <span class="el-row-label">Полки</span>
-          <input type="number" class="mini-input section-shelves-input" data-idx="${i}" value="${sec.shelves}" min="0" max="10" title="Количество полок (0-10)">
+          <span class="el-row-count">${byType(sec, 'shelf').length}</span>
+          ${byType(sec, 'shelf').filter(it => !it.pinned).map(it => `<button class="item-chip-remove" data-item-id="${it.id}" data-idx="${i}" title="Удалить полку">×</button>`).join('')}
+          <button class="section-add-btn" data-idx="${i}" data-type="shelf" title="Добавить полку">+</button>
         </div>
-        <div class="el-row" title="Штанга для одежды">
+        <div class="el-row" title="Штанга для одежды — таскается мышкой в 3D-виде">
           <span class="el-row-label">Штанга</span>
-          <input type="number" class="mini-input section-rod-input" data-idx="${i}" value="${sec.rod}" min="0" max="2" title="Количество штанг (0-2)">
+          <span class="el-row-count">${byType(sec, 'rod').length}</span>
+          ${byType(sec, 'rod').map(it => `<button class="item-chip-remove" data-item-id="${it.id}" data-idx="${i}" title="Удалить штангу">×</button>`).join('')}
+          <button class="section-add-btn" data-idx="${i}" data-type="rod" title="Добавить штангу">+</button>
         </div>
-        <div class="el-row" title="Сетчатая полка">
+        <div class="el-row" title="Сетчатая полка — таскается мышкой в 3D-виде">
           <span class="el-row-label">Сетка</span>
-          <input type="number" class="mini-input section-mesh-count-input" data-idx="${i}" value="${sec.meshShelves}" min="0" max="3" title="Количество (0-3)">
+          <span class="el-row-count">${byType(sec, 'mesh').length}</span>
+          ${byType(sec, 'mesh').map(it => `<button class="item-chip-remove" data-item-id="${it.id}" data-idx="${i}" title="Удалить сетчатую полку">×</button>`).join('')}
+          <button class="section-add-btn" data-idx="${i}" data-type="mesh" title="Добавить сетчатую полку">+</button>
           <select class="mini-select section-mesh-depth-input" data-idx="${i}" title="Глубина">
             ${meshDepths.map(d => `<option value="${d}" ${sec.meshDepth === d ? 'selected' : ''}>${d}</option>`).join('')}
           </select>
@@ -313,23 +327,27 @@ export function renderSectionsList() {
             <option value="white" ${sec.meshColor === 'white' ? 'selected' : ''}>Белая</option>
           </select>
         </div>
-        <div class="el-row" title="Ящик">
+        <div class="el-row" title="Ящик — таскается мышкой в 3D-виде. Нужна боковая стойка секции.">
           <span class="el-row-label">Ящики</span>
-          <input type="number" class="mini-input section-drawers-input" data-idx="${i}" value="${sec.drawers}" min="0" max="4" title="Количество (0-4)">
+          <span class="el-row-count">${byType(sec, 'drawer').length}</span>
+          ${byType(sec, 'drawer').map(it => `<button class="item-chip-remove" data-item-id="${it.id}" data-idx="${i}" title="Удалить ящик">×</button>`).join('')}
+          <button class="section-add-btn" data-idx="${i}" data-type="drawer" title="Добавить ящик">+</button>
           <input type="number" class="mini-input mini-input-wide section-drawer-height-input" data-idx="${i}" value="${sec.drawerHeight}" min="50" max="500" step="10" title="Высота фасада, мм">
           <input type="number" class="mini-input mini-input-wide section-drawer-depth-input" data-idx="${i}" value="${sec.drawerDepth}" min="250" max="${maxDD}" step="50" title="Глубина короба, мм (250-${maxDD})">
           <label class="el-row-check" title="Без доводчика"><input type="checkbox" class="section-drawer-no-softclose-input" data-idx="${i}" ${sec.drawerSoftClose ? '' : 'checked'}> SC</label>
         </div>
-        <div class="el-row" title="Торцевое вешало">
+        <div class="el-row" title="Торцевое вешало — крепится к полке, мышкой прыгает между полками (не двигается свободно)">
           <span class="el-row-label">Вешало</span>
           <label class="el-row-check" title="Есть/нет"><input type="checkbox" class="section-valet-input" data-idx="${i}" ${sec.valet ? 'checked' : ''}></label>
           <select class="mini-select section-valet-length-input" data-idx="${i}" title="Размер, мм">
             ${valetLengths.map(v => `<option value="${v}" ${sec.valetLength === v ? 'selected' : ''}>${v}</option>`).join('')}
           </select>
         </div>
-        <div class="el-row" title="Сетчатая корзина — готовый типоразмер; ширина секции должна точно совпадать с обязательным проёмом (300→323мм, 400→423мм, 500→523мм), иначе не встанет">
+        <div class="el-row" title="Сетчатая корзина — готовый типоразмер; ширина секции должна точно совпадать с обязательным проёмом (300→323мм, 400→423мм, 500→523мм), иначе не встанет. Таскается мышкой в 3D-виде.">
           <span class="el-row-label">Корзины</span>
-          <input type="number" class="mini-input section-basket-count-input" data-idx="${i}" value="${sec.baskets}" min="0" max="4" title="Количество (0-4). Требует точного совпадения ширины секции с проёмом.">
+          <span class="el-row-count">${byType(sec, 'basket').length}</span>
+          ${byType(sec, 'basket').map(it => `<button class="item-chip-remove" data-item-id="${it.id}" data-idx="${i}" title="Удалить корзину">×</button>`).join('')}
+          <button class="section-add-btn" data-idx="${i}" data-type="basket" title="Добавить корзину">+</button>
           <select class="mini-select mini-select-wide section-basket-size-input" data-idx="${i}" title="Ширина×глубина, высота корзины">
             ${basketSizes.map(o => `<option value="${o.w}x${o.d}x${o.h}" ${sec.basketWidth === o.w && sec.basketDepth === o.d && sec.basketHeight === o.h ? 'selected' : ''}>${o.w}×${o.d} h${o.h}</option>`).join('')}
           </select>
@@ -353,15 +371,40 @@ export function renderSectionsList() {
       buildFurniture();
     });
   });
-  container.querySelectorAll('.section-shelves-input').forEach(inp => {
-    inp.addEventListener('change', e => {
-      state.sections[Number(e.target.dataset.idx)].shelves = Math.max(0, Math.min(10, Number(e.target.value)));
+  // "+" — добавляет один экземпляр типа в первое свободное место секции по высоте
+  // (findFreeSlot), либо тост «нет места». Крестик на чипе — удаляет конкретный экземпляр по id.
+  // Позиционирование/перестановка — мышкой в 3D-виде (js/core/itemDrag.js), не здесь.
+  container.querySelectorAll('.section-add-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = Number(btn.dataset.idx);
+      const type = btn.dataset.type;
+      const sec = state.sections[i];
+      if (type === 'basket' && !basketFits(sec)) {
+        showToast(`Корзина ${sec.basketWidth}мм требует проём секции ровно ${requiredBasketProyom(sec.basketWidth)}мм (сейчас ${Math.round(sec.width)}мм). Измените ширину секции. ${BASKET_PROYOMS_HINT}`);
+        return;
+      }
+      if ((type === 'drawer' || type === 'basket') && (state.noSideLeft || state.noSideRight)) {
+        showToast('Нужна боковая стойка секции — направляющие крепить некуда.');
+        return;
+      }
+      const { fillBottom, fillTop } = sectionVerticalBounds();
+      const y = findFreeSlot(sec, type, fillBottom, fillTop);
+      if (y === null) {
+        showToast('Нет места для нового элемента в этой секции.');
+        return;
+      }
+      sec.items.push({ id: newItemId(), type, y });
+      renderSectionsList();
       buildFurniture();
     });
   });
-  container.querySelectorAll('.section-drawers-input').forEach(inp => {
-    inp.addEventListener('change', e => {
-      state.sections[Number(e.target.dataset.idx)].drawers = Math.max(0, Number(e.target.value));
+  container.querySelectorAll('.item-chip-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sec = state.sections[Number(btn.dataset.idx)];
+      const target = sec.items.find(it => it.id === btn.dataset.itemId);
+      if (target && target.pinned) return; // структурная полка — неудаляемая, см. state.js
+      sec.items = sec.items.filter(it => it.id !== btn.dataset.itemId);
+      renderSectionsList();
       buildFurniture();
     });
   });
@@ -384,18 +427,6 @@ export function renderSectionsList() {
   container.querySelectorAll('.section-drawer-no-softclose-input').forEach(inp => {
     inp.addEventListener('change', e => {
       state.sections[Number(e.target.dataset.idx)].drawerSoftClose = !e.target.checked;
-      buildFurniture();
-    });
-  });
-  container.querySelectorAll('.section-rod-input').forEach(inp => {
-    inp.addEventListener('change', e => {
-      state.sections[Number(e.target.dataset.idx)].rod = Math.max(0, Math.min(2, Number(e.target.value)));
-      buildFurniture();
-    });
-  });
-  container.querySelectorAll('.section-mesh-count-input').forEach(inp => {
-    inp.addEventListener('change', e => {
-      state.sections[Number(e.target.dataset.idx)].meshShelves = Math.max(0, Math.min(3, Number(e.target.value)));
       buildFurniture();
     });
   });
@@ -423,28 +454,18 @@ export function renderSectionsList() {
       buildFurniture();
     });
   });
-  container.querySelectorAll('.section-basket-count-input').forEach(inp => {
-    inp.addEventListener('change', e => {
-      const sec = state.sections[Number(e.target.dataset.idx)];
-      const val = Math.max(0, Math.min(4, Number(e.target.value)));
-      if (val > 0 && !basketFits(sec)) {
-        showToast(`Корзина ${sec.basketWidth}мм требует проём секции ровно ${requiredBasketProyom(sec.basketWidth)}мм (сейчас ${Math.round(sec.width)}мм). Измените ширину секции.`);
-        sec.baskets = 0;
-        e.target.value = 0;
-      } else {
-        sec.baskets = val;
-      }
-      buildFurniture();
-    });
-  });
   container.querySelectorAll('.section-basket-size-input').forEach(sel => {
     sel.addEventListener('change', e => {
       const sec = state.sections[Number(e.target.dataset.idx)];
       const [w, d, h] = e.target.value.split('x').map(Number);
       sec.basketWidth = w; sec.basketDepth = d; sec.basketHeight = h;
-      if (sec.baskets > 0 && !basketFits(sec)) {
-        showToast(`Корзина ${w}мм требует проём секции ровно ${requiredBasketProyom(w)}мм (сейчас ${Math.round(sec.width)}мм). Корзины в этой секции отключены.`);
-        sec.baskets = 0;
+      // Смена ширины/высоты корзины может: (а) разойтись с проёмом секции (basketFits), (б)
+      // изменить полосу коллизии (basketHeight) — уже стоящие корзины могут перестать влезать
+      // друг с другом, поэтому при несовпадении проёма убираем их все явно, с тостом.
+      const hasBaskets = sec.items.some(it => it.type === 'basket');
+      if (hasBaskets && !basketFits(sec)) {
+        showToast(`Корзина ${w}мм требует проём секции ровно ${requiredBasketProyom(w)}мм (сейчас ${Math.round(sec.width)}мм). Корзины в этой секции отключены. ${BASKET_PROYOMS_HINT}`);
+        sec.items = sec.items.filter(it => it.type !== 'basket');
         renderSectionsList();
       }
       buildFurniture();
@@ -488,10 +509,11 @@ export function bindSectionsControls() {
       return;
     }
     state.sections.push({
-      width: MIN_SECTION_WIDTH, shelves: 1,
-      drawers: 0, drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true, rod: 1,
-      meshShelves: 0, meshDepth: 400, meshColor: 'silver', valet: 0, valetLength: 400,
-      baskets: 0, basketWidth: 300, basketDepth: 400, basketHeight: 120, basketColor: 'silver',
+      width: MIN_SECTION_WIDTH,
+      items: defaultItemsForSection({ shelves: 1, drawers: 0, rod: 1, drawerHeight: 150 }),
+      drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true,
+      meshDepth: 400, meshColor: 'silver', valet: 0, valetAnchorId: null, valetLength: 400,
+      basketWidth: 300, basketDepth: 400, basketHeight: 120, basketColor: 'silver',
       widthLocked: false,
     });
     rebalanceSections();
@@ -643,7 +665,7 @@ export function bindTabSwitching() {
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-      const hideBar = btn.dataset.tab === 'type' || btn.dataset.tab === 'presets';
+      const hideBar = ['type', 'presets', 'cabinet', 'admin'].includes(btn.dataset.tab);
       document.getElementById('typeBar').style.display = hideBar ? 'none' : 'block';
     });
   });
