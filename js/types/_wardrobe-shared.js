@@ -65,7 +65,13 @@ export function effectiveDoorSpan() {
 // (ширина изделия, стойки/выравниватели) или состав секций (добавили/убрали секцию).
 // editedIndex — если пользователь только что руками поправил ширину одной секции, её значение
 // не трогаем, остальные пропорционально ужимаются/растягиваются под освободившееся место.
+// Секции с корзинами (sec.baskets > 0) — ширина у них ЗАФИКСИРОВАНА всегда, даже когда они не
+// editedIndex: корзина завязана на конкретный проём (basketFits), и любое авто-сжатие/растяжение
+// от соседних действий (добавили секцию, изменили ширину другой секции) немедленно ломало бы её
+// (см. basketFits) — гуляет только ширина секций БЕЗ корзин. Дополнительно секцию можно
+// зафиксировать вручную галочкой (sec.widthLocked) даже без корзины — тот же эффект.
 export const MIN_SECTION_WIDTH = 150;
+export function isSectionWidthLocked(sec) { return sec.baskets > 0 || sec.widthLocked; }
 
 export function rebalanceSections(editedIndex = null) {
   const sections = state.sections;
@@ -82,8 +88,16 @@ export function rebalanceSections(editedIndex = null) {
     sections[editedIndex].width = Math.min(Math.max(sections[editedIndex].width, MIN_SECTION_WIDTH), maxForEdited);
   }
 
-  const otherIdx = sections.map((_, i) => i).filter(i => i !== editedIndex);
-  const fixedW = editedIndex !== null ? sections[editedIndex].width : 0;
+  const fixedIdx = new Set(editedIndex !== null ? [editedIndex] : []);
+  sections.forEach((sec, i) => { if (isSectionWidthLocked(sec)) fixedIdx.add(i); });
+
+  const otherIdx = sections.map((_, i) => i).filter(i => !fixedIdx.has(i));
+  // Если гулять уже нечему (все секции зафиксированы — либо editedIndex, либо корзины везде) —
+  // подгонять нечего, оставляем ширины как есть (сумма может разойтись с available, это уже
+  // ловит basketFits/toast на стороне UI при попытке действия, вызвавшего этот случай).
+  if (otherIdx.length === 0) return;
+
+  const fixedW = [...fixedIdx].reduce((s, i) => s + sections[i].width, 0);
   const remaining = Math.max(otherIdx.length * MIN_SECTION_WIDTH, available - fixedW);
   const otherTotal = otherIdx.reduce((s, i) => s + sections[i].width, 0);
 
@@ -94,10 +108,43 @@ export function rebalanceSections(editedIndex = null) {
     sections[i].width = Math.max(MIN_SECTION_WIDTH, Math.round(remaining * share));
   });
 
-  // компенсируем накопленное округление в последней «нефиксированной» секции, чтобы сумма
-  // ширин точно совпала с available, а не отличалась на пару мм
+  // компенсируем накопленное округление (и подъём до MIN_SECTION_WIDTH там, где доля вышла
+  // меньше минимума), чтобы сумма ширин точно совпала с available. Раньше остаток всегда
+  // добавлялся в ПОСЛЕДНЮЮ гибкую секцию — если это была только что добавленная минимальная
+  // секция (150мм), отрицательный остаток от чужого подъёма до минимума мог увести её ниже
+  // MIN_SECTION_WIDTH. Теперь остаток забирает секция с наибольшим запасом ширины — там разница
+  // в несколько мм не может пробить минимум.
   const total = sections.reduce((s, sec) => s + sec.width, 0);
-  sections[otherIdx[otherIdx.length - 1]].width += available - total;
+  const diff = available - total;
+  if (diff !== 0) {
+    const target = otherIdx.reduce((best, i) => sections[i].width > sections[best].width ? i : best, otherIdx[0]);
+    sections[target].width = Math.max(MIN_SECTION_WIDTH, sections[target].width + diff);
+  }
+}
+
+// Можно ли сейчас добавить ещё одну секцию: у зафиксированных секций (корзина или ручная
+// галочка) ширина не меняется (см. выше), поэтому под новую секцию должно хватить места
+// ТОЛЬКО за счёт "свободных" секций — каждой из них (и старым, и новой) нужно хотя бы
+// MIN_SECTION_WIDTH.
+export function canAddSection() {
+  const sections = state.sections;
+  const t = PANEL_THICKNESS;
+  const { innerSpanW } = effectiveDoorSpan();
+  const newN = sections.length + 1;
+  const availableNew = innerSpanW - (newN - 1) * t;
+  const lockedTotal = sections.reduce((s, sec) => s + (isSectionWidthLocked(sec) ? sec.width : 0), 0);
+  const flexibleCount = sections.filter(sec => !isSectionWidthLocked(sec)).length + 1; // +1 — новая секция
+  return availableNew - lockedTotal >= flexibleCount * MIN_SECTION_WIDTH;
+}
+
+// Можно ли удалить секцию idx: освободившуюся от неё ширину должна забрать хотя бы одна
+// НЕзафиксированная секция среди оставшихся (rebalanceSections умеет двигать только их — см.
+// otherIdx.length === 0 там же). Если после удаления все оставшиеся секции окажутся
+// зафиксированы (корзиной или галочкой), место останется "дырой" — так что удалять нельзя.
+export function canRemoveSection(idx) {
+  const sections = state.sections;
+  if (sections.length <= 1) return false;
+  return sections.some((sec, i) => i !== idx && !isSectionWidthLocked(sec));
 }
 
 // Двери купе едут по рельсам, вынесенным в переднюю зону короба (как у Командор) —
@@ -122,7 +169,10 @@ export const BOTTOM_RAIL_HEIGHT = 10;
 export function drawerBoxSize(sw, dh, drawerDepth, depth) {
   const t = PANEL_THICKNESS;
   const frontZ = depth / 2 - DOOR_DEPTH_ZONE;
-  const boxDepthMax = Math.max(100, frontZ - t + depth / 2);
+  // Ящик анкерится от фасада (переда), не от задней стенки — поэтому саму его позицию двигать
+  // не нужно, достаточно урезать максимально допустимую глубину на толщину задней стенки, если
+  // она есть (иначе короб дотягивался бы до самой стенки и протыкал её насквозь).
+  const boxDepthMax = Math.max(100, frontZ - t + depth / 2 - backWallClearance());
   return { boxW: sw - 20, boxH: dh - 20, boxDepth: Math.min(drawerDepth, boxDepthMax) };
 }
 
@@ -149,14 +199,15 @@ const MIN_ZONE_GAP = 200; // страховка для низких секций
 export function maxDrawerDepth(depth) {
   const t = PANEL_THICKNESS;
   const frontZ = depth / 2 - DOOR_DEPTH_ZONE;
-  const physicalMax = frontZ - t + depth / 2;
+  const physicalMax = frontZ - t + depth / 2 - backWallClearance();
   const rounded = Math.floor((physicalMax - 10) / 50) * 50;
   return Math.min(600, Math.max(250, rounded));
 }
 
 // Сетчатые полки — независимое от ящиков поле, тоже строятся снизу вверх (максимум 3шт),
 // но ширина всегда во всю секцию (как обычная полка), а фиксированный выбор глубины (300/400/500мм)
-// ограничен реальной доступной глубиной наполнения (innerDepth = глубина короба − дверная зона).
+// ограничен реальной доступной глубиной наполнения (innerDepth = глубина короба − дверная зона
+// − толщина задней стенки, если она есть, см. backWallClearance).
 export const MESH_DEPTHS = [300, 400, 500];
 export const MESH_THICKNESS = 20; // высота силовых прутков
 export const MESH_PITCH = 300;    // шаг между соседними сетчатыми полками (центр-центр)
@@ -165,14 +216,16 @@ const MESH_WIRE_STEP = 25; // шаг частых прутков вдоль ШИ
 const MESH_LIP_HEIGHT = 35; // высота загиба переднего края
 
 export function availableMeshDepths(depth) {
-  const innerDepth = depth - DOOR_DEPTH_ZONE;
+  const innerDepth = depth - DOOR_DEPTH_ZONE - backWallClearance();
   return MESH_DEPTHS.filter(d => d <= innerDepth);
 }
 
+// silver/white — исходно для сетчатой полки (2 цвета); black добавлен для корзин (3 цвета) —
+// без явной ветки 'black' раньше проваливался в белую по умолчанию (белая проволока вместо чёрной).
 function meshShelfMaterialProps(colorKey) {
-  return colorKey === 'silver'
-    ? { color: 0xc0c0c0, metalness: 0.7, roughness: 0.25 }
-    : { color: 0xf2f2f2, metalness: 0.05, roughness: 0.5 };
+  if (colorKey === 'silver') return { color: 0xc0c0c0, metalness: 0.7, roughness: 0.25 };
+  if (colorKey === 'black')  return { color: 0x1c1c1c, metalness: 0.4, roughness: 0.35 };
+  return { color: 0xf2f2f2, metalness: 0.05, roughness: 0.5 }; // white
 }
 
 // Торцевое вешало — выдвижная штанга-петля (см. mdm-complect.ru/catalog/shtangi/36654):
@@ -187,15 +240,30 @@ const VALET_ROD_RADIUS = 4;
 const VALET_COLOR = 0xc0c0c0;
 const VALET_BRACKET_DEPTH = 20; // глубина кронштейна (совпадает с 'd' в addPanel ниже)
 
+// Толщина самой задней стенки (ЛДСП — та же панель, что и корпус, ХДФ — тонкая накладка, см.
+// buildWardrobeBox). Если стенка есть, она физически занимает часть глубины короба у спинки —
+// рабочая глубина под направляющие ящиков/корзин/вешала (и сетчатой полки) должна уменьшаться
+// на эту толщину, иначе они визуально протыкают заднюю стенку насквозь (backZ = -depth/2 у этих
+// элементов совпадает с местом, где рисуется стенка). Без стенки ('none') — 0.
+export const HDF_THICKNESS = 4;
+export function backWallClearance() {
+  if (state.backWall === 'ldsp') return PANEL_THICKNESS;
+  if (state.backWall === 'hdf') return HDF_THICKNESS;
+  return 0;
+}
+
 // Если сзади стоит планка жёсткости (не ЛДСП задняя стенка), крепление вешала не может занимать
-// её место — глубина, доступная под вешало, уменьшается на 16мм (толщина панели/запас).
+// её место — глубина, доступная под вешало, уменьшается на 16мм (толщина панели/запас). Это
+// ОТДЕЛЬНО от backWallClearance() (толщина самой стенки) — жёсткость висит у верхней полки
+// (см. STIFFENER_HEIGHT), а не по всей высоте секции, но обе величины отнимают место по глубине
+// в одной и той же задней зоне, поэтому вешало учитывает и то, и другое.
 function valetBackClearance() {
   return state.backWall !== 'ldsp' ? PANEL_THICKNESS : 0;
 }
 
 export function availableValetLengths(depth) {
   const innerDepth = depth - DOOR_DEPTH_ZONE;
-  return VALET_LENGTHS.filter(v => v <= innerDepth - valetBackClearance());
+  return VALET_LENGTHS.filter(v => v <= innerDepth - valetBackClearance() - backWallClearance());
 }
 
 // Общий клампинг фиксированных размеров (глубина ящика/сетки, длина вешала) под текущую
@@ -209,9 +277,87 @@ export function clampSectionSizes(sections, depth) {
   const valetAvail = availableValetLengths(depth);
   sections.forEach(sec => {
     if (sec.drawerDepth > maxDD) sec.drawerDepth = maxDD;
-    if (!meshAvail.includes(sec.meshDepth)) sec.meshDepth = meshAvail.length ? meshAvail[meshAvail.length - 1] : MESH_DEPTHS[0];
-    if (!valetAvail.includes(sec.valetLength)) sec.valetLength = valetAvail.length ? valetAvail[valetAvail.length - 1] : VALET_LENGTHS[0];
+    // Если ни одна глубина сетчатой полки больше не влезает — подрезать нечего, гасим счётчик
+    // (та же логика, что у корзины ниже); раньше молча падало на MESH_DEPTHS[0], хотя полка уже
+    // не влезала — торчала наружу вместо того, чтобы исчезнуть.
+    if (meshAvail.length) {
+      if (!meshAvail.includes(sec.meshDepth)) sec.meshDepth = meshAvail[meshAvail.length - 1];
+    } else {
+      sec.meshDepth = MESH_DEPTHS[0];
+      sec.meshShelves = 0;
+    }
+    // Аналогично для вешала — если ни один заявленный размер больше не влезает, гасим галочку.
+    if (valetAvail.length) {
+      if (!valetAvail.includes(sec.valetLength)) sec.valetLength = valetAvail[valetAvail.length - 1];
+    } else {
+      sec.valetLength = VALET_LENGTHS[0];
+      sec.valet = 0;
+    }
+    if (!BASKET_WIDTHS.includes(sec.basketWidth)) sec.basketWidth = BASKET_WIDTHS[0];
+    const basketDepthAvail = availableBasketDepths(sec.basketWidth, depth);
+    if (basketDepthAvail.length) {
+      // Шкаф стал мельче — уже построенная корзина подрезается до наибольшей ещё влезающей
+      // глубины (та же логика, что и у глубины ящика — maxDrawerDepth/drawerDepth).
+      if (!basketDepthAvail.includes(sec.basketDepth)) sec.basketDepth = basketDepthAvail[basketDepthAvail.length - 1];
+    } else {
+      // Ни один вариант глубины для этой ширины корзины больше не влезает в шкаф вообще —
+      // подрезать нечего, корзина физически не влезет ни при какой доступной глубине.
+      // Показываем в UI дефолтную глубину (первую из типоразмерного ряда), но гасим счётчик.
+      sec.basketDepth = BASKET_DEPTHS_BY_WIDTH[sec.basketWidth][0];
+      sec.baskets = 0;
+    }
+    // Тихая защита данных: если ширина секции разошлась с обязательным проёмом (например, из-за
+    // ребаланса других секций), корзину включать нельзя — гасим счётчик без тоста (тост — только
+    // при прямом действии пользователя, см. validateBasketFit и его вызовы в tabs.js).
+    if (sec.baskets > 0 && !basketFits(sec)) sec.baskets = 0;
   });
+}
+
+// Сетчатые корзины — реальный типоразмерный ряд (не параметрический): ширина (поперёк секции)
+// жёстко определяет набор допустимых глубин (в шкаф) и обязательный проём (реальную ширину
+// секции) = ширина + 23мм (зазор под направляющие каждой стороны). Если ширина секции не равна
+// этому значению — корзина физически не встанет, включать её нельзя.
+export const BASKET_WIDTHS = [300, 400, 500];
+export const BASKET_DEPTHS_BY_WIDTH = { 300: [400], 400: [400, 450, 500, 550, 600], 500: [500, 550, 600] };
+export const BASKET_HEIGHTS = [120, 190];
+export const BASKET_PROYOM_GAP = 23; // обязательный проём = basketWidth + этот зазор
+export const BASKET_STACK_GAP = 20; // зазор по высоте между соседними корзинами в стопке (у ящиков — 4мм)
+// Один общий шаг и для дна (в обе стороны — вдоль глубины и вдоль ширины), и для вертикальных
+// стоек стенок — по просьбе пользователя дно чуть реже (было 25мм), а стойки чуть чаще
+// (было 70мм), и то и другое сошлось к одному значению.
+export const BASKET_WIRE_STEP = 35;
+const BASKET_WIRE = 4;
+export const BASKET_TAPER = 60; // на столько уже дно корзины, чем верх (трапеция), по ширине
+const BASKET_MIN_BOTTOM_WIDTH = 150; // страховка от вырожденной геометрии при малой ширине
+export const BASKET_RAIL_HEIGHT = 40; // направляющая — планка на стойке под дном корзины
+export const BASKET_RAIL_WIDTH = 15;
+const BASKET_RAIL_COLOR = 0xb0b0b4; // тот же металлик, что у дверных рельс/кронштейнов вешала
+const BASKET_CLIP_HEIGHT = 10; // полосы, соединяющие корзину со стойкой/направляющей
+const BASKET_CLIP_DEPTH = 20;
+
+export function requiredBasketProyom(basketWidth) {
+  return basketWidth + BASKET_PROYOM_GAP;
+}
+
+export function basketFits(sec) {
+  return Math.round(sec.width) === requiredBasketProyom(sec.basketWidth);
+}
+
+export function availableBasketDepths(basketWidth, cabinetDepth) {
+  const innerDepth = cabinetDepth - DOOR_DEPTH_ZONE - backWallClearance();
+  return (BASKET_DEPTHS_BY_WIDTH[basketWidth] || []).filter(d => d <= innerDepth);
+}
+
+// Плоский список всех валидных сочетаний ширина/глубина/высота корзины при текущей глубине
+// шкафа — используется для одного select'а «размер корзины» в UI (вместо трёх раздельных полей).
+export function basketSizeOptions(cabinetDepth) {
+  const opts = [];
+  BASKET_WIDTHS.forEach(w => {
+    availableBasketDepths(w, cabinetDepth).forEach(d => {
+      BASKET_HEIGHTS.forEach(h => opts.push({ w, d, h }));
+    });
+  });
+  return opts;
 }
 
 // Дверь купе = рамка по периметру + наполнение внутри неё (зеркало/ЛДСП/стекло).
@@ -362,7 +508,7 @@ export function buildWardrobeBox() {
   // Граница дверной зоны — та же, что и у полок/перегородки (innerZ ± innerDepth/2): ящики
   // должны быть с ней вровень, а не торчать вперёд к самим дверям.
   const frontZ = depth / 2 - DOOR_DEPTH_ZONE;
-  let totalShelves = 0, totalDrawers = 0, totalRod = 0, totalDrawerSoft = 0, totalDrawerBasic = 0, totalMeshShelves = 0, totalValet = 0;
+  let totalShelves = 0, totalDrawers = 0, totalRod = 0, totalDrawerSoft = 0, totalDrawerBasic = 0, totalMeshShelves = 0, totalValet = 0, totalBaskets = 0;
 
   function addRod(cx, y, sw) {
     const rodGeo = new THREE.CylinderGeometry(ROD_RADIUS, ROD_RADIUS, sw, 24);
@@ -409,6 +555,19 @@ export function buildWardrobeBox() {
     furnitureGroup.add(mesh);
   }
 
+  // Наклонный пруток между двумя произвольными точками — обычный addRodBar умеет только строго
+  // вдоль осей x/y/z, а трапециевидным стойкам корзины нужен реальный наклон.
+  function addRodBetween(p1, p2, radius, colorKey) {
+    const dx = p2[0] - p1[0], dy = p2[1] - p1[1], dz = p2[2] - p1[2];
+    const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    const geo = new THREE.CylinderGeometry(radius, radius, length, 8);
+    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial(meshShelfMaterialProps(colorKey)));
+    mesh.position.set((p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2, (p1[2] + p2[2]) / 2);
+    const dir = new THREE.Vector3(dx, dy, dz).normalize();
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    furnitureGroup.add(mesh);
+  }
+
   // Сетчатая полка — сделана из круглой проволоки (не плоских планок). Частые тонкие прутки
   // идут ВДОЛЬ ГЛУБИНЫ, с шагом 25мм вдоль ширины, и тянутся сквозь все силовые прутки без
   // разрыва. У КАЖДОГО такого прутка свой отдельный загиб-крючок на переднем конце — приподнят
@@ -417,7 +576,9 @@ export function buildWardrobeBox() {
   // загиба (на высоте прутков, в лицевой плоскости), четвёртый замыкает загиб сверху (на высоте
   // окончания крючков).
   function addMeshShelf(cx, y, sw, meshDepth, colorKey) {
-    const backZ = -depth / 2;
+    // Если есть задняя стенка, полка не должна протыкать её насквозь — сдвигаем задний край
+    // вперёд на её толщину (см. backWallClearance).
+    const backZ = -depth / 2 + backWallClearance();
     const frontZ = backZ + meshDepth;
     const wireR = MESH_WIRE / 2;
     const crossR = MESH_WIRE * 1.3 / 2;
@@ -433,6 +594,107 @@ export function buildWardrobeBox() {
     addRodBar(sw, crossR, cx, y, backZ + meshDepth * 0.6, 'x', colorKey);     // 2: чуть ближе к переду от середины
     addRodBar(sw, crossR, cx, y, frontZ, 'x', colorKey);                      // 3: у основания загиба
     addRodBar(sw, crossR, cx, y + MESH_LIP_HEIGHT, frontZ, 'x', colorKey);    // 4: замыкает загиб сверху
+  }
+
+  // Сетчатая корзина — открытый сверху проволочный короб (дно + 4 стенки), выкатной, типоразмер
+  // жёстко привязан к ширине секции (см. basketFits/requiredBasketProyom). Физическая ширина
+  // корзины — basketWidth (меньше ширины секции на BASKET_PROYOM_GAP — это зазор под
+  // направляющие), центрирована в секции. В проекции (вид спереди) — трапеция: дно уже верха на
+  // BASKET_TAPER мм по ширине (реальная форма выкатных корзин, не прямоугольный короб). Глубина
+  // не сужается — только ширина. Дно и вертикальные стойки стенок используют один и тот же шаг
+  // BASKET_WIRE_STEP (дно — реже, чем было раньше, стойки — чаще).
+  function addBasket(cx, yBottom, sw, basketWidth, basketDepth, basketHeight, colorKey) {
+    // Если есть задняя стенка, корзина не должна протыкать её насквозь — сдвигаем задний край
+    // вперёд на её толщину (см. backWallClearance).
+    const backZ = -depth / 2 + backWallClearance();
+    const frontZ = backZ + basketDepth;
+    const yTop = yBottom + basketHeight;
+    const wireR = BASKET_WIRE / 2;
+
+    const widthTop = basketWidth;
+    const widthBottom = Math.max(basketWidth - BASKET_TAPER, BASKET_MIN_BOTTOM_WIDTH);
+    const leftXTop = cx - widthTop / 2;
+    const leftXBottom = cx - widthBottom / 2;
+
+    // X-координата на произвольной высоте y для прутка, который у верхнего (широкого) края
+    // находится в доле t (0..1) поперёк ширины — линейная интерполяция между широким верхом и
+    // узким низом даёт правильную трапецию на любой высоте.
+    function xAt(t, y) {
+      const topX = leftXTop + widthTop * t;
+      const botX = leftXBottom + widthBottom * t;
+      const k = (y - yBottom) / basketHeight;
+      return botX + (topX - botX) * k;
+    }
+
+    const nW = Math.max(4, Math.round(widthTop / BASKET_WIRE_STEP));   // прутков поперёк ширины
+    const nD = Math.max(2, Math.round(basketDepth / BASKET_WIRE_STEP)); // прутков поперёк глубины
+
+    // Дно — сетка в обе стороны (не только вдоль глубины, как раньше, но и вдоль ширины), на
+    // уровне нижнего (узкого) края.
+    for (let i = 0; i <= nW; i++) {
+      const wx = xAt(i / nW, yBottom);
+      addRodBar(basketDepth, wireR, wx, yBottom, backZ + basketDepth / 2, 'z', colorKey);
+    }
+    for (let i = 0; i <= nD; i++) {
+      const wz = backZ + (basketDepth * i) / nD;
+      addRodBar(widthBottom, wireR, cx, yBottom, wz, 'x', colorKey);
+    }
+
+    // Стенка вдоль ширины (перед/зад): широкий верхний рельс + узкий нижний рельс + наклонные
+    // стойки между ними.
+    function wallAlongWidth(z) {
+      addRodBar(widthTop,    wireR, cx, yTop,    z, 'x', colorKey);
+      addRodBar(widthBottom, wireR, cx, yBottom, z, 'x', colorKey);
+      for (let i = 0; i <= nW; i++) {
+        const t = i / nW;
+        addRodBetween([xAt(t, yTop), yTop, z], [xAt(t, yBottom), yBottom, z], wireR, colorKey);
+      }
+    }
+    // Стенка вдоль глубины (t=0 — левая, t=1 — правая): рельсы горизонтальны (глубина не
+    // сужается), но сама стенка наклонена внутрь у дна — те же наклонные стойки.
+    function wallAlongDepth(t) {
+      addRodBar(basketDepth, wireR, xAt(t, yTop),    yTop,    backZ + basketDepth / 2, 'z', colorKey);
+      addRodBar(basketDepth, wireR, xAt(t, yBottom), yBottom, backZ + basketDepth / 2, 'z', colorKey);
+      for (let i = 0; i <= nD; i++) {
+        const wz = backZ + (basketDepth * i) / nD;
+        addRodBetween([xAt(t, yTop), yTop, wz], [xAt(t, yBottom), yBottom, wz], wireR, colorKey);
+      }
+    }
+    wallAlongWidth(backZ);
+    wallAlongWidth(frontZ);
+    wallAlongDepth(0);
+    wallAlongDepth(1);
+
+    // Направляющие — планки, прижатые к стойкам СЕКЦИИ (sw — реальная ширина секции, не
+    // корзины — между ними и есть зазор BASKET_PROYOM_GAP), низ планки ровно на уровне дна
+    // корзины (не ниже), сама планка стоит выше этой линии. Глубина совпадает с глубиной
+    // корзины. Цвет фиксированный — металлик, как у дверных рельс/кронштейнов вешала, не
+    // зависит от цвета корзины (реальная фурнитура рельс всегда металлическая).
+    const railZCenter = backZ + basketDepth / 2;
+    const railYCenter = yBottom + BASKET_RAIL_HEIGHT / 2;
+    const stojkaLeftX  = cx - sw / 2;
+    const stojkaRightX = cx + sw / 2;
+    const leftRailX  = stojkaLeftX  + BASKET_RAIL_WIDTH / 2;
+    const rightRailX = stojkaRightX - BASKET_RAIL_WIDTH / 2;
+    addPanel(BASKET_RAIL_WIDTH, BASKET_RAIL_HEIGHT, basketDepth, BASKET_RAIL_COLOR, [leftRailX,  railYCenter, railZCenter]);
+    addPanel(BASKET_RAIL_WIDTH, BASKET_RAIL_HEIGHT, basketDepth, BASKET_RAIL_COLOR, [rightRailX, railYCenter, railZCenter]);
+
+    // Полосы — соединяют корзину с направляющей/стойкой у переднего и заднего торца (2 слева +
+    // 2 справа = 4 всего). Ширина — от самой стойки до касания корзины (перекрывает и
+    // направляющую тоже), высота 10мм, глубина (по Z) 20мм, низ строго на уровне дна корзины
+    // (не ниже — yBottom, планка стоит НАД этой линией, а не свисает под неё).
+    const rightXBottom = cx + widthBottom / 2;
+    const leftStripW  = leftXBottom  - stojkaLeftX;
+    const rightStripW = stojkaRightX - rightXBottom;
+    const leftStripX  = (stojkaLeftX  + leftXBottom)  / 2;
+    const rightStripX = (stojkaRightX + rightXBottom) / 2;
+    const stripYCenter = yBottom + BASKET_CLIP_HEIGHT / 2;
+    const stripZFront = backZ + basketDepth - BASKET_CLIP_DEPTH / 2;
+    const stripZBack  = backZ + BASKET_CLIP_DEPTH / 2;
+    [[leftStripX, leftStripW], [rightStripX, rightStripW]].forEach(([sx, w]) => {
+      addPanel(w, BASKET_CLIP_HEIGHT, BASKET_CLIP_DEPTH, BASKET_RAIL_COLOR, [sx, stripYCenter, stripZFront]);
+      addPanel(w, BASKET_CLIP_HEIGHT, BASKET_CLIP_DEPTH, BASKET_RAIL_COLOR, [sx, stripYCenter, stripZBack]);
+    });
   }
 
   // Торцевое вешало — крепится к низу верхней полки 4 саморезами (2 спереди, 2 сзади — не к
@@ -452,7 +714,7 @@ export function buildWardrobeBox() {
     // узел сдвинут вперёд на её толщину (см. valetBackClearance/availableValetLengths — те же
     // 16мм там уже вычтены из допустимых размеров). Центры кронштейнов (и концы прутков)
     // отступают от краёв габарита на полглубины кронштейна.
-    const envBackZ = -depth / 2 + valetBackClearance();
+    const envBackZ = -depth / 2 + valetBackClearance() + backWallClearance();
     const backZ = envBackZ + VALET_BRACKET_DEPTH / 2;
     const frontZ = envBackZ + valetLength - VALET_BRACKET_DEPTH / 2;
     const rodLen = frontZ - backZ;
@@ -549,6 +811,22 @@ export function buildWardrobeBox() {
       totalMeshShelves += sec.meshShelves;
     }
 
+    // Сетчатые корзины — как и ящики, нужна боковая стойка (направляющие крепятся к ней) и
+    // ширина секции строго равна обязательному проёму (basketFits) — clampSectionSizes уже
+    // обнулил sec.baskets, если не совпало, но проверяем ещё раз здесь на случай прямого
+    // вызова build() в обход клампа.
+    if (sec.baskets > 0 && !noSideLeft && !noSideRight && basketFits(sec)) {
+      // Зазор между корзинами больше, чем у ящиков (4мм) — корзина выкатная и открытая сверху,
+      // нужен видимый промежуток для руки/захвата, а не плотная посадка фасад-в-фасад.
+      const gap = BASKET_STACK_GAP;
+      const baseY = sec.shelves > 0 ? bottomShelfY + t / 2 : fillBottom;
+      for (let i = 0; i < sec.baskets; i++) {
+        const y = baseY + i * (sec.basketHeight + gap);
+        addBasket(cx, y0 + y, sw, sec.basketWidth, sec.basketDepth, sec.basketHeight, sec.basketColor);
+      }
+      totalBaskets += sec.baskets;
+    }
+
     // Планка жёсткости под верхней полкой — не нужна, если задняя стенка сама держит форму (ЛДСП).
     // Вертикальная пластина (перпендикулярно полке, свисает вниз от неё), стоит в плоскости
     // задней стенки — не лежит плашмя на всю глубину полки, как раньше.
@@ -572,5 +850,6 @@ export function buildWardrobeBox() {
   return {
     door: doorCount, drawer: totalDrawers, shelf: totalShelves, rod: totalRod, item: 1,
     drawerSoft: totalDrawerSoft, drawerBasic: totalDrawerBasic, meshShelf: totalMeshShelves, valet: totalValet,
+    basket: totalBaskets,
   };
 }

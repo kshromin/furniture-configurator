@@ -2,7 +2,11 @@ import { state } from './state.js';
 import { TYPES } from '../types/registry.js';
 import { renderProducerSelect, renderSwatches } from './materials.js';
 import { buildFurniture } from './build.js';
-import { rebalanceSections, MIN_SECTION_WIDTH, maxDrawerDepth, availableMeshDepths, availableValetLengths, clampSectionSizes } from '../types/_wardrobe-shared.js';
+import { showToast } from './toast.js';
+import {
+  rebalanceSections, MIN_SECTION_WIDTH, maxDrawerDepth, availableMeshDepths, availableValetLengths, clampSectionSizes,
+  basketSizeOptions, basketFits, requiredBasketProyom, canAddSection, canRemoveSection,
+} from '../types/_wardrobe-shared.js';
 
 function activeType() { return TYPES[state.type] || TYPES['wardrobe']; }
 
@@ -107,6 +111,14 @@ export function syncUIFromState() {
   setSlider('alignerRightW', state.alignerRightW);
   setSlider('alignerTopH', state.alignerTopH);
 
+  document.querySelectorAll('#backWallGroup .opt-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.back === state.backWall);
+  });
+  // На случай, если пресет/загруженная позиция заказа принесла несовместимую комбинацию
+  // (задняя стенка + снятая стойка/крыша/дно) — блокирует кнопки и сбрасывает стенку так же,
+  // как и ручное снятие галочки на вкладке «Внешнее».
+  syncBackWallAvailability();
+
   document.querySelectorAll('.type-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.type === state.type);
   });
@@ -200,8 +212,34 @@ export function bindBackWall() {
       btn.classList.add('active');
       state.backWall = btn.dataset.back;
       buildFurniture();
+      // Смена задней стенки меняет доступную глубину под ящики/сетку/корзины/вешало
+      // (backWallClearance) — build() уже подрезал/обнулил значения в state.sections, но
+      // карточки секций на вкладке «Внутр.» сами не перерисовываются, пока их не попросить
+      // явно (тот же паттерн, что и у bindSlider('depth')) — иначе поля показывают то, что
+      // было выбрано ДО пересчёта, а не то, что реально построено.
+      renderSectionsList();
     });
   });
+}
+
+// Задняя стенка (ЛДСП/ХДФ) физически крепится к контуру короба — полу, крыше и обеим стойкам.
+// Если убрать любую из этих 4 деталей (галочки «Без дна/крыши/левой/правой стойки» на вкладке
+// «Внешнее»), закрепить стенку больше не на что — кнопки ЛДСП/ХДФ блокируются (как цоколь при
+// «Без дна»), а если стенка уже была выбрана — сбрасываем на «Без стенки».
+export function syncBackWallAvailability() {
+  const unavailable = state.noBottom || state.noCeiling || state.noSideLeft || state.noSideRight;
+  document.querySelectorAll('#backWallGroup .opt-btn').forEach(btn => {
+    if (btn.dataset.back === 'none') return;
+    btn.disabled = unavailable;
+  });
+  if (unavailable && state.backWall !== 'none') {
+    state.backWall = 'none';
+    document.querySelectorAll('#backWallGroup .opt-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('#backWallGroup .opt-btn[data-back="none"]').classList.add('active');
+    // build() уже вызовет вызывающий код (тот же паттерн, что и у соседних sync*Availability) —
+    // здесь только перерисовываем карточки секций, т.к. buildFurniture() их не трогает.
+    renderSectionsList();
+  }
 }
 
 // ---------- кнопка «Не показывать двери» ----------
@@ -229,12 +267,17 @@ export function renderSectionsList() {
   const maxDD = maxDrawerDepth(state.depth);
   const meshDepths = availableMeshDepths(state.depth);
   const valetLengths = availableValetLengths(state.depth);
+  const basketSizes = basketSizeOptions(state.depth);
 
   state.sections.forEach((sec, i) => {
     const card = document.createElement('div');
     card.className = 'section-card';
+    // Удалить нельзя, если освободившуюся ширину некому занять — все остальные секции
+    // зафиксированы (корзиной или галочкой), см. canRemoveSection в _wardrobe-shared.js.
+    const removable = state.sections.length > 1 && canRemoveSection(i);
     const removeBtn = state.sections.length > 1
-      ? `<button class="section-remove-btn" data-idx="${i}" title="Удалить секцию">
+      ? `<button class="section-remove-btn" data-idx="${i}" ${removable ? '' : 'disabled'}
+           title="${removable ? 'Удалить секцию' : 'Нельзя удалить — все остальные секции зафиксированы, освободившееся место некому занять'}">
            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z"/></svg>
          </button>`
       : '';
@@ -244,6 +287,9 @@ export function renderSectionsList() {
         <div class="section-card-width">
           <input type="number" class="dim-input section-width-input" data-idx="${i}" value="${Math.round(sec.width)}" min="${MIN_SECTION_WIDTH}">
           <span class="section-card-unit">мм</span>
+          <button class="section-lock-btn ${sec.widthLocked ? 'active' : ''}" data-idx="${i}" title="Зафиксировать ширину секции — не изменится при добавлении/удалении других секций">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          </button>
           ${removeBtn}
         </div>
       </div>
@@ -279,6 +325,18 @@ export function renderSectionsList() {
           <label class="el-row-check" title="Есть/нет"><input type="checkbox" class="section-valet-input" data-idx="${i}" ${sec.valet ? 'checked' : ''}></label>
           <select class="mini-select section-valet-length-input" data-idx="${i}" title="Размер, мм">
             ${valetLengths.map(v => `<option value="${v}" ${sec.valetLength === v ? 'selected' : ''}>${v}</option>`).join('')}
+          </select>
+        </div>
+        <div class="el-row" title="Сетчатая корзина — готовый типоразмер; ширина секции должна точно совпадать с обязательным проёмом (300→323мм, 400→423мм, 500→523мм), иначе не встанет">
+          <span class="el-row-label">Корзины</span>
+          <input type="number" class="mini-input section-basket-count-input" data-idx="${i}" value="${sec.baskets}" min="0" max="4" title="Количество (0-4). Требует точного совпадения ширины секции с проёмом.">
+          <select class="mini-select mini-select-wide section-basket-size-input" data-idx="${i}" title="Ширина×глубина, высота корзины">
+            ${basketSizes.map(o => `<option value="${o.w}x${o.d}x${o.h}" ${sec.basketWidth === o.w && sec.basketDepth === o.d && sec.basketHeight === o.h ? 'selected' : ''}>${o.w}×${o.d} h${o.h}</option>`).join('')}
+          </select>
+          <select class="mini-select section-basket-color-input" data-idx="${i}" title="Цвет">
+            <option value="silver" ${sec.basketColor === 'silver' ? 'selected' : ''}>Хром</option>
+            <option value="white"  ${sec.basketColor === 'white'  ? 'selected' : ''}>Белый</option>
+            <option value="black"  ${sec.basketColor === 'black'  ? 'selected' : ''}>Чёрный</option>
           </select>
         </div>
       </div>
@@ -365,9 +423,54 @@ export function renderSectionsList() {
       buildFurniture();
     });
   });
+  container.querySelectorAll('.section-basket-count-input').forEach(inp => {
+    inp.addEventListener('change', e => {
+      const sec = state.sections[Number(e.target.dataset.idx)];
+      const val = Math.max(0, Math.min(4, Number(e.target.value)));
+      if (val > 0 && !basketFits(sec)) {
+        showToast(`Корзина ${sec.basketWidth}мм требует проём секции ровно ${requiredBasketProyom(sec.basketWidth)}мм (сейчас ${Math.round(sec.width)}мм). Измените ширину секции.`);
+        sec.baskets = 0;
+        e.target.value = 0;
+      } else {
+        sec.baskets = val;
+      }
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-basket-size-input').forEach(sel => {
+    sel.addEventListener('change', e => {
+      const sec = state.sections[Number(e.target.dataset.idx)];
+      const [w, d, h] = e.target.value.split('x').map(Number);
+      sec.basketWidth = w; sec.basketDepth = d; sec.basketHeight = h;
+      if (sec.baskets > 0 && !basketFits(sec)) {
+        showToast(`Корзина ${w}мм требует проём секции ровно ${requiredBasketProyom(w)}мм (сейчас ${Math.round(sec.width)}мм). Корзины в этой секции отключены.`);
+        sec.baskets = 0;
+        renderSectionsList();
+      }
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-basket-color-input').forEach(sel => {
+    sel.addEventListener('change', e => {
+      state.sections[Number(e.target.dataset.idx)].basketColor = e.target.value;
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-lock-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sec = state.sections[Number(btn.dataset.idx)];
+      sec.widthLocked = !sec.widthLocked;
+      btn.classList.toggle('active', sec.widthLocked);
+    });
+  });
   container.querySelectorAll('.section-remove-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      state.sections.splice(Number(btn.dataset.idx), 1);
+      const idx = Number(btn.dataset.idx);
+      if (!canRemoveSection(idx)) {
+        showToast('Нельзя удалить секцию — все остальные секции зафиксированы (корзиной или галочкой), освободившееся место некому занять.');
+        return;
+      }
+      state.sections.splice(idx, 1);
       rebalanceSections();
       renderSectionsList();
       buildFurniture();
@@ -377,10 +480,19 @@ export function renderSectionsList() {
 
 export function bindSectionsControls() {
   document.getElementById('addSectionBtn').addEventListener('click', () => {
+    // Зафиксированные секции (корзина или ручная галочка) не сжимаются при добавлении новой —
+    // см. rebalanceSections/canAddSection в _wardrobe-shared.js. Если свободных секций не
+    // хватает на ещё одну минимальную ширину, добавить некуда.
+    if (!canAddSection()) {
+      showToast('Не удаётся добавить секцию — все секции зафиксированы (корзиной или галочкой) и заняли всю ширину. Снимите фиксацию у одной из секций или уменьшите её ширину.');
+      return;
+    }
     state.sections.push({
       width: MIN_SECTION_WIDTH, shelves: 1,
       drawers: 0, drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true, rod: 1,
       meshShelves: 0, meshDepth: 400, meshColor: 'silver', valet: 0, valetLength: 400,
+      baskets: 0, basketWidth: 300, basketDepth: 400, basketHeight: 120, basketColor: 'silver',
+      widthLocked: false,
     });
     rebalanceSections();
     renderSectionsList();
@@ -507,6 +619,15 @@ export function bindVariantControls() {
   [['noSideLeft', 'alignerLeft'], ['noSideRight', 'alignerRight'], ['noCeiling', 'alignerTop']].forEach(([noKey, alignerKey]) => {
     document.getElementById(noKey).addEventListener('change', () => {
       syncAlignerAvailability(noKey, alignerKey);
+      buildFurniture();
+    });
+  });
+
+  // Задняя стенка держится на всех 4 деталях контура (пол/крыша/обе стойки) — при снятии любой
+  // из них она физически отваливается, см. syncBackWallAvailability.
+  ['noSideLeft', 'noSideRight', 'noCeiling', 'noBottom'].forEach(noKey => {
+    document.getElementById(noKey).addEventListener('change', () => {
+      syncBackWallAvailability();
       buildFurniture();
     });
   });

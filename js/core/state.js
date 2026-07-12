@@ -28,9 +28,20 @@ export const state = {
   // конце), крепится к низу верхней полки, тянется вдоль глубины. valet: 0/1 (есть/нет),
   // valetLength — заявленный размер (250-550, шаг 50), ограничен реальной доступной глубиной
   // (как и у сетчатой полки).
+  // Сетчатые корзины (выкатные) — реальный типоразмерный ряд производителя, НЕ произвольные
+  // размеры: basketWidth (300/400/500, поперёк секции) жёстко определяет набор допустимых
+  // basketDepth (в шкаф) — 300→[400], 400→[400,450,500,550,600], 500→[500,550,600] — и
+  // ОБЯЗАТЕЛЬНЫЙ проём (реальную ширину секции) = basketWidth + 23мм (зазор под направляющие):
+  // 300→323, 400→423, 500→523. Если ширина секции не совпадает — корзину включать нельзя (см.
+  // validateBasketFit в _wardrobe-shared.js), UI показывает тост и сбрасывает baskets на 0.
+  // basketHeight — 120 или 190мм. Цвета: silver/white/black.
+  // widthLocked — ручная фиксация ширины секции (галочка в UI): при добавлении/удалении других
+  // секций эта ширина не трогается, ребаланс достаётся только незафиксированным секциям — тот же
+  // механизм, что уже был у секций с корзинами (baskets > 0 тоже всегда фиксирован), просто
+  // теперь можно закрепить ширину и без корзины. См. rebalanceSections/canAddSection.
   sections: [
-    { width: 876, shelves: 1, drawers: 0, drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true, rod: 1, meshShelves: 0, meshDepth: 400, meshColor: 'silver', valet: 0, valetLength: 400 },
-    { width: 876, shelves: 1, drawers: 0, drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true, rod: 1, meshShelves: 0, meshDepth: 400, meshColor: 'silver', valet: 0, valetLength: 400 },
+    { width: 876, shelves: 1, drawers: 0, drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true, rod: 1, meshShelves: 0, meshDepth: 400, meshColor: 'silver', valet: 0, valetLength: 400, baskets: 0, basketWidth: 300, basketDepth: 400, basketHeight: 120, basketColor: 'silver', widthLocked: false },
+    { width: 876, shelves: 1, drawers: 0, drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true, rod: 1, meshShelves: 0, meshDepth: 400, meshColor: 'silver', valet: 0, valetLength: 400, baskets: 0, basketWidth: 300, basketDepth: 400, basketHeight: 120, basketColor: 'silver', widthLocked: false },
   ],
   drawers: 0, // плоское значение для типов без секций (комод и т.п.)
   korpusProducer: null, korpusId: null,

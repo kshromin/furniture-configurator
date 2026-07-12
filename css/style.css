@@ -672,6 +672,8 @@ html, body {
 }
 .opt-btn:hover { border-color: #a8c0f8; color: #2f6fed; }
 .opt-btn.active { border-color: #2f6fed; background: #eef3ff; color: #2f6fed; }
+.opt-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.opt-btn:disabled:hover { border-color: #e0e0e0; color: #555; }
 
 .side-replace-block {
   margin: 4px 0 8px 16px;
@@ -789,8 +791,22 @@ html, body {
   line-height: 0;
   flex-shrink: 0;
 }
+.section-remove-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.section-remove-btn:disabled:hover { color: #ccc; }
 
 .section-remove-btn:hover { color: #e44; }
+
+.section-lock-btn {
+  background: none;
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+  padding: 2px;
+  line-height: 0;
+  flex-shrink: 0;
+}
+.section-lock-btn:hover { color: #888; }
+.section-lock-btn.active { color: #2f6fed; }
 
 /* Внутреннее наполнение — по строке на тип элемента (полки/штанга/сетка/ящики/вешало),
    вся информация об элементе в одной линии. Текстовых подписей у под-полей нет — только
@@ -836,6 +852,7 @@ html, body {
 .mini-input-wide { width: 40px; }
 
 .mini-select { width: 52px; padding-left: 2px; }
+.mini-select-wide { width: 88px; }
 
 .el-row-check {
   display: flex;
@@ -848,3 +865,28 @@ html, body {
 
 .el-row-check input { width: 15px; height: 15px; flex-shrink: 0; }
 .btn-secondary { background: #eee; color: #333; }
+
+/* ── Toast (короткие уведомления, напр. невалидный проём под корзину) ── */
+.app-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(20px);
+  background: #2a2a2a;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  box-shadow: 0 4px 16px rgba(0,0,0,.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease, transform .2s ease;
+  z-index: 1000;
+  max-width: 320px;
+  text-align: center;
+}
+.app-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}

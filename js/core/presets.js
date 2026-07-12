@@ -18,6 +18,8 @@ export function applyPreset(p) {
     width: 0, shelves: 1 + (p.shelves || 0),
     drawers: p.drawers || 0, drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true,
     rod: p.rod ? 1 : 0, meshShelves: 0, meshDepth: 400, meshColor: 'silver', valet: 0, valetLength: 400,
+    baskets: 0, basketWidth: 300, basketDepth: 400, basketHeight: 120, basketColor: 'silver',
+    widthLocked: false,
   }));
 
   state.korpusProducer = p.korpusProducer;

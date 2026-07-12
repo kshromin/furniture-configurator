@@ -1,7 +1,7 @@
 import { state, materials, PANEL_THICKNESS } from '../core/state.js';
 import { korpusBoxAreaM2 } from '../core/pricing.js';
 import {
-  buildWardrobeBox, getDoorCount, effectiveDoorSpan, drawerBoxSize,
+  buildWardrobeBox, getDoorCount, effectiveDoorSpan, drawerBoxSize, basketFits,
   DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_RAIL_HEIGHT, BOTTOM_RAIL_HEIGHT, STIFFENER_HEIGHT,
 } from './_wardrobe-shared.js';
 
@@ -66,7 +66,14 @@ export default {
       return entry ? entry.pricePerM : 0;
     }
 
-    let fillM2 = 0, meshPrice = 0;
+    // Сетчатая корзина — готовое изделие фиксированного типоразмера (ширина/глубина/высота/цвет),
+    // цена за штуку берётся из каталога, а не считается по площади/погонному метру.
+    function basketUnitPrice(width, depth, height, color) {
+      const entry = (materials.basket || []).find(b => b.width === width && b.depth === depth && b.height === height && b.color === color);
+      return entry ? entry.price : 0;
+    }
+
+    let fillM2 = 0, meshPrice = 0, basketPrice = 0;
     const innerDepth = depth - DOOR_DEPTH_ZONE;
     sections.forEach(sec => {
       // Без зазора — совпадает с геометрией в buildWardrobeBox.
@@ -84,6 +91,11 @@ export default {
       if (sec.meshShelves > 0) {
         meshPrice += sec.meshShelves * (sw / 1000) * meshPricePerM(sec.meshDepth, sec.meshColor);
       }
+      // Сетчатые корзины — как ящики, нужна боковая стойка и точное совпадение ширины секции с
+      // обязательным проёмом (basketFits) — иначе корзина физически не встанет (см. state.js).
+      if (sec.baskets > 0 && !noSideLeft && !noSideRight && basketFits(sec)) {
+        basketPrice += sec.baskets * basketUnitPrice(sec.basketWidth, sec.basketDepth, sec.basketHeight, sec.basketColor);
+      }
       // Верхняя полка — всегда, плюс планка жёсткости (если задняя стенка не ЛДСП), плюс
       // sec.shelves (экспериментальная объединённая модель) — см. геометрию в buildWardrobeBox.
       fillM2 += (sw * innerDepth) / 1e6;
@@ -95,18 +107,19 @@ export default {
       ? ((width - stojkaLeftOff - stojkaRightOff) * stojkaH) / 1e6
       : 0;
 
-    return { korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2, fasadM2, fillM2, backWallM2, meshPrice };
+    return { korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2, fasadM2, fillM2, backWallM2, meshPrice, basketPrice };
   },
 
   describe() {
     const { sections, noSideLeft, noSideRight } = state;
     // +1 полка на секцию — верхняя, которая строится всегда (см. _wardrobe-shared.js).
     const totalShelves = sections.reduce((s, sec) => s + 1 + sec.shelves, 0);
+    const totalBaskets = (noSideLeft || noSideRight) ? 0 : sections.reduce((s, sec) => s + (sec.baskets > 0 && basketFits(sec) ? sec.baskets : 0), 0);
     // Без боковой стойки ящики не ставятся — см. buildWardrobeBox.
     const totalDrawers = (noSideLeft || noSideRight) ? 0 : sections.reduce((s, sec) => s + sec.drawers, 0);
     const totalRod = sections.reduce((s, sec) => s + Math.max(0, Math.min(2, sec.rod || 0)), 0);
     const totalMesh = sections.reduce((s, sec) => s + sec.meshShelves, 0);
     const totalValet = sections.reduce((s, sec) => s + (sec.valet ? 1 : 0), 0);
-    return `, секций: ${sections.length}, полок: ${totalShelves}, ящиков: ${totalDrawers}, штанг: ${totalRod}, сетчатых полок: ${totalMesh}, торцевых вешал: ${totalValet}`;
+    return `, секций: ${sections.length}, полок: ${totalShelves}, ящиков: ${totalDrawers}, штанг: ${totalRod}, сетчатых полок: ${totalMesh}, торцевых вешал: ${totalValet}, корзин: ${totalBaskets}`;
   },
 };
