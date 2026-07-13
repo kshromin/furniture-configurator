@@ -7,10 +7,16 @@ import {
   bindTabSwitching, bindToggleDoors, bindBackWall, bindSectionsControls, syncUIFromState,
 } from './core/tabs.js';
 import { addCurrentToOrder, renderOrderCards, bindOrderForm } from './core/order.js';
+import { initAuth, bindLoginForm } from './core/auth.js';
+import { renderCabinet, bindCabinetControls } from './core/cabinet.js';
+import { renderAdminOrders } from './core/admin.js';
 import { initItemDrag } from './core/itemDrag.js';
 import { initDimensions } from './core/dimensions.js';
 
 async function init() {
+  bindLoginForm();
+  await initAuth();
+
   const res = await fetch('data/materials.json');
   setMaterials(await res.json());
 
@@ -48,6 +54,10 @@ async function init() {
   bindToggleDoors();
   bindSectionsControls();
   bindOrderForm();
+
+  bindCabinetControls();
+  document.querySelector('[data-tab="cabinet"]').addEventListener('click', renderCabinet);
+  document.getElementById('adminTabBtn').addEventListener('click', renderAdminOrders);
 
   initItemDrag();
   initDimensions();

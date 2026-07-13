@@ -8,6 +8,16 @@
 <body>
 
   <div id="viewport"></div>
+  <div id="dimOverlay">
+    <svg id="dimArrowsSvg">
+      <defs>
+        <marker id="dimArrowHead" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" class="dim-arrow-head"></path>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+  <div id="dragInfoPanel" class="drag-info-panel"></div>
 
   <!-- Иконки вкладок -->
   <nav id="sidebar">
@@ -32,9 +42,17 @@
       <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
       <span>Заказ</span>
     </button>
+    <button class="tab-btn" data-tab="cabinet" title="Личный кабинет">
+      <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Кабинет</span>
+    </button>
     <button class="tab-btn" data-tab="presets" title="Популярные проекты">
       <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
       <span>Проекты</span>
+    </button>
+    <button class="tab-btn tab-btn-admin" id="adminTabBtn" data-tab="admin" title="Администрирование" style="display:none">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Админ</span>
     </button>
   </nav>
 
@@ -248,6 +266,9 @@
       </div>
 
       <div id="sectionsListBlock" data-fill-ctx="list">
+        <div class="field checkbox-field" style="margin-bottom:10px">
+          <label><input type="checkbox" id="showDimensionsToggle" checked> Показывать размеры</label>
+        </div>
         <div id="sectionsListItems"></div>
         <button id="addSectionBtn" class="add-item-btn" type="button">+ Добавить секцию</button>
       </div>
@@ -403,6 +424,34 @@
       <button id="orderBtn" class="order-btn" style="margin-top:12px">Оставить заявку</button>
     </div>
 
+    <!-- 8. Личный кабинет -->
+    <div class="tab-pane" id="tab-cabinet">
+      <div class="pane-title">Личный кабинет</div>
+
+      <div class="field-group-title">Мои заказы</div>
+      <div id="cabinetOrdersEmpty" class="placeholder-note" style="display:none">Заявок пока нет.</div>
+      <div id="cabinetOrdersList"></div>
+
+      <div class="field-group-title" style="margin-top:18px">Мои сохранённые конфигурации</div>
+      <button id="saveConfigBtn" class="add-item-btn" type="button">+ Сохранить текущую конфигурацию</button>
+      <div id="cabinetConfigsEmpty" class="placeholder-note" style="display:none">Сохранённых конфигураций нет.</div>
+      <div id="cabinetConfigsList"></div>
+
+      <button id="logoutBtn" class="btn-secondary" style="width:100%;margin-top:20px;padding:10px;border-radius:8px">Выйти</button>
+    </div>
+
+    <!-- 9. Админ-панель -->
+    <div class="tab-pane" id="tab-admin">
+      <div class="pane-title">Все заказы</div>
+      <div id="adminOrdersEmpty" class="placeholder-note" style="display:none">Заказов пока нет.</div>
+      <table id="adminOrdersTable" class="admin-table" style="display:none">
+        <thead>
+          <tr><th>Дата</th><th>Пользователь</th><th>Состав</th><th>Сумма</th><th>Статус</th></tr>
+        </thead>
+        <tbody id="adminOrdersBody"></tbody>
+      </table>
+    </div>
+
     <!-- Итог — всегда виден -->
     <div id="price-footer">
       <div class="price-rows">
@@ -447,11 +496,31 @@
     </div>
   </div>
 
+  <!-- Экран входа -->
+  <div id="loginOverlay" class="overlay visible">
+    <div class="order-modal">
+      <h3>Вход</h3>
+      <div class="field">
+        <label>Email</label>
+        <input type="text" id="loginEmail" placeholder="you@example.com">
+      </div>
+      <div class="field">
+        <label>Пароль</label>
+        <input type="password" id="loginPassword" placeholder="••••••••">
+      </div>
+      <div id="loginResult" class="order-result"></div>
+      <div class="order-actions">
+        <button id="loginSubmit" class="btn-primary">Войти</button>
+      </div>
+    </div>
+  </div>
+
   <script type="importmap">
   {
     "imports": {
       "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+      "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
     }
   }
   </script>

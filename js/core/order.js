@@ -5,6 +5,8 @@ import { TYPES } from '../types/registry.js';
 import { syncUIFromState } from './tabs.js';
 import { renderSwatches } from './materials.js';
 import { buildFurniture } from './build.js';
+import { supabase } from './supabaseClient.js';
+import { auth } from './auth.js';
 
 let orderItems = []; // накопленные позиции заказа
 let editingItemId = null; // id редактируемой позиции
@@ -128,7 +130,7 @@ export function orderSummaryFull() {
 export function bindOrderForm() {
   const overlay = document.getElementById('orderOverlay');
   document.getElementById('orderBtn').addEventListener('click', () => {
-    document.getElementById('orderSummary').textContent = describeConfig();
+    document.getElementById('orderSummary').textContent = orderSummaryFull();
     document.getElementById('orderResult').textContent = '';
     document.getElementById('orderName').value = '';
     document.getElementById('orderPhone').value = '';
@@ -136,17 +138,42 @@ export function bindOrderForm() {
   });
   document.getElementById('orderCancel').addEventListener('click', () => overlay.classList.remove('visible'));
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('visible'); });
-  document.getElementById('orderSubmit').addEventListener('click', () => {
+  document.getElementById('orderSubmit').addEventListener('click', async () => {
     const name  = document.getElementById('orderName').value.trim();
     const phone = document.getElementById('orderPhone').value.trim();
     const result = document.getElementById('orderResult');
     if (!name)  { result.style.color = 'red'; result.textContent = 'Укажите имя';     return; }
     if (!phone) { result.style.color = 'red'; result.textContent = 'Укажите телефон'; return; }
-    const orders = JSON.parse(localStorage.getItem('orders') || '[]');
-    orders.push({ id: Date.now(), name, phone, summary: describeConfig(), total: state.lastTotal, createdAt: new Date().toISOString() });
-    localStorage.setItem('orders', JSON.stringify(orders));
+    if (!auth.session) {
+      result.style.color = 'red';
+      result.textContent = 'Отправка заявок недоступна локально — только на опубликованном сайте после входа.';
+      return;
+    }
+
+    // Если корзина пуста — заявка состоит из текущей открытой позиции (старое поведение).
+    const items = orderItems.length ? orderItems
+      : [{ id: Date.now(), label: describeConfig(), total: state.lastTotal || 0, snapshot: JSON.parse(JSON.stringify(state)) }];
+    const total = items.reduce((s, it) => s + it.total, 0);
+
+    result.style.color = '#555';
+    result.textContent = 'Отправка...';
+    const { error } = await supabase.from('orders').insert({
+      user_id: auth.session.user.id,
+      contact_name: name,
+      contact_phone: phone,
+      summary: orderSummaryFull(),
+      total,
+      snapshot: items,
+    });
+    if (error) {
+      result.style.color = 'red';
+      result.textContent = 'Ошибка отправки. Попробуйте ещё раз.';
+      return;
+    }
     result.style.color = 'green';
     result.textContent = 'Заявка сохранена. Мы свяжемся с вами!';
+    orderItems = [];
+    renderOrderCards();
     setTimeout(() => overlay.classList.remove('visible'), 1500);
   });
 }
