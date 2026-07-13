@@ -37,7 +37,7 @@ const BACK_WALL_RATE = { ldsp: 2000, hdf: 500 };
 
 export function updatePrice(counts) {
   const type = TYPES[state.type] || TYPES['wardrobe'];
-  const { korpusM2 = 0, fasadM2 = 0, fillM2 = 0, backWallM2 = 0, meshPrice = 0, basketPrice = 0 } = type.areas(counts);
+  const { korpusM2 = 0, fasadM2 = 0, fillM2 = 0, backWallM2 = 0, meshPrice = 0, basketPrice = 0, edgeLengthM = 0 } = type.areas(counts);
 
   const kMat = getColor('korpus');
   const fMat = getColor('fasad');
@@ -55,13 +55,17 @@ export function updatePrice(counts) {
     const n = f.per === 'front' ? counts.door + counts.drawer : (counts[f.per] || 0);
     return sum + f.price * n;
   }, 0);
+  // Кромка — ПВХ-лента по видимому переднему торцу ЛДСП, за погонный метр (см.
+  // data/materials.json edgeBanding, длина считается в js/types/wardrobe.js areas()).
+  const kromkaPrice = edgeLengthM * (materials.edgeBanding?.pricePerM || 0);
 
-  const total = korpusPrice + fasadPrice + fillPrice + backWallPrice + fittingsPrice;
+  const total = korpusPrice + fasadPrice + fillPrice + backWallPrice + fittingsPrice + kromkaPrice;
 
   document.getElementById('priceKorpus').textContent   = fmt(korpusPrice);
   document.getElementById('priceFasad').textContent    = fmt(fasadPrice);
   document.getElementById('priceFill').textContent     = fmt(fillPrice);
   document.getElementById('priceFittings').textContent = fmt(fittingsPrice);
+  document.getElementById('priceKromka').textContent   = fmt(kromkaPrice);
   document.getElementById('priceTotal').textContent    = fmt(total);
 
   const bwEl = document.getElementById('priceBackWall');

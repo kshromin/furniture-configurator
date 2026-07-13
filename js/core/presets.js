@@ -1,4 +1,4 @@
-import { state, materials } from './state.js';
+import { state, materials, markStateSafe } from './state.js';
 import { TYPES } from '../types/registry.js';
 import { syncUIFromState } from './tabs.js';
 import { buildFurniture } from './build.js';
@@ -34,6 +34,7 @@ export function applyPreset(p) {
   rebalanceSections();
   syncUIFromState();
   buildFurniture();
+  markStateSafe();
 }
 
 export function renderPresets() {

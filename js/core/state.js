@@ -9,6 +9,16 @@ export function setMaterials(m) { materials = m; }
 // разработки всегда localhost).
 export function newItemId() { return crypto.randomUUID(); }
 
+// "Безопасный" снимок state — точка, после которой текущий дизайн можно спокойно потерять
+// (только что добавлен в проект, или это ещё вообще ничего не менявшийся дефолт). Используется
+// предупреждением при смене типа изделия (см. js/core/tabs.js bindTypeButtons) — пока baseline
+// не выставлен явно (markStateSafe ещё не звали), считаем что предупреждать не о чем.
+let lastSafeSnapshot = null;
+export function markStateSafe() { lastSafeSnapshot = JSON.stringify(state); }
+export function hasUnsavedChanges() {
+  return lastSafeSnapshot !== null && JSON.stringify(state) !== lastSafeSnapshot;
+}
+
 export const state = {
   type: 'wardrobe',
   width: 1800, height: 2400, depth: 600,

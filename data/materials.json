@@ -77,6 +77,7 @@
     { "id": "rod",           "name": "Штанга для одежды",               "price": 400,  "per": "rod"    },
     { "id": "valet",         "name": "Торцевое вешало (выдвижное)",     "price": 1500, "per": "valet"  }
   ],
+  "edgeBanding": { "pricePerM": 150 },
   "meshShelf": [
     { "depth": 300, "color": "white",  "name": "Белая, 300мм",   "pricePerM": 900  },
     { "depth": 300, "color": "silver", "name": "Серебро, 300мм", "pricePerM": 1100 },

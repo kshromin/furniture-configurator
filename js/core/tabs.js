@@ -1,4 +1,4 @@
-import { state, newItemId } from './state.js';
+import { state, newItemId, hasUnsavedChanges, markStateSafe } from './state.js';
 import { TYPES } from '../types/registry.js';
 import { renderProducerSelect, renderSwatches } from './materials.js';
 import { buildFurniture } from './build.js';
@@ -7,7 +7,7 @@ import { renderStaticDimensions } from './dimensions.js';
 import {
   rebalanceSections, MIN_SECTION_WIDTH, maxDrawerDepth, availableMeshDepths, availableValetLengths, clampSectionSizes,
   basketSizeOptions, basketFits, requiredBasketProyom, canAddSection, canRemoveSection, BASKET_WIDTHS,
-  sectionVerticalBounds, findFreeSlot, defaultItemsForSection, isSectionWidthLocked,
+  sectionVerticalBounds, findFreeSlot, defaultItemsForSection, isSectionWidthLocked, sectionMissingSideSupport,
 } from '../types/_wardrobe-shared.js';
 
 // Общий список допустимых проёмов под корзины (не привязан к конкретной выбранной ширине) —
@@ -148,14 +148,56 @@ export function syncUIFromState() {
 }
 
 // ---------- вкладка «Тип изделия» ----------
+function applyTypeSwitch(newType) {
+  state.type = newType;
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === newType));
+  updateAllContexts();
+  buildFurniture();
+  // Смена типа сама по себе меняет state (type), уводя его от снимка, снятого ДО переключения
+  // (что бы к нему ни привело — обычный клик без предупреждения, «сохранить и продолжить» или
+  // «продолжить без сохранения») — без этого следующая же проверка снова решила бы, что есть
+  // несохранённые изменения, хотя пользователь ничего не трогал в новом типе.
+  markStateSafe();
+}
+
+// Если текущий дизайн не добавлен в проект (или добавлен, но с тех пор что-то поменяли) —
+// переключение типа изделия скрывает его наполнение под другой ctx, фактически теряя работу.
+// Предупреждаем и даём выбор: добавить в проект перед переключением (клик по addItemBtn — не
+// импортируем addCurrentToOrder напрямую, чтобы не завести цикл tabs.js↔order.js, там уже есть
+// обратный импорт syncUIFromState), продолжить без сохранения, или отменить переключение.
+function showTypeSwitchWarning(newType) {
+  const overlay = document.getElementById('typeSwitchWarningOverlay');
+  const saveBtn = document.getElementById('typeSwitchSaveBtn');
+  const discardBtn = document.getElementById('typeSwitchDiscardBtn');
+  const cancelBtn = document.getElementById('typeSwitchCancelBtn');
+
+  function cleanup() {
+    overlay.classList.remove('visible');
+    saveBtn.removeEventListener('click', onSave);
+    discardBtn.removeEventListener('click', onDiscard);
+    cancelBtn.removeEventListener('click', onCancel);
+  }
+  function onSave() {
+    document.getElementById('addItemBtn').click();
+    cleanup();
+    applyTypeSwitch(newType);
+  }
+  function onDiscard() { cleanup(); applyTypeSwitch(newType); }
+  function onCancel() { cleanup(); }
+
+  saveBtn.addEventListener('click', onSave);
+  discardBtn.addEventListener('click', onDiscard);
+  cancelBtn.addEventListener('click', onCancel);
+  overlay.classList.add('visible');
+}
+
 export function bindTypeButtons() {
   document.querySelectorAll('.type-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      state.type = btn.dataset.type;
-      document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      updateAllContexts();
-      buildFurniture();
+      const newType = btn.dataset.type;
+      if (newType === state.type) return;
+      if (hasUnsavedChanges()) showTypeSwitchWarning(newType);
+      else applyTypeSwitch(newType);
     });
   });
 }
@@ -409,7 +451,7 @@ export function renderSectionsList() {
         showToast(`Корзина ${sec.basketWidth}мм требует проём секции ровно ${requiredBasketProyom(sec.basketWidth)}мм (сейчас ${Math.round(sec.width)}мм). Измените ширину секции. ${BASKET_PROYOMS_HINT}`);
         return;
       }
-      if ((type === 'drawer' || type === 'basket') && (state.noSideLeft || state.noSideRight)) {
+      if ((type === 'drawer' || type === 'basket') && sectionMissingSideSupport(state.sections, i)) {
         showToast('Нужна боковая стойка секции — направляющие крепить некуда.');
         return;
       }

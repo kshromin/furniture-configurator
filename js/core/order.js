@@ -1,4 +1,4 @@
-import { state } from './state.js';
+import { state, markStateSafe } from './state.js';
 import { getColor } from './materials.js';
 import { fmt } from './pricing.js';
 import { TYPES } from '../types/registry.js';
@@ -7,9 +7,15 @@ import { renderSwatches } from './materials.js';
 import { buildFurniture } from './build.js';
 import { supabase } from './supabaseClient.js';
 import { auth } from './auth.js';
+import { showToast } from './toast.js';
 
-let orderItems = []; // накопленные позиции заказа
-let editingItemId = null; // id редактируемой позиции
+let orderItems = []; // накопленные прорисовки текущего проекта (локально, до сохранения)
+let editingItemId = null; // id локально редактируемой прорисовки в этом накоплении
+
+// Если задан — «Сохранить проект» обновляет ИМЕННО эту строку в drawings (текущим state), минуя
+// локальное накопление — см. loadDrawingForEdit (открыта прорисовка из личного кабинета).
+let editingDrawingId = null;
+let editingDrawingClient = null; // { name, phone, address } — подставляются в модалку при обновлении
 
 export function describeConfig() {
   const type = TYPES[state.type];
@@ -32,10 +38,13 @@ export function addCurrentToOrder() {
       orderItems[idx].snapshot = snap;
     }
     editingItemId = null;
-    document.getElementById('addItemBtn').textContent = '+ Добавить в заказ';
+    document.getElementById('addItemBtn').textContent = '+ Добавить в проект';
   } else {
     orderItems.push({ id: Date.now(), label: describeConfig(), total: state.lastTotal || 0, snapshot: snap });
   }
+  // Текущий дизайн только что попал в проект — безопасно переключать тип изделия без
+  // предупреждения (см. hasUnsavedChanges/tabs.js bindTypeButtons), пока ничего снова не поменяли.
+  markStateSafe();
   renderOrderCards();
 }
 
@@ -53,6 +62,26 @@ export function loadItemForEdit(id) {
   document.getElementById('addItemBtn').textContent = '✓ Обновить позицию';
   document.querySelector('[data-tab="type"]').click();
   renderOrderCards();
+  markStateSafe();
+}
+
+// Открыть уже сохранённую (на сервере) прорисовку из личного кабинета для просмотра/правки —
+// см. js/core/cabinet.js. В отличие от loadItemForEdit (локальная корзина текущего проекта),
+// тут прорисовка одна и уже существует в drawings — «Сохранить проект» без накопления в
+// корзине сразу обновит именно эту строку текущим state (см. bindOrderForm).
+export function loadDrawingForEdit(drawing) {
+  editingDrawingId = drawing.id;
+  editingDrawingClient = { name: drawing.client_name || '', phone: drawing.client_phone || '', address: drawing.client_address || '' };
+  Object.assign(state, JSON.parse(JSON.stringify(drawing.snapshot)));
+  syncUIFromState();
+  ['korpus', 'fasad', 'fill'].forEach(g => {
+    document.getElementById(g + 'Producer').value = state[g + 'Producer'];
+    renderSwatches(g, g + 'Swatches');
+  });
+  buildFurniture();
+  document.querySelector('[data-tab="type"]').click();
+  showToast('Прорисовка загружена. Внесите изменения и нажмите «Сохранить проект» на вкладке «Проект», чтобы обновить.');
+  markStateSafe();
 }
 
 export function renderOrderCards() {
@@ -106,7 +135,7 @@ export function renderOrderCards() {
       orderItems = orderItems.filter(it => it.id !== id);
       if (editingItemId === id) {
         editingItemId = null;
-        document.getElementById('addItemBtn').textContent = '+ Добавить в заказ';
+        document.getElementById('addItemBtn').textContent = '+ Добавить в проект';
       }
       renderOrderCards();
     });
@@ -117,14 +146,14 @@ export function renderOrderCards() {
   });
 
   grandEl.textContent = fmt(grand);
-  counterTxt.textContent = `В заказе: ${orderItems.length} изд. • ${fmt(grand)}`;
+  counterTxt.textContent = `В проекте: ${orderItems.length} изд. • ${fmt(grand)}`;
 }
 
 export function orderSummaryFull() {
   if (orderItems.length === 0) return describeConfig();
   const lines = orderItems.map((it, i) => `${i + 1}. ${it.label}`);
   const grand = orderItems.reduce((s, it) => s + it.total, 0);
-  return lines.join('\n') + `\n\nИтого по заказу: ${fmt(grand)}`;
+  return lines.join('\n') + `\n\nИтого по проекту: ${fmt(grand)}`;
 }
 
 export function bindOrderForm() {
@@ -132,48 +161,76 @@ export function bindOrderForm() {
   document.getElementById('orderBtn').addEventListener('click', () => {
     document.getElementById('orderSummary').textContent = orderSummaryFull();
     document.getElementById('orderResult').textContent = '';
-    document.getElementById('orderName').value = '';
-    document.getElementById('orderPhone').value = '';
+    document.getElementById('orderName').value    = editingDrawingClient?.name    || '';
+    document.getElementById('orderPhone').value   = editingDrawingClient?.phone   || '';
+    document.getElementById('orderAddress').value = editingDrawingClient?.address || '';
     overlay.classList.add('visible');
   });
   document.getElementById('orderCancel').addEventListener('click', () => overlay.classList.remove('visible'));
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('visible'); });
   document.getElementById('orderSubmit').addEventListener('click', async () => {
-    const name  = document.getElementById('orderName').value.trim();
-    const phone = document.getElementById('orderPhone').value.trim();
+    const name    = document.getElementById('orderName').value.trim();
+    const phone   = document.getElementById('orderPhone').value.trim();
+    const address = document.getElementById('orderAddress').value.trim();
     const result = document.getElementById('orderResult');
     if (!name)  { result.style.color = 'red'; result.textContent = 'Укажите имя';     return; }
     if (!phone) { result.style.color = 'red'; result.textContent = 'Укажите телефон'; return; }
     if (!auth.session) {
       result.style.color = 'red';
-      result.textContent = 'Отправка заявок недоступна локально — только на опубликованном сайте после входа.';
+      result.textContent = 'Сохранение недоступно локально — только на опубликованном сайте после входа.';
       return;
     }
 
-    // Если корзина пуста — заявка состоит из текущей открытой позиции (старое поведение).
+    result.style.color = '#555';
+    result.textContent = 'Сохранение...';
+
+    // Открыта существующая прорисовка (см. loadDrawingForEdit) — обновляем именно её текущим
+    // state, а не заводим новые строки из локальной корзины.
+    if (editingDrawingId !== null) {
+      const { error } = await supabase.from('drawings').update({
+        client_name: name, client_phone: phone, client_address: address,
+        summary: describeConfig(), total: state.lastTotal || 0,
+        snapshot: JSON.parse(JSON.stringify(state)),
+        updated_at: new Date().toISOString(),
+      }).eq('id', editingDrawingId);
+      if (error) {
+        result.style.color = 'red';
+        result.textContent = 'Ошибка сохранения. Попробуйте ещё раз.';
+        return;
+      }
+      result.style.color = 'green';
+      result.textContent = 'Проект обновлён.';
+      editingDrawingId = null;
+      editingDrawingClient = null;
+      markStateSafe();
+      setTimeout(() => overlay.classList.remove('visible'), 1500);
+      return;
+    }
+
+    // Обычный поток: локальная корзина (если пуста — текущая открытая позиция), каждая
+    // прорисовка — отдельная строка в drawings, все с одними и теми же данными клиента.
     const items = orderItems.length ? orderItems
       : [{ id: Date.now(), label: describeConfig(), total: state.lastTotal || 0, snapshot: JSON.parse(JSON.stringify(state)) }];
-    const total = items.reduce((s, it) => s + it.total, 0);
-
-    result.style.color = '#555';
-    result.textContent = 'Отправка...';
-    const { error } = await supabase.from('orders').insert({
+    const rows = items.map(it => ({
       user_id: auth.session.user.id,
-      contact_name: name,
-      contact_phone: phone,
-      summary: orderSummaryFull(),
-      total,
-      snapshot: items,
-    });
+      client_name: name,
+      client_phone: phone,
+      client_address: address,
+      summary: it.label,
+      total: it.total,
+      snapshot: it.snapshot,
+    }));
+    const { error } = await supabase.from('drawings').insert(rows);
     if (error) {
       result.style.color = 'red';
-      result.textContent = 'Ошибка отправки. Попробуйте ещё раз.';
+      result.textContent = 'Ошибка сохранения. Попробуйте ещё раз.';
       return;
     }
     result.style.color = 'green';
-    result.textContent = 'Заявка сохранена. Мы свяжемся с вами!';
+    result.textContent = 'Проект сохранён.';
     orderItems = [];
     renderOrderCards();
+    markStateSafe();
     setTimeout(() => overlay.classList.remove('visible'), 1500);
   });
 }

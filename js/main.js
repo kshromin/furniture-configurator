@@ -1,4 +1,4 @@
-import { state, materials, setMaterials } from './core/state.js';
+import { state, materials, setMaterials, markStateSafe } from './core/state.js';
 import { renderProducerSelect } from './core/materials.js';
 import { renderPresets } from './core/presets.js';
 import { buildFurniture } from './core/build.js';
@@ -64,6 +64,7 @@ async function init() {
 
   syncUIFromState();
   buildFurniture();
+  markStateSafe();
 }
 
 init();

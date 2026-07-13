@@ -37,10 +37,10 @@
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="18" rx="1"/><rect x="13" y="3" width="8" height="18" rx="1"/><circle cx="10.5" cy="12" r="1"/><circle cx="13.5" cy="12" r="1"/></svg>
       <span>Фасад</span>
     </button>
-    <button class="tab-btn tab-btn-order" data-tab="order" title="Заказ">
+    <button class="tab-btn tab-btn-order" data-tab="order" title="Проект">
       <div class="order-badge" id="orderBadge" style="display:none">0</div>
       <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-      <span>Заказ</span>
+      <span>Проект</span>
     </button>
     <button class="tab-btn" data-tab="cabinet" title="Личный кабинет">
       <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -413,22 +413,32 @@
       <div id="presets" class="presets-list"></div>
     </div>
 
-    <!-- 7. Заказ -->
+    <!-- 7. Проект (накопление прорисовок перед сохранением) -->
     <div class="tab-pane" id="tab-order">
-      <div class="pane-title">Заказ</div>
-      <div id="orderEmptyNote" class="placeholder-note">Добавьте изделия в заказ кнопкой ниже.</div>
+      <div class="pane-title">Проект</div>
+      <div id="orderEmptyNote" class="placeholder-note">Добавьте изделия в проект кнопкой ниже.</div>
       <div id="orderCardsList"></div>
       <div id="orderGrandRow" class="order-grand-row" style="display:none">
-        <span>Итого по заказу</span><span id="orderGrandTotal">0 ₽</span>
+        <span>Итого по проекту</span><span id="orderGrandTotal">0 ₽</span>
       </div>
-      <button id="orderBtn" class="order-btn" style="margin-top:12px">Оставить заявку</button>
+      <button id="orderBtn" class="order-btn" style="margin-top:12px">Сохранить проект</button>
     </div>
 
     <!-- 8. Личный кабинет -->
     <div class="tab-pane" id="tab-cabinet">
       <div class="pane-title">Личный кабинет</div>
 
-      <div class="field-group-title">Мои заказы</div>
+      <div class="field-group-title">Мои проекты</div>
+      <div class="field" style="margin-bottom:10px">
+        <select id="drawingsSortSelect" class="mini-select-wide" style="width:100%">
+          <option value="date">Сортировка: по дате</option>
+          <option value="client">Сортировка: по клиенту</option>
+        </select>
+      </div>
+      <div id="cabinetDrawingsEmpty" class="placeholder-note" style="display:none">Сохранённых прорисовок пока нет — добавьте изделие в проект и сохраните.</div>
+      <div id="cabinetDrawingsList"></div>
+
+      <div class="field-group-title" style="margin-top:18px">Мои заказы</div>
       <div id="cabinetOrdersEmpty" class="placeholder-note" style="display:none">Заявок пока нет.</div>
       <div id="cabinetOrdersList"></div>
 
@@ -463,35 +473,53 @@
           <div class="price-row"><span>Фасады</span><span id="priceFasad">0 ₽</span></div>
           <div class="price-row"><span>Наполнение</span><span id="priceFill">0 ₽</span></div>
           <div class="price-row"><span>Фурнитура</span><span id="priceFittings">0 ₽</span></div>
+          <div class="price-row"><span>Кромка</span><span id="priceKromka">0 ₽</span></div>
         </div>
         <div class="price-row current-total"><span>Текущая позиция</span><span id="priceTotal">0 ₽</span></div>
       </div>
       <div id="orderCounterRow" class="order-counter-row" style="display:none">
         <span id="orderCounterText"></span>
-        <button class="order-counter-link" onclick="document.querySelector('[data-tab=order]').click()">Открыть заказ →</button>
+        <button class="order-counter-link" onclick="document.querySelector('[data-tab=order]').click()">Открыть проект →</button>
       </div>
-      <button id="addItemBtn" class="add-item-btn">+ Добавить в заказ</button>
+      <button id="addItemBtn" class="add-item-btn">+ Добавить в проект</button>
     </div>
 
   </div><!-- /panel -->
 
-  <!-- Модальное окно заявки -->
+  <!-- Модальное окно сохранения проекта (данные клиента) -->
   <div id="orderOverlay" class="overlay">
     <div class="order-modal">
-      <h3>Заявка на расчёт</h3>
+      <h3>Сохранить проект</h3>
       <div id="orderSummary" class="order-summary"></div>
       <div class="field">
-        <label>Имя</label>
-        <input type="text" id="orderName" placeholder="Как к вам обращаться">
+        <label>Имя клиента</label>
+        <input type="text" id="orderName" placeholder="Как обращаться к клиенту">
       </div>
       <div class="field">
         <label>Телефон</label>
         <input type="text" id="orderPhone" placeholder="+7 900 000 0000">
       </div>
+      <div class="field">
+        <label>Адрес для замера (необязательно)</label>
+        <input type="text" id="orderAddress" placeholder="">
+      </div>
       <div id="orderResult" class="order-result"></div>
       <div class="order-actions">
         <button id="orderCancel" class="btn-secondary">Отмена</button>
-        <button id="orderSubmit" class="btn-primary">Отправить</button>
+        <button id="orderSubmit" class="btn-primary">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Предупреждение при смене типа изделия — текущий дизайн ещё не в проекте -->
+  <div id="typeSwitchWarningOverlay" class="overlay">
+    <div class="order-modal">
+      <h3>Проект не сохранён</h3>
+      <p style="font-size:13px;color:#555;margin:0 0 14px;line-height:1.5">Текущий дизайн ещё не добавлен в проект — при переключении типа изделия он будет потерян.</p>
+      <div class="order-actions" style="flex-direction:column;gap:8px">
+        <button id="typeSwitchSaveBtn" class="btn-primary" style="width:100%">Добавить в проект и продолжить</button>
+        <button id="typeSwitchDiscardBtn" class="btn-secondary" style="width:100%">Продолжить без сохранения</button>
+        <button id="typeSwitchCancelBtn" class="btn-secondary" style="width:100%">Отмена</button>
       </div>
     </div>
   </div>

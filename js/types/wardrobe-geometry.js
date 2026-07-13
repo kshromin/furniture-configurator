@@ -6,7 +6,7 @@ import { DOOR_DEPTH_ZONE, TOP_SHELF_GAP, MESH_DEPTHS, VALET_LENGTHS, BASKET_WIDT
 import {
   effectiveDoorSpan, rebalanceSections, getDoorCount,
   maxDrawerDepth, availableMeshDepths, availableValetLengths, backWallClearance, valetBackClearance,
-  drawerBoxSize, basketFits, availableBasketDepths,
+  drawerBoxSize, basketFits, availableBasketDepths, sectionMissingSideSupport,
 } from './wardrobe-sizing.js';
 import { sectionVerticalBounds, clampItemPositions, resolveValetAnchorY } from './wardrobe-items.js';
 
@@ -227,7 +227,15 @@ export function buildWardrobeBox() {
   if (state.backWall !== 'none') {
     const bwColor = state.backWall === 'hdf' ? 0xffffff : kColor;
     const bwThick = state.backWall === 'hdf' ? 4 : t;
-    addPanel(width - stojkaLeftOff - stojkaRightOff, stojkaH, bwThick, bwColor, [0, stojkaCenterY, -depth / 2 + bwThick / 2]);
+    // Ширина стенки уже правильно считается от stojkaLeftOff/stojkaRightOff (учитывает
+    // выравниватели), но центр по X раньше всегда был 0 — верно только когда выравниватели
+    // симметричны (alLeftW === alRightW). При асимметрии (только один выравниватель включён или
+    // разной ширины) стойки сдвинуты по-разному, а стенка оставалась по центру короба — с одного
+    // края появлялся зазор, с другого стенка вылезала за стойку. Центр должен быть посередине
+    // МЕЖДУ реальными внутренними гранями стоек (см. их X ниже) — та же логика, что уже даёт
+    // правильную ширину, просто применённая и к позиции.
+    const bwCenterX = (alLeftW - alRightW) / 2;
+    addPanel(width - stojkaLeftOff - stojkaRightOff, stojkaH, bwThick, bwColor, [bwCenterX, stojkaCenterY, -depth / 2 + bwThick / 2]);
   }
 
   // Наполнение (перегородки, полки) не занимает дверную зону и прижато к задней стенке —
@@ -598,8 +606,10 @@ export function buildWardrobeBox() {
           break;
         }
         case 'drawer': {
-          // Направляющие ящика крепятся к боковой стойке — без неё крепить некуда, не строим.
-          if (noSideLeft || noSideRight) break;
+          // Направляющие ящика крепятся к тому, что стоит по бокам секции (стойка короба у
+          // крайней секции, перегородка у остальных) — блокируем только крайнюю секцию со
+          // стороны снятой стойки, см. sectionMissingSideSupport.
+          if (sectionMissingSideSupport(sections, s)) break;
           const meshes = addDrawer(cx, item.y, sw, sec);
           meshes.forEach(m => tagItemMesh(m, s, item));
           totalDrawers += 1;
@@ -613,10 +623,11 @@ export function buildWardrobeBox() {
           break;
         }
         case 'basket': {
-          // Как и ящик — нужна боковая стойка; плюс ширина секции строго равна обязательному
-          // проёму (basketFits) — clampSectionSizes уже убрал корзины из items, если не совпало,
-          // но проверяем ещё раз на случай прямого вызова build() в обход клампа.
-          if (noSideLeft || noSideRight || !basketFits(sec)) break;
+          // Как и ящик — нужна опора по бокам (см. sectionMissingSideSupport выше); плюс ширина
+          // секции строго равна обязательному проёму (basketFits) — clampSectionSizes уже убрал
+          // корзины из items, если не совпало, но проверяем ещё раз на случай прямого вызова
+          // build() в обход клампа.
+          if (sectionMissingSideSupport(sections, s) || !basketFits(sec)) break;
           const yBottom = item.y - sec.basketHeight / 2; // item.y — центр, addBasket ждёт низ
           const meshes = addBasket(cx, y0 + yBottom, sw, sec.basketWidth, sec.basketDepth, sec.basketHeight, sec.basketColor);
           meshes.forEach(m => tagItemMesh(m, s, item));
