@@ -1,11 +1,5 @@
 import { supabase } from './supabaseClient.js';
 
-// На localhost/127.0.0.1 (локальная разработка) экран входа не требуется — это удобство для
-// работы над самим конфигуратором без поднятого Supabase. Функции, которым нужен реальный
-// аккаунт (заказ, кабинет, админка), при этом остаются недоступны локально — см. проверки auth.session
-// в order.js/cabinet.js/admin.js. На опубликованном сайте (GitHub Pages, другой hostname) гейт работает как обычно.
-export const isLocalDev = ['localhost', '127.0.0.1'].includes(location.hostname);
-
 export const auth = { session: null, profile: null };
 
 async function loadProfile(userId) {
@@ -23,8 +17,6 @@ function setGates(loggedIn) {
 }
 
 export async function initAuth() {
-  if (isLocalDev) { setGates(true); return; }
-
   const { data } = await supabase.auth.getSession();
   auth.session = data.session;
   if (auth.session) await loadProfile(auth.session.user.id);

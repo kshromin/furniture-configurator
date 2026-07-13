@@ -184,3 +184,63 @@ create policy "drawings_update_own" on public.drawings
 create policy "drawings_delete_own" on public.drawings
   for delete using (auth.uid() = user_id);
 ```
+
+## 9. Фикс: рекурсия в RLS `profiles` + отсутствующие GRANT (сессия 19)
+
+Обнаружено при первом реальном тесте логина+кабинета (до этого localhost был на обходном
+гейте — см. `js/core/auth.js`, обход снят в этой же сессии). Два независимых системных бага,
+затрагивающих ВСЕ четыре таблицы, не только `drawings`:
+
+1. **Бесконечная рекурсия** — политика `profiles_select_all_for_admin` сама делает `select` из
+   `profiles`, чтобы проверить `is_admin`; Postgres должен заново проверить RLS-политики `profiles`
+   для этого внутреннего select'а — включая ту же самую политику — бесконечный цикл
+   (`42P17: infinite recursion detected in policy`). Ломало загрузку профиля при входе и любой
+   select из `orders` (там похожая admin-политика, тоже обращающаяся к `profiles`).
+2. **Не хватало GRANT** — RLS-политики определяют, какие СТРОКИ доступны, но это отдельно от
+   базового права роли `authenticated` вообще делать `select`/`insert`/... с таблицей — в Postgres
+   это два разных уровня. При создании таблиц через SQL Editor эти права не выдаются
+   автоматически. Ловилось как `42501: permission denied for table ...`.
+
+**Правило на будущее** (для любых новых таблиц): каждую новую таблицу с RLS — сразу проверять
+реальным запросом под настоящим (не админским) залогиненным пользователем, не полагаться на
+`Success. No rows returned` от `create table`/`create policy` — она ничего не говорит про GRANT
+или про рекурсию в политиках. И: если политика для проверки `is_admin` (или похожая
+самоссылающаяся проверка) снова понадобится на новой таблице — сразу использовать
+`public.is_admin(auth.uid())` (функция ниже), не писать `exists (select ... from profiles ...)`
+прямо в политике.
+
+**SQL Editor → New query**:
+
+```sql
+create or replace function public.is_admin(uid uuid)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select coalesce((select is_admin from public.profiles where id = uid), false);
+$$;
+
+drop policy if exists "profiles_select_all_for_admin" on public.profiles;
+create policy "profiles_select_all_for_admin" on public.profiles
+  for select using (public.is_admin(auth.uid()));
+
+drop policy if exists "orders_select_all_admin" on public.orders;
+create policy "orders_select_all_admin" on public.orders
+  for select using (public.is_admin(auth.uid()));
+
+drop policy if exists "orders_update_status_admin" on public.orders;
+create policy "orders_update_status_admin" on public.orders
+  for update using (public.is_admin(auth.uid()));
+
+grant select, update on public.profiles to authenticated;
+grant select, insert, update on public.orders to authenticated;
+grant select, insert, delete on public.saved_configs to authenticated;
+grant select, insert, update, delete on public.drawings to authenticated;
+```
+
+Проверено реальным тестовым аккаунтом после фикса: вход, `profiles`/`orders`/`saved_configs`
+select, полный цикл `drawings` (сохранить через UI → появляется в «Мои проекты» → «Открыть» →
+повторное сохранение обновляет ту же строку, не плодит дубли → удаление кнопкой «×») — всё
+отработало без ошибок.

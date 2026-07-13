@@ -194,8 +194,9 @@ export function bindOrderForm() {
         updated_at: new Date().toISOString(),
       }).eq('id', editingDrawingId);
       if (error) {
+        console.error('drawings update failed:', error);
         result.style.color = 'red';
-        result.textContent = 'Ошибка сохранения. Попробуйте ещё раз.';
+        result.textContent = 'Ошибка сохранения: ' + error.message;
         return;
       }
       result.style.color = 'green';
@@ -222,8 +223,9 @@ export function bindOrderForm() {
     }));
     const { error } = await supabase.from('drawings').insert(rows);
     if (error) {
+      console.error('drawings insert failed:', error);
       result.style.color = 'red';
-      result.textContent = 'Ошибка сохранения. Попробуйте ещё раз.';
+      result.textContent = 'Ошибка сохранения: ' + error.message;
       return;
     }
     result.style.color = 'green';
