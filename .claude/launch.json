@@ -4,7 +4,7 @@
     {
       "name": "static",
       "runtimeExecutable": "C:\\Users\\user\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
-      "runtimeArgs": ["-m", "http.server", "8723"],
+      "runtimeArgs": ["scripts/dev-server.py", "8723"],
       "port": 8723
     }
   ]

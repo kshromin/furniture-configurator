@@ -15,6 +15,12 @@ import {
 // требование текущей корзины.
 const BASKET_PROYOMS_HINT = `Допустимые проёмы для корзин: ${BASKET_WIDTHS.map(requiredBasketProyom).join(', ')}мм.`;
 
+// Свёрнутость карточки секции — чисто UI-состояние (не часть state, не сохраняется в заказ/
+// конфигурацию), поэтому живёт локально в модуле, а не в state.sections[i]. WeakSet по ссылке
+// на сам объект секции — переживает re-render (renderSectionsList вызывается часто), но не
+// требует привязки к индексу, который может съехать при добавлении/удалении секций.
+const collapsedSections = new WeakSet();
+
 function activeType() { return TYPES[state.type] || TYPES['wardrobe']; }
 
 // ---------- type bar (полоса с названием текущего типа) ----------
@@ -290,8 +296,12 @@ export function renderSectionsList() {
            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z"/></svg>
          </button>`
       : '';
+    const collapsed = collapsedSections.has(sec);
     card.innerHTML = `
       <div class="section-card-header">
+        <button class="section-collapse-btn ${collapsed ? 'collapsed' : ''}" data-idx="${i}" title="${collapsed ? 'Развернуть секцию' : 'Свернуть секцию'}">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
         <span class="section-card-title">Секция ${i + 1}</span>
         <div class="section-card-width">
           <input type="number" class="dim-input section-width-input" data-idx="${i}" value="${Math.round(sec.width)}" min="${MIN_SECTION_WIDTH}">
@@ -305,7 +315,7 @@ export function renderSectionsList() {
           ${removeBtn}
         </div>
       </div>
-      <div class="section-rows">
+      <div class="section-rows" style="${collapsed ? 'display:none' : ''}">
         <div class="el-row" title="Полки ЛДСП — таскаются мышкой в 3D-виде">
           <span class="el-row-label">Полки</span>
           <span class="el-row-count">${byType(sec, 'shelf').length}</span>
@@ -491,6 +501,18 @@ export function renderSectionsList() {
     sel.addEventListener('change', e => {
       state.sections[Number(e.target.dataset.idx)].basketColor = e.target.value;
       buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-collapse-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sec = state.sections[Number(btn.dataset.idx)];
+      const card = btn.closest('.section-card');
+      const rows = card.querySelector('.section-rows');
+      const nowCollapsed = !collapsedSections.has(sec);
+      if (nowCollapsed) collapsedSections.add(sec); else collapsedSections.delete(sec);
+      rows.style.display = nowCollapsed ? 'none' : '';
+      btn.classList.toggle('collapsed', nowCollapsed);
+      btn.title = nowCollapsed ? 'Развернуть секцию' : 'Свернуть секцию';
     });
   });
   container.querySelectorAll('.section-lock-btn:not(.section-dim-toggle)').forEach(btn => {

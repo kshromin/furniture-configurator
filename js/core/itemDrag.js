@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { camera, renderer, controls, furnitureGroup } from './scene.js';
+import { camera, renderer, controls, furnitureGroup, isFrontView, showPerspectiveView } from './scene.js';
 import { state } from './state.js';
 import { buildFurniture } from './build.js';
 import { showToast } from './toast.js';
@@ -8,7 +8,7 @@ import {
   checkOverlap, sectionVerticalBounds, valetAnchorCandidates, resolveValetAnchorY,
   itemBands, itemBandHeight,
 } from '../types/_wardrobe-shared.js';
-import { projectToOverlay } from './dimensions.js';
+import { projectToOverlay, updateArrow, hideArrow } from './dimensions.js';
 
 // Свободное перетаскивание мышкой наполнения секции (полки/ящики/сетка/корзины/штанга) — во
 // время драга элемент может визуально проходить сквозь другие (двигаем меши напрямую, без
@@ -142,7 +142,13 @@ function neighborGaps(sec, itemId, lo, hi, fillBottom, fillTop) {
 }
 
 function updateEditInputs() {
-  if (!active || active.kind !== 'item') { belowInput.style.display = 'none'; aboveInput.style.display = 'none'; return; }
+  if (!active || active.kind !== 'item') {
+    belowInput.style.display = 'none';
+    aboveInput.style.display = 'none';
+    hideArrow('drag-below');
+    hideArrow('drag-above');
+    return;
+  }
   const { sec, item, itemType, sectionIndex } = active;
   const { fillBottom, fillTop } = sectionVerticalBounds();
   const h = itemBandHeight(itemType, sec);
@@ -161,12 +167,14 @@ function updateEditInputs() {
   belowInput.style.top = belowPos.y + 'px';
   belowInput.style.display = belowPos.behind ? 'none' : '';
   if (document.activeElement !== belowInput) belowInput.value = Math.round(lo - belowHi);
+  updateArrow('drag-below', cx, lastBuildY0 + belowHi, lastBuildY0 + lo);
 
   const abovePos = projectToOverlay(cx, lastBuildY0 + (hi + aboveLo) / 2, 0);
   aboveInput.style.left = abovePos.x + 'px';
   aboveInput.style.top = abovePos.y + 'px';
   aboveInput.style.display = abovePos.behind ? 'none' : '';
   if (document.activeElement !== aboveInput) aboveInput.value = Math.round(aboveLo - hi);
+  updateArrow('drag-above', cx, lastBuildY0 + hi, lastBuildY0 + aboveLo);
 }
 
 function commitGapEdit(fromBelow) {
@@ -209,6 +217,8 @@ function closeActive() {
   hideInfoPanel();
   belowInput.style.display = 'none';
   aboveInput.style.display = 'none';
+  hideArrow('drag-below');
+  hideArrow('drag-above');
   active = null;
 }
 
@@ -217,6 +227,12 @@ document.addEventListener('keydown', e => {
 });
 
 function onPointerDown(e) {
+  // Вид в плоскости (см. scene.js) выключается любым нажатием ЛКМ на 3D-виде — драг элемента
+  // в этот момент не начинаем, клик расходуется на возврат в 3D.
+  if (isFrontView()) {
+    if (e.button === 0) showPerspectiveView();
+    return;
+  }
   const picked = pickDraggable(e);
   closeActive();
   if (!picked) return;
