@@ -8,7 +8,7 @@ import {
   maxDrawerDepth, availableMeshDepths, availableValetLengths, backWallClearance, valetBackClearance,
   drawerBoxSize, basketFits, availableBasketDepths, sectionMissingSideSupport,
 } from './wardrobe-sizing.js';
-import { sectionVerticalBounds, clampItemPositions, resolveValetAnchorY } from './wardrobe-items.js';
+import { sectionVerticalBounds, clampItemPositions, resolveValetAnchorY, sectionBackWallSegments } from './wardrobe-items.js';
 
 // Геометрия/рендер: собственно построение 3D-модели шкафа-купе (buildWardrobeBox) — короб,
 // двери, наполнение секций. Опирается на wardrobe-sizing.js (сколько места доступно) и
@@ -587,6 +587,17 @@ export function buildWardrobeBox() {
     // в обход clampSectionSizes (renderSectionsList вызывает его сама, buildFurniture — тоже, но
     // геометрия должна быть защищена независимо от порядка вызовов).
     clampItemPositions(sec, fillBottom, fillTop);
+
+    // Посегментная задняя стенка (см. state.js sec.backWallSegments) — альтернатива общей
+    // state.backWall на весь шкаф, действует только когда та выключена ('none'). Всегда ЛДСП
+    // (толщина t), в отличие от общей стенки без выбора ХДФ — по просьбе пользователя.
+    if (state.backWall === 'none' && sec.backWallSegments?.length) {
+      const segBackZ = -depth / 2 + t / 2;
+      sectionBackWallSegments(sec, s).forEach(seg => {
+        if (!seg.eligible || !sec.backWallSegments.includes(seg.key)) return;
+        addPanel(sw, seg.hiY - seg.loY, t, nColor, [cx, y0 + (seg.loY + seg.hiY) / 2, segBackZ]);
+      });
+    }
 
     if (sec.valet) {
       const anchorY = resolveValetAnchorY(sec);

@@ -37,7 +37,10 @@ const BACK_WALL_RATE = { ldsp: 2000, hdf: 500 };
 
 export function updatePrice(counts) {
   const type = TYPES[state.type] || TYPES['wardrobe'];
-  const { korpusM2 = 0, fasadM2 = 0, fillM2 = 0, backWallM2 = 0, meshPrice = 0, basketPrice = 0, edgeLengthM = 0 } = type.areas(counts);
+  const {
+    korpusM2 = 0, fasadM2 = 0, fillM2 = 0, backWallM2 = 0, backWallType = state.backWall,
+    meshPrice = 0, basketPrice = 0, edgeLengthM = 0,
+  } = type.areas(counts);
 
   const kMat = getColor('korpus');
   const fMat = getColor('fasad');
@@ -49,7 +52,9 @@ export function updatePrice(counts) {
   // за штуку по каталогу (комбинация ширина+глубина+высота+цвет) — не за м² по общему тарифу
   // наполнения, просто добавляем уже готовые суммы в ту же строку сметы.
   const fillPrice     = fillM2     * nMat.pricePerM2 + meshPrice + basketPrice;
-  const backWallPrice = backWallM2 * (BACK_WALL_RATE[state.backWall] || 0);
+  // backWallType — может отличаться от state.backWall при посегментной стенке (см. wardrobe.js
+  // areas()): общая стенка выключена ('none'), но конкретные сегменты по секциям — всегда ЛДСП.
+  const backWallPrice = backWallM2 * (BACK_WALL_RATE[backWallType] || 0);
 
   const fittingsPrice = (materials.fittings || []).reduce((sum, f) => {
     const n = f.per === 'front' ? counts.door + counts.drawer : (counts[f.per] || 0);

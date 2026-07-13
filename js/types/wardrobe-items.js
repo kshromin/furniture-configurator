@@ -180,3 +180,39 @@ export function resolveValetAnchorY(sec) {
   const anyShelf = sec.items.find(it => it.type === 'shelf');
   return anyShelf ? anyShelf.y : 0;
 }
+
+// Сегменты секции для посегментной задней стенки (см. state.js sec.backWallSegments) — секция
+// режется на промежутки границами-полками (плюс пол/потолок секции по краям), разрез точно по
+// центру толщины полки. n полок дают n+1 сегментов; ключ сегмента — id полки, которая служит его
+// НИЖНЕЙ границей, либо 'floor' для самого нижнего (от пола секции до первой полки или сразу до
+// потолка, если полок нет вовсе).
+// eligible — можно ли вообще поставить сюда стенку: панели нужна опора со ВСЕХ четырёх сторон
+// сразу — по вертикали ОБЕИХ границ (полка — всегда реальная ЛДСП-граница; пол/потолок секции —
+// только если не сняты «без дна»/«без крыши»), И по горизонтали ОБЕИХ сторон (слева и справа).
+// Без этого панели физически не за что зацепиться на одном из бортов, даже если на остальных трёх
+// опора есть. Средние секции всегда опираются на перегородку (она есть всегда), крайняя
+// левая/правая — на настоящую боковую стойку короба, если та не снята («без левой/правой стойки»).
+export function sectionBackWallSegments(sec, sectionIndex) {
+  const { fillBottom, fillTop } = sectionVerticalBounds();
+  const isFirst = sectionIndex === 0;
+  const isLast = sectionIndex === state.sections.length - 1;
+  const leftOk = !isFirst || !state.noSideLeft;
+  const rightOk = !isLast || !state.noSideRight;
+  const sidesOk = leftOk && rightOk;
+  const shelves = sec.items.filter(it => it.type === 'shelf').sort((a, b) => a.y - b.y);
+  const boundaries = [
+    { y: fillBottom, isLdsp: !state.noBottom },
+    ...shelves.map(sh => ({ y: sh.y, isLdsp: true, shelfId: sh.id })),
+    { y: fillTop, isLdsp: !state.noCeiling },
+  ];
+  const segments = [];
+  for (let i = 0; i < boundaries.length - 1; i++) {
+    const lo = boundaries[i], hi = boundaries[i + 1];
+    segments.push({
+      key: i === 0 ? 'floor' : lo.shelfId,
+      loY: lo.y, hiY: hi.y,
+      eligible: sidesOk && lo.isLdsp && hi.isLdsp,
+    });
+  }
+  return segments;
+}

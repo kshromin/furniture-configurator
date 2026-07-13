@@ -8,6 +8,7 @@ import {
   rebalanceSections, MIN_SECTION_WIDTH, maxDrawerDepth, availableMeshDepths, availableValetLengths, clampSectionSizes,
   basketSizeOptions, basketFits, requiredBasketProyom, canAddSection, canRemoveSection, BASKET_WIDTHS,
   sectionVerticalBounds, findFreeSlot, defaultItemsForSection, isSectionWidthLocked, sectionMissingSideSupport,
+  sectionBackWallSegments,
 } from '../types/_wardrobe-shared.js';
 
 // Общий список допустимых проёмов под корзины (не привязан к конкретной выбранной ширине) —
@@ -310,6 +311,29 @@ export function bindToggleDoors() {
   });
 }
 
+// Посегментная задняя стенка — доступна только когда общая state.backWall выключена (см.
+// sectionBackWallSegments в wardrobe-items.js). Один компактный ряд пронумерованных кнопок
+// снизу вверх, по одной на КАЖДЫЙ сегмент секции — показываю все, а не только пригодные:
+// недоступные (нет реальной ЛДСП-опоры по бокам или хотя бы с одной стороны по высоте) рисую
+// зачёркнутыми и неактивными, чтобы было видно, что там в принципе стоит, а не просто пусто.
+function renderBackWallSegmentsRow(sec, i) {
+  const segments = sectionBackWallSegments(sec, i);
+  if (!segments.length) return '';
+  const on = sec.backWallSegments || [];
+  const buttons = segments.map((seg, si) => {
+    const title = seg.eligible
+      ? `${Math.round(seg.hiY - seg.loY)}мм`
+      : `Нельзя — в контуре не хватает ЛДСП-элемента (стойки/перегородки/пола/крыши), стенку не на что закрепить`;
+    return `<button class="section-backwall-seg-btn ${on.includes(seg.key) ? 'active' : ''} ${seg.eligible ? '' : 'ineligible'}" data-idx="${i}" data-key="${seg.key}" ${seg.eligible ? '' : 'disabled'} title="${title}">${si + 1}</button>`;
+  }).join('');
+  return `
+    <div class="el-row" title="Задняя стенка ЛДСП по сегментам — снизу вверх: пол/полка → полка → потолок. Доступно только при выключенной общей задней стенке.">
+      <span class="el-row-label">Стенка ЛДСП</span>
+      ${buttons}
+    </div>
+  `;
+}
+
 // ---------- вкладка «Внутр.» — список секций ----------
 export function renderSectionsList() {
   const container = document.getElementById('sectionsListItems');
@@ -413,6 +437,7 @@ export function renderSectionsList() {
             <option value="black"  ${sec.basketColor === 'black'  ? 'selected' : ''}>Чёрный</option>
           </select>
         </div>
+        ${state.backWall === 'none' ? renderBackWallSegmentsRow(sec, i) : ''}
       </div>
     `;
     container.appendChild(card);
@@ -545,6 +570,17 @@ export function renderSectionsList() {
       buildFurniture();
     });
   });
+  container.querySelectorAll('.section-backwall-seg-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sec = state.sections[Number(btn.dataset.idx)];
+      const key = btn.dataset.key;
+      if (!sec.backWallSegments) sec.backWallSegments = [];
+      const idx = sec.backWallSegments.indexOf(key);
+      if (idx === -1) sec.backWallSegments.push(key); else sec.backWallSegments.splice(idx, 1);
+      btn.classList.toggle('active');
+      buildFurniture();
+    });
+  });
   container.querySelectorAll('.section-collapse-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const sec = state.sections[Number(btn.dataset.idx)];
@@ -603,6 +639,7 @@ export function bindSectionsControls() {
       meshDepth: 400, meshColor: 'silver', valet: 0, valetAnchorId: null, valetLength: 400,
       basketWidth: 300, basketDepth: 400, basketHeight: 120, basketColor: 'silver',
       widthLocked: false,
+      backWallSegments: [],
     });
     rebalanceSections();
     renderSectionsList();
@@ -684,6 +721,7 @@ export function bindVariantControls() {
       state[noKey] = e.target.checked;
       block.style.display = e.target.checked ? 'block' : 'none';
       buildFurniture();
+      renderSectionsList(); // пересчитать пригодность сегментов задней стенки (см. sectionBackWallSegments)
     });
 
     document.querySelectorAll(`#${groupId} .opt-btn`).forEach(btn => {

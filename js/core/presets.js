@@ -23,6 +23,7 @@ export function applyPreset(p) {
     meshDepth: 400, meshColor: 'silver', valet: 0, valetAnchorId: null, valetLength: 400,
     basketWidth: 300, basketDepth: 400, basketHeight: 120, basketColor: 'silver',
     widthLocked: false,
+    backWallSegments: [],
   }));
 
   state.korpusProducer = p.korpusProducer;

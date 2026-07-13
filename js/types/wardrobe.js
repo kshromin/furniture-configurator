@@ -2,6 +2,7 @@ import { state, materials, PANEL_THICKNESS } from '../core/state.js';
 import { korpusBoxAreaM2 } from '../core/pricing.js';
 import {
   buildWardrobeBox, getDoorCount, effectiveDoorSpan, drawerBoxSize, basketFits, sectionMissingSideSupport,
+  sectionBackWallSegments,
   DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_RAIL_HEIGHT, BOTTOM_RAIL_HEIGHT, STIFFENER_HEIGHT,
 } from './_wardrobe-shared.js';
 
@@ -146,13 +147,27 @@ export default {
       edgeLengthMm += shelfCount * sw; // передний торец каждой полки — на всю ширину секции
     });
 
-    const backWallM2 = state.backWall !== 'none'
-      ? ((width - stojkaLeftOff - stojkaRightOff) * stojkaH) / 1e6
-      : 0;
+    // Посегментная задняя стенка (см. sec.backWallSegments) — альтернатива общей на весь шкаф,
+    // работает только когда та выключена; всегда ЛДСП (тот же тариф, что и обычная ЛДСП-стенка).
+    let backWallM2 = 0;
+    let backWallType = state.backWall;
+    if (state.backWall !== 'none') {
+      backWallM2 = ((width - stojkaLeftOff - stojkaRightOff) * stojkaH) / 1e6;
+    } else {
+      sections.forEach((sec, idx) => {
+        if (!sec.backWallSegments?.length) return;
+        sectionBackWallSegments(sec, idx).forEach(seg => {
+          if (seg.eligible && sec.backWallSegments.includes(seg.key)) {
+            backWallM2 += (sec.width * (seg.hiY - seg.loY)) / 1e6;
+          }
+        });
+      });
+      if (backWallM2 > 0) backWallType = 'ldsp';
+    }
 
     return {
       korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2,
-      fasadM2, fillM2, backWallM2, meshPrice, basketPrice,
+      fasadM2, fillM2, backWallM2, backWallType, meshPrice, basketPrice,
       edgeLengthM: edgeLengthMm / 1000,
     };
   },
