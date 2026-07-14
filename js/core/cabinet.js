@@ -51,7 +51,7 @@ async function renderMyDrawings() {
     card.className = 'order-card';
     card.innerHTML = `
       <div class="order-card-header">
-        <span class="order-card-num">${date}</span>
+        <span class="order-card-num">${d.project_code ? `№ ${d.project_code} · ` : ''}${date}</span>
         <span class="order-card-name">${client}<br>${d.summary.replace(/\n/g, '<br>')}</span>
         <button class="order-card-remove" data-id="${d.id}" title="Удалить">×</button>
       </div>

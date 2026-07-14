@@ -244,3 +244,63 @@ grant select, insert, update, delete on public.drawings to authenticated;
 select, полный цикл `drawings` (сохранить через UI → появляется в «Мои проекты» → «Открыть» →
 повторное сохранение обновляет ту же строку, не плодит дубли → удаление кнопкой «×») — всё
 отработало без ошибок.
+
+## 10. Уникальный номер проекта с кодом создателя (сессия 22)
+
+Каждой прорисовке при сохранении присваивается человекочитаемый код `№ {N}-{n}`:
+`N` — постоянный номер сотрудника-создателя, `n` — порядковый номер проекта у этого
+сотрудника. Код создаётся триггером в базе один раз и НИКОГДА не меняется — даже если
+проект потом передадут другому пользователю (передача — отдельная будущая фича; `user_id`
+сменится, а `project_code` сохранит информацию о создателе).
+
+Заодно `drawings.snapshot` становится nullable — услуги/доп. элементы (вкладка «Добавить
+к заказу») сохраняются без 3D-прорисовки.
+
+Выполнить в **SQL Editor**:
+
+```sql
+-- Номер сотрудника (автоназначение всем существующим и новым)
+alter table public.profiles
+  add column if not exists manager_no int generated always as identity;
+
+-- Персональный счётчик проектов сотрудника
+alter table public.profiles
+  add column if not exists next_project_no int not null default 1;
+
+-- Код проекта
+alter table public.drawings
+  add column if not exists project_code text;
+
+-- Услуги без прорисовки
+alter table public.drawings alter column snapshot drop not null;
+
+-- Триггер: при вставке прорисовки берём номер сотрудника и его счётчик,
+-- счётчик атомарно увеличиваем (update ... returning защищает от гонок).
+create or replace function public.assign_project_code()
+returns trigger
+language plpgsql
+security definer
+as $$
+declare
+  mgr_no int;
+  proj_no int;
+begin
+  update public.profiles
+     set next_project_no = next_project_no + 1
+   where id = new.user_id
+   returning manager_no, next_project_no - 1 into mgr_no, proj_no;
+  new.project_code := mgr_no || '-' || proj_no;
+  return new;
+end;
+$$;
+
+drop trigger if exists drawings_assign_code on public.drawings;
+create trigger drawings_assign_code
+  before insert on public.drawings
+  for each row execute function public.assign_project_code();
+```
+
+Старые прорисовки остаются без кода (`project_code is null`) — в UI у них показывается
+дата, как раньше. Функция `security definer` — триггер обновляет чужую для RLS строку
+`profiles` (свою же, но политика допускает только select/update своих полей — определитель
+гарантирует право на update счётчика).
