@@ -296,7 +296,9 @@ export function buildWardrobeBox() {
   const spanCenterX = -width / 2 + leftOff + spanW / 2;
 
   const doorCount = getDoorCount(spanW);
-  if (state.showDoors) {
+  // «Без дверей» (fasadDoorType === 'none') — конструктив под купе сохраняется (дверная зона,
+  // утопленное наполнение), но ни двери, ни направляющие не рисуются и не считаются в цену.
+  if (state.showDoors && state.fasadDoorType !== 'none') {
     const gap = 4;
     const doorW = (spanW + (doorCount - 1) * DOOR_OVERLAP) / doorCount;
     const doorZoneZ = depth / 2 - DOOR_DEPTH_ZONE / 2;
@@ -668,7 +670,9 @@ export function buildWardrobeBox() {
   });
 
   return {
-    door: doorCount, drawer: totalDrawers, shelf: totalShelves, rod: totalRod, item: 1,
+    // «Без дверей» — дверной фурнитуры (рельсы и пр.) в смете тоже нет.
+    door: state.fasadDoorType === 'none' ? 0 : doorCount,
+    drawer: totalDrawers, shelf: totalShelves, rod: totalRod, item: 1,
     drawerSoft: totalDrawerSoft, drawerBasic: totalDrawerBasic, meshShelf: totalMeshShelves, valet: totalValet,
     basket: totalBaskets,
   };

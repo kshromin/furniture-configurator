@@ -40,7 +40,9 @@ export default {
     const gap = 4;
     const dw = (spanW + (dc - 1) * DOOR_OVERLAP) / dc;
     const doorH = height - topOff - bottomOff - TOP_RAIL_HEIGHT - BOTTOM_RAIL_HEIGHT - 2 * gap;
-    let fasadM2 = (dc * dw * doorH) / 1e6;
+    // «Без дверей»: конструктив под купе, но двери в стоимость не входят вообще
+    // (дверная фурнитура обнуляется через counts.door в wardrobe-geometry.js).
+    let fasadM2 = state.fasadDoorType === 'none' ? 0 : (dc * dw * doorH) / 1e6;
 
     // Площадь коробов и планок (материал — корпус)
     const H = state.height;
