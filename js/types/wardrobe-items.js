@@ -86,6 +86,35 @@ export function itemBands(sec, excludeId) {
   return bands;
 }
 
+// ---------- физические габариты (для размерных линий) ----------
+// Полоса коллизии включает служебные зазоры (4мм у ящика, 10 у сетки, 20 у корзины, 40мм-полоса
+// у штанги ⌀25) — для расстановки это правильно, но размерные линии должны показывать реальное
+// используемое расстояние между поверхностями элементов, а не между полосами коллизии.
+export function itemPhysicalHeight(type, sec) {
+  switch (type) {
+    case 'shelf':  return PANEL_THICKNESS;
+    case 'drawer': return sec.drawerHeight;
+    case 'mesh':   return MESH_THICKNESS;
+    case 'basket': return sec.basketHeight;
+    case 'rod':    return 25; // диаметр штанги (см. ROD_RADIUS в wardrobe-geometry.js)
+    default:       return PANEL_THICKNESS;
+  }
+}
+
+// Те же полосы, что itemBands, но по физическим краям элементов (центр совпадает — item.y).
+// Вешало оставлено полосой коллизии: его физический низ и есть граница полезного пространства.
+export function itemPhysicalBands(sec, excludeId) {
+  const bands = sec.items.filter(it => it.id !== excludeId).map(it => {
+    const h = itemPhysicalHeight(it.type, sec);
+    return { id: it.id, lo: it.y - h / 2, hi: it.y + h / 2 };
+  });
+  if (sec.valet) {
+    const [lo, hi] = valetBand(sec);
+    bands.push({ id: '__valet__', lo, hi });
+  }
+  return bands;
+}
+
 // Пересекается ли кандидатная позиция (Y центра) элемента типа type с каким-либо другим
 // элементом секции (кроме excludeId — самого себя при перетаскивании), с вешалом (если есть),
 // или с границами секции (пол/потолок наполнения). Используется и во время драга (подсветка

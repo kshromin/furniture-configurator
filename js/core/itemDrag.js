@@ -6,7 +6,7 @@ import { showToast } from './toast.js';
 import {
   lastBuildItemMeshes, lastBuildValetMeshes, lastBuildSectionCenters, lastBuildY0,
   checkOverlap, sectionVerticalBounds, valetAnchorCandidates, resolveValetAnchorY,
-  itemBands, itemBandHeight,
+  itemPhysicalBands, itemPhysicalHeight,
 } from '../types/_wardrobe-shared.js';
 import { projectToOverlay, updateArrow, hideArrow } from './dimensions.js';
 
@@ -132,9 +132,11 @@ function currentItemY() {
   return (dragState && dragState.kind === 'item' && dragState.item === active.item) ? dragState.candidateY : active.item.y;
 }
 
+// Соседние границы ищутся по ФИЗИЧЕСКИМ краям (как и статичные размерные линии) — поля при
+// драге показывают реальные используемые расстояния, а не зазоры между полосами коллизии.
 function neighborGaps(sec, itemId, lo, hi, fillBottom, fillTop) {
   let belowHi = fillBottom, aboveLo = fillTop;
-  itemBands(sec, itemId).forEach(b => {
+  itemPhysicalBands(sec, itemId).forEach(b => {
     if (b.hi <= lo && b.hi > belowHi) belowHi = b.hi;
     if (b.lo >= hi && b.lo < aboveLo) aboveLo = b.lo;
   });
@@ -151,7 +153,7 @@ function updateEditInputs() {
   }
   const { sec, item, itemType, sectionIndex } = active;
   const { fillBottom, fillTop } = sectionVerticalBounds();
-  const h = itemBandHeight(itemType, sec);
+  const h = itemPhysicalHeight(itemType, sec); // физические края — согласовано с neighborGaps
   const y = currentItemY();
   const lo = y - h / 2, hi = y + h / 2;
   const { belowHi, aboveLo } = neighborGaps(sec, item.id, lo, hi, fillBottom, fillTop);

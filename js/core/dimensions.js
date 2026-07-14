@@ -3,7 +3,7 @@ import { camera, controls } from './scene.js';
 import { state } from './state.js';
 import { TYPES } from '../types/registry.js';
 import {
-  sectionVerticalBounds, itemBands, lastBuildSectionCenters, lastBuildY0,
+  sectionVerticalBounds, itemPhysicalBands, lastBuildSectionCenters, lastBuildY0,
 } from '../types/_wardrobe-shared.js';
 
 // Размерные линии наполнения — HTML/SVG-оверлей поверх канваса (не 3D-геометрия), см. #dimOverlay
@@ -79,10 +79,11 @@ function sectionsHaveDimensions() {
 }
 
 // Просветы секции снизу вверх: от пола наполнения до первого элемента, между соседними
-// элементами, от последнего элемента до потолка наполнения — те же границы, что использует
-// findFreeSlot при поиске места для нового элемента.
+// элементами, от последнего элемента до потолка наполнения. Границы — ФИЗИЧЕСКИЕ края
+// элементов (реально используемые потребителем расстояния), а не полосы коллизии со
+// служебными зазорами — см. itemPhysicalBands в wardrobe-items.js.
 export function sectionGaps(sec, fillBottom, fillTop) {
-  const bands = itemBands(sec, null).sort((a, b) => a.lo - b.lo);
+  const bands = itemPhysicalBands(sec, null).sort((a, b) => a.lo - b.lo);
   const gaps = [];
   let cursor = fillBottom;
   bands.forEach(b => {
