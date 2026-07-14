@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { state, PANEL_THICKNESS } from '../core/state.js';
 import { addPanel, furnitureGroup } from '../core/scene.js';
 import { getColor } from '../core/materials.js';
-import { DOOR_DEPTH_ZONE, TOP_SHELF_GAP, MESH_DEPTHS, VALET_LENGTHS, BASKET_WIDTHS, BASKET_DEPTHS_BY_WIDTH } from './wardrobe-constants.js';
+import { DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_SHELF_GAP, MESH_DEPTHS, VALET_LENGTHS, BASKET_WIDTHS, BASKET_DEPTHS_BY_WIDTH } from './wardrobe-constants.js';
 import {
   effectiveDoorSpan, rebalanceSections, getDoorCount,
   maxDrawerDepth, availableMeshDepths, availableValetLengths, backWallClearance, valetBackClearance,
@@ -17,9 +17,8 @@ import { sectionVerticalBounds, clampItemPositions, resolveValetAnchorY, section
 
 // Двери купе едут по рельсам, вынесенным в переднюю зону короба (как у Командор) —
 // это съедает часть глубины у наполнения, но не у самого короба (короб — на полную глубину).
-// Соседние двери заходят друг на друга внахлёст, чтобы не было щели; крайние двери при
-// этом не вылезают наружу — весь ряд идёт строго от стойки до стойки (см. buildSlidingDoors).
-export const DOOR_OVERLAP = 30;
+// Соседние двери заходят друг на друга внахлёст (DOOR_OVERLAP — wardrobe-constants.js),
+// крайние не вылезают наружу — весь ряд идёт строго от стойки до стойки.
 
 // Рамка двери купе — по умолчанию серебристый алюминиевый профиль; сама дверь на 90мм
 // зоны глубины (ширину/глубину рамки и цвет вынесем в настройки, когда дойдём до этого).

@@ -127,6 +127,7 @@ export const state = {
   alignerRight: false, alignerRightW: 50,
   alignerTop: false,   alignerTopH: 50,
   fasadDoorType: 'sliding',  // sliding | swing | none
+  doorCount: null,           // null = авто; число — выбор пользователя (если допустим для пролёта)
   profile: 'standard',       // standard | slim | anod | black
   doorFill: 'ldsp',          // ldsp | mirror | glass
   doorFill2: null,           // null | ldsp | mirror | glass (комбо)

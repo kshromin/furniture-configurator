@@ -11,4 +11,7 @@ export function buildFurniture() {
   focusCameraOnFurniture();
   updatePrice(counts);
   renderStaticDimensions();
+  // UI, зависящий от геометрии (например, варианты количества дверей на «Фасаде»), слушает
+  // это событие вместо прямого импорта из tabs.js — иначе цикл build.js <-> tabs.js.
+  window.dispatchEvent(new CustomEvent('furniture-rebuilt'));
 }

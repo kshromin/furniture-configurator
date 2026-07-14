@@ -8,7 +8,7 @@ import {
   rebalanceSections, MIN_SECTION_WIDTH, maxDrawerDepth, availableMeshDepths, availableValetLengths, clampSectionSizes,
   basketSizeOptions, basketFits, requiredBasketProyom, canAddSection, canRemoveSection, BASKET_WIDTHS,
   sectionVerticalBounds, findFreeSlot, defaultItemsForSection, isSectionWidthLocked, sectionMissingSideSupport,
-  sectionBackWallSegments,
+  sectionBackWallSegments, doorCountOptions, getDoorCount, effectiveDoorSpan,
 } from '../types/_wardrobe-shared.js';
 
 // Общий список допустимых проёмов под корзины (не привязан к конкретной выбранной ширине) —
@@ -203,8 +203,60 @@ export function bindTypeButtons() {
   });
 }
 
+// ---------- вкладка «Фасад»: количество дверей купе ----------
+// Кнопки перерисовываются при каждом пересчёте модели (событие furniture-rebuilt из build.js):
+// пролёт зависит от ширины/стоек/коробов, и набор допустимых вариантов меняется вместе с ним.
+export function renderDoorCountOptions() {
+  const group = document.getElementById('doorCountGroup');
+  const hint  = document.getElementById('doorCountHint');
+  if (!group || state.type !== 'wardrobe') return;
+
+  const { spanW } = effectiveDoorSpan();
+  const opts = doorCountOptions(spanW);
+  // Выбор, ставший недопустимым после изменения пролёта, сбрасываем в авто — иначе ни одна
+  // кнопка не активна (модель уже рисует авто-количество через getDoorCount).
+  if (state.doorCount && !opts.some(o => o.n === state.doorCount)) state.doorCount = null;
+  const current = getDoorCount(spanW);
+
+  group.innerHTML = '';
+  if (opts.length === 0) {
+    hint.textContent = 'Пролёт слишком узкий — 2 двери (уже допуска 500мм)';
+    return;
+  }
+
+  const autoBtn = document.createElement('button');
+  autoBtn.className = 'opt-btn' + (state.doorCount === null ? ' active' : '');
+  autoBtn.textContent = 'Авто';
+  autoBtn.addEventListener('click', () => {
+    state.doorCount = null;
+    buildFurniture();
+  });
+  group.appendChild(autoBtn);
+
+  opts.forEach(o => {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn' + (state.doorCount === o.n ? ' active' : '');
+    btn.textContent = String(o.n);
+    btn.title = `Ширина двери ≈ ${o.w} мм`;
+    btn.addEventListener('click', () => {
+      state.doorCount = o.n;
+      buildFurniture();
+    });
+    group.appendChild(btn);
+  });
+
+  const doorsWord = n => (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? 'двери' : 'дверей';
+  const activeOpt = opts.find(o => o.n === current);
+  hint.textContent = activeOpt
+    ? `${current} ${doorsWord(current)} · ширина ≈ ${activeOpt.w} мм${state.doorCount === null ? ' (авто)' : ''}`
+    : '';
+}
+
 // ---------- вкладка «Фасад» ----------
 export function bindFasadTab() {
+  window.addEventListener('furniture-rebuilt', renderDoorCountOptions);
+  renderDoorCountOptions();
+
   document.querySelectorAll('.fasad-type-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.fasad-type-btn').forEach(b => b.classList.remove('active'));

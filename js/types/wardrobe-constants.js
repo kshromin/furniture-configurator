@@ -9,3 +9,10 @@ export const MESH_DEPTHS = [300, 400, 500];
 export const VALET_LENGTHS = [250, 300, 350, 400, 450, 500, 550];
 export const BASKET_WIDTHS = [300, 400, 500];
 export const BASKET_DEPTHS_BY_WIDTH = { 300: [400], 400: [400, 450, 500, 550, 600], 500: [500, 550, 600] };
+
+// Двери купе: соседние двери заходят друг на друга внахлёст (щели нет), крайние не вылезают
+// за стойки. Ширина одной двери ограничена конструктивом системы — из этого допуска считаются
+// доступные варианты количества дверей (см. doorCountOptions в wardrobe-sizing.js).
+export const DOOR_OVERLAP = 30;
+export const DOOR_MIN_W = 500;
+export const DOOR_MAX_W = 1100;

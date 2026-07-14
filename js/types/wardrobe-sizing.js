@@ -1,12 +1,32 @@
 import { state, PANEL_THICKNESS } from '../core/state.js';
-import { DOOR_DEPTH_ZONE, MESH_DEPTHS, VALET_LENGTHS, BASKET_WIDTHS, BASKET_DEPTHS_BY_WIDTH } from './wardrobe-constants.js';
+import { DOOR_DEPTH_ZONE, DOOR_OVERLAP, DOOR_MIN_W, DOOR_MAX_W, MESH_DEPTHS, VALET_LENGTHS, BASKET_WIDTHS, BASKET_DEPTHS_BY_WIDTH } from './wardrobe-constants.js';
 
 // Хелперы размеров/цены: сколько места реально доступно под тот или иной элемент наполнения
 // (ящик/сетка/вешало/корзина) при текущих габаритах шкафа, и балансировка ширины секций.
 // Ничего не строит в 3D и не трогает коллизии между уже расставленными элементами (см.
 // wardrobe-items.js) — эти два модуля сознательно разделены, geometry опирается на оба.
 
-export function getDoorCount(width) { return Math.max(2, Math.min(4, Math.round(width / 900))); }
+// Все допустимые варианты количества дверей купе для данного пролёта: ширина одной двери
+// (пролёт + нахлёсты) / n должна попасть в конструктивный допуск 500–1100мм.
+export function doorCountOptions(spanW) {
+  const opts = [];
+  for (let n = 2; n <= 10; n++) {
+    const w = (spanW + (n - 1) * DOOR_OVERLAP) / n;
+    if (w >= DOOR_MIN_W && w <= DOOR_MAX_W) opts.push({ n, w: Math.round(w) });
+  }
+  return opts;
+}
+
+// Количество дверей: выбор пользователя (state.doorCount, вкладка «Фасад»), если он допустим
+// для текущего пролёта; иначе — авто: вариант с шириной двери, ближайшей к 800мм.
+// Если допустимых вариантов нет вовсе (пролёт < 970мм — даже 2 двери уже дадут < 500мм),
+// рисуем 2 двери: купе из одной двери не бывает, узость видна и продавцу, и клиенту.
+export function getDoorCount(spanW) {
+  const opts = doorCountOptions(spanW);
+  if (opts.length === 0) return 2;
+  if (state.doorCount && opts.some(o => o.n === state.doorCount)) return state.doorCount;
+  return opts.reduce((best, o) => Math.abs(o.w - 800) < Math.abs(best.w - 800) ? o : best).n;
+}
 
 // Вычисляет ширину/высоту дверного пролёта с учётом стоек/крыши/коробов/планок.
 // "планка" = та же толщина что и панель (пролёт не меняется относительно варианта "со стойкой").
