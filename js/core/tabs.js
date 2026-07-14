@@ -8,7 +8,7 @@ import {
   rebalanceSections, MIN_SECTION_WIDTH, maxDrawerDepth, availableMeshDepths, availableValetLengths, clampSectionSizes,
   basketSizeOptions, basketFits, requiredBasketProyom, canAddSection, canRemoveSection, BASKET_WIDTHS,
   sectionVerticalBounds, findFreeSlot, defaultItemsForSection, isSectionWidthLocked, sectionMissingSideSupport,
-  sectionBackWallSegments, doorCountOptions, getDoorCount, effectiveDoorSpan,
+  sectionBackWallSegments, doorCountOptions, getDoorCount, effectiveDoorSpan, DOOR_MIN_W, DOOR_OVERLAP,
 } from '../types/_wardrobe-shared.js';
 
 // Общий список допустимых проёмов под корзины (не привязан к конкретной выбранной ширине) —
@@ -87,6 +87,17 @@ export function bindSlider(id, key, suffix) {
   function apply(val) {
     const min = Number(range.min), max = Number(range.max);
     val = Math.max(min, Math.min(max, Math.round(val / 10) * 10));
+    // Шкаф-купе: даже 2 двери не могут быть уже 500мм — минимальная ширина изделия
+    // следует из допуска дверей (пролёт ≥ 2×500−нахлёст) плюс стойки/короба по бокам.
+    if (key === 'width' && state.type === 'wardrobe' && state.fasadDoorType === 'sliding') {
+      const span = effectiveDoorSpan();
+      const sideOffs = state.width - span.spanW; // лев+прав отступы при текущей конфигурации
+      const minW = Math.ceil((2 * DOOR_MIN_W - DOOR_OVERLAP + sideOffs) / 10) * 10;
+      if (val < minW) {
+        val = minW;
+        showToast(`Минимальная ширина шкафа-купе — ${minW} мм: две двери не могут быть уже 500 мм.`);
+      }
+    }
     state[key] = val;
     range.value = val;
     if (numInput) numInput.value = val;
