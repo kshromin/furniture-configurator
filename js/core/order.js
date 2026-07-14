@@ -48,9 +48,15 @@ export function addCurrentToOrder() {
   renderOrderCards();
 }
 
+// Доп. элемент/услуга (вкладка «Добавить к заказу») — без 3D-снапшота, только строка с ценой.
+export function addExtraItem(label, total) {
+  orderItems.push({ id: Date.now(), kind: 'extra', label, total, snapshot: null });
+  renderOrderCards();
+}
+
 export function loadItemForEdit(id) {
   const item = orderItems.find(it => it.id === id);
-  if (!item) return;
+  if (!item || !item.snapshot) return;
   editingItemId = id;
   Object.assign(state, JSON.parse(JSON.stringify(item.snapshot)));
   syncUIFromState();
@@ -70,6 +76,7 @@ export function loadItemForEdit(id) {
 // тут прорисовка одна и уже существует в drawings — «Сохранить проект» без накопления в
 // корзине сразу обновит именно эту строку текущим state (см. bindOrderForm).
 export function loadDrawingForEdit(drawing) {
+  if (!drawing.snapshot) { showToast('Это услуга/доп. элемент — прорисовки нет.'); return; }
   editingDrawingId = drawing.id;
   editingDrawingClient = { name: drawing.client_name || '', phone: drawing.client_phone || '', address: drawing.client_address || '' };
   Object.assign(state, JSON.parse(JSON.stringify(drawing.snapshot)));
@@ -122,9 +129,10 @@ export function renderOrderCards() {
         <button class="order-card-remove" data-id="${item.id}" title="Удалить">×</button>
       </div>
       <div class="order-card-price">${fmt(item.total)}</div>
+      ${item.kind === 'extra' ? '' : `
       <button class="order-card-edit ${isEditing ? 'editing' : ''}" data-id="${item.id}">
         ${isEditing ? '✏️ Редактируется сейчас...' : 'Изменить'}
-      </button>
+      </button>`}
     `;
     list.appendChild(card);
   });

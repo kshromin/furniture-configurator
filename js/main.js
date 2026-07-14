@@ -7,6 +7,7 @@ import {
   bindTabSwitching, bindToggleDoors, bindBackWall, bindSectionsControls, syncUIFromState,
 } from './core/tabs.js';
 import { addCurrentToOrder, renderOrderCards, bindOrderForm } from './core/order.js';
+import { renderExtras, bindExtras } from './core/extras.js';
 import { initAuth, bindLoginForm } from './core/auth.js';
 import { renderCabinet, bindCabinetControls } from './core/cabinet.js';
 import { renderAdminOrders } from './core/admin.js';
@@ -54,6 +55,8 @@ async function init() {
   bindToggleDoors();
   bindSectionsControls();
   bindOrderForm();
+  renderExtras();
+  bindExtras();
 
   bindCabinetControls();
   document.querySelector('[data-tab="cabinet"]').addEventListener('click', renderCabinet);

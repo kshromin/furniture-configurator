@@ -37,6 +37,10 @@
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="18" rx="1"/><rect x="13" y="3" width="8" height="18" rx="1"/><circle cx="10.5" cy="12" r="1"/><circle cx="13.5" cy="12" r="1"/></svg>
       <span>Фасад</span>
     </button>
+    <button class="tab-btn" data-tab="extras" title="Добавить к заказу">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      <span>Добавить</span>
+    </button>
     <button class="tab-btn tab-btn-order" data-tab="order" title="Проект">
       <div class="order-badge" id="orderBadge" style="display:none">0</div>
       <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
@@ -404,6 +408,30 @@
       </div>
 
       </div><!-- /fasadContent -->
+    </div>
+
+    <!-- 5б. Добавить к заказу (доп. элементы и услуги — не рисуются, только в деньги) -->
+    <div class="tab-pane" id="tab-extras">
+      <div class="pane-title">Добавить к заказу</div>
+
+      <div class="field-group">
+        <div class="field">
+          <label>Категория</label>
+          <select id="extraCategory"></select>
+        </div>
+        <div class="field">
+          <label>Наименование</label>
+          <select id="extraItem"></select>
+        </div>
+        <div class="field">
+          <div class="dim-label-row"><label>Количество</label><input type="number" class="dim-input" id="extraQty" min="1" max="999" step="1" value="1"></div>
+        </div>
+        <div class="extra-price-row">
+          <span>Стоимость</span><span id="extraPrice">0 ₽</span>
+        </div>
+        <button id="extraAddBtn" class="order-btn" style="margin-top:12px">+ Добавить к проекту</button>
+        <div id="extraResult" class="extra-result"></div>
+      </div>
     </div>
 
 

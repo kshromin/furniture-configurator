@@ -150,6 +150,38 @@
     { "width": 500, "depth": 600, "height": 190, "color": "white",  "price": 1670 },
     { "width": 500, "depth": 600, "height": 190, "color": "black",  "price": 1840 }
   ],
+  "extras": [
+    {
+      "id": "elements",
+      "name": "Доп. элементы",
+      "items": [
+        { "id": "el_custom",  "name": "Индивидуальный элемент (заглушка)", "price": 1000 }
+      ]
+    },
+    {
+      "id": "delivery",
+      "name": "Доставка",
+      "items": [
+        { "id": "dlv_city",   "name": "Доставка по городу",          "price": 1500 },
+        { "id": "dlv_km",     "name": "Доставка за город (за 1 км)", "price": 50 }
+      ]
+    },
+    {
+      "id": "lift",
+      "name": "Подъём на этаж",
+      "items": [
+        { "id": "lift_elev",  "name": "Подъём на лифте",             "price": 500 },
+        { "id": "lift_floor", "name": "Подъём без лифта (за этаж)",  "price": 300 }
+      ]
+    },
+    {
+      "id": "montage",
+      "name": "Монтаж",
+      "items": [
+        { "id": "mnt_std",    "name": "Монтаж изделия",              "price": 5000 }
+      ]
+    }
+  ],
   "presets": [
     { "name": "Компакт 1.2м",         "type": "wardrobe", "width": 1200, "height": 2400, "depth": 600, "korpusProducer": "egger",  "korpusId": "w980",  "fasadProducer": "egger",  "fasadId": "fw980",  "fillProducer": "egger",  "fillId": "nw980",  "sections": 2, "shelves": 3, "drawers": 0, "rod": true  },
     { "name": "Стандарт 1.8м",        "type": "wardrobe", "width": 1800, "height": 2400, "depth": 600, "korpusProducer": "tomsk",  "korpusId": "t01",   "fasadProducer": "egger",  "fasadId": "fu727",  "fillProducer": "tomsk",  "fillId": "nt01",   "sections": 2, "shelves": 4, "drawers": 2, "rod": true  },
