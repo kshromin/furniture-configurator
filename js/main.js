@@ -18,7 +18,9 @@ async function init() {
   bindLoginForm();
   await initAuth();
 
-  const res = await fetch('data/materials.json');
+  // no-store: браузер охотно кэширует json, из-за чего после обновления каталога
+  // (цены, extras) пользователи видели старые данные или пустые списки.
+  const res = await fetch('data/materials.json', { cache: 'no-store' });
   setMaterials(await res.json());
 
   // default state from first producer/color
