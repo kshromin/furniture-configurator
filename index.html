@@ -41,18 +41,22 @@
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
       <span>Добавить</span>
     </button>
-    <button class="tab-btn tab-btn-order" data-tab="order" title="Проект">
+    <button class="tab-btn tab-btn-order" data-tab="order" title="Прорисовки">
       <div class="order-badge" id="orderBadge" style="display:none">0</div>
-      <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-      <span>Проект</span>
+      <svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+      <span>Прорисовки</span>
+    </button>
+    <button class="tab-btn" data-tab="projects" title="Проекты">
+      <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      <span>Проекты</span>
     </button>
     <button class="tab-btn" data-tab="cabinet" title="Личный кабинет">
       <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       <span>Кабинет</span>
     </button>
-    <button class="tab-btn" data-tab="presets" title="Популярные проекты">
+    <button class="tab-btn" data-tab="presets" title="Шаблоны — популярные готовые варианты">
       <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      <span>Проекты</span>
+      <span>Шаблоны</span>
     </button>
     <button class="tab-btn tab-btn-admin" id="adminTabBtn" data-tab="admin" title="Администрирование" style="display:none">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -449,30 +453,42 @@
 
     <!-- 7. Проект (накопление прорисовок перед сохранением) -->
     <div class="tab-pane" id="tab-order">
-      <div class="pane-title">Проект</div>
-      <div id="orderEmptyNote" class="placeholder-note">Добавьте изделия в проект кнопкой ниже.</div>
+      <div class="pane-title">Прорисовки</div>
+      <div id="editingProjectNote" class="placeholder-note" style="display:none"></div>
+      <div id="orderEmptyNote" class="placeholder-note">Текущих прорисовок нет — добавьте изделие кнопкой «+ Добавить» внизу.</div>
       <div id="orderCardsList"></div>
       <div id="orderGrandRow" class="order-grand-row" style="display:none">
-        <span>Итого по проекту</span><span id="orderGrandTotal">0 ₽</span>
+        <span>Итого по прорисовкам</span><span id="orderGrandTotal">0 ₽</span>
       </div>
-      <button id="orderBtn" class="order-btn" style="margin-top:12px">Сохранить проект</button>
+      <button id="saveProjectBtn" class="order-btn" style="margin-top:12px">Сохранить в проект</button>
+      <button id="saveOrderBtn" class="order-btn order-btn-accent" style="margin-top:8px">Добавить в заказ</button>
+    </div>
+
+    <!-- 7б. Проекты — сохранённые комплекты прорисовок (и заказы) -->
+    <div class="tab-pane" id="tab-projects">
+      <div class="pane-title">Проекты</div>
+      <div class="field" style="margin-bottom:10px">
+        <select id="projectsFilterSelect" class="mini-select-wide" style="width:100%">
+          <option value="all">Показать: все</option>
+          <option value="project">Только проекты</option>
+          <option value="order">Только заказы</option>
+        </select>
+      </div>
+      <div class="field" style="margin-bottom:10px">
+        <select id="projectsSortSelect" class="mini-select-wide" style="width:100%">
+          <option value="date">Сортировка: по дате</option>
+          <option value="client">Сортировка: по клиенту</option>
+        </select>
+      </div>
+      <div id="projectsEmpty" class="placeholder-note" style="display:none">Сохранённых проектов пока нет.</div>
+      <div id="projectsList"></div>
     </div>
 
     <!-- 8. Личный кабинет -->
     <div class="tab-pane" id="tab-cabinet">
       <div class="pane-title">Личный кабинет</div>
 
-      <div class="field-group-title">Мои проекты</div>
-      <div class="field" style="margin-bottom:10px">
-        <select id="drawingsSortSelect" class="mini-select-wide" style="width:100%">
-          <option value="date">Сортировка: по дате</option>
-          <option value="client">Сортировка: по клиенту</option>
-        </select>
-      </div>
-      <div id="cabinetDrawingsEmpty" class="placeholder-note" style="display:none">Сохранённых прорисовок пока нет — добавьте изделие в проект и сохраните.</div>
-      <div id="cabinetDrawingsList"></div>
-
-      <div class="field-group-title" style="margin-top:18px">Мои заказы</div>
+      <div class="field-group-title">Мои заказы</div>
       <div id="cabinetOrdersEmpty" class="placeholder-note" style="display:none">Заявок пока нет.</div>
       <div id="cabinetOrdersList"></div>
 
@@ -513,9 +529,9 @@
       </div>
       <div id="orderCounterRow" class="order-counter-row" style="display:none">
         <span id="orderCounterText"></span>
-        <button class="order-counter-link" onclick="document.querySelector('[data-tab=order]').click()">Открыть проект →</button>
+        <button class="order-counter-link" onclick="document.querySelector('[data-tab=order]').click()">Открыть прорисовки →</button>
       </div>
-      <button id="addItemBtn" class="add-item-btn">+ Добавить в проект</button>
+      <button id="addItemBtn" class="add-item-btn">+ Добавить в прорисовки</button>
     </div>
 
   </div><!-- /panel -->
@@ -523,7 +539,7 @@
   <!-- Модальное окно сохранения проекта (данные клиента) -->
   <div id="orderOverlay" class="overlay">
     <div class="order-modal">
-      <h3>Сохранить проект</h3>
+      <h3 id="orderModalTitle">Сохранить в проект</h3>
       <div id="orderSummary" class="order-summary"></div>
       <div class="field">
         <label>Имя клиента</label>
@@ -533,9 +549,9 @@
         <label>Телефон</label>
         <input type="text" id="orderPhone" placeholder="+7 900 000 0000">
       </div>
-      <div class="field">
-        <label>Адрес для замера (необязательно)</label>
-        <input type="text" id="orderAddress" placeholder="">
+      <div class="field" id="orderAddressField" style="display:none">
+        <label>Адрес доставки/монтажа</label>
+        <input type="text" id="orderAddress" placeholder="Город, улица, дом, квартира">
       </div>
       <div id="orderResult" class="order-result"></div>
       <div class="order-actions">

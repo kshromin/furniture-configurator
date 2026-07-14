@@ -6,73 +6,19 @@ import { buildFurniture } from './build.js';
 import { supabase } from './supabaseClient.js';
 import { auth, signOut } from './auth.js';
 import { showToast } from './toast.js';
-import { loadDrawingForEdit } from './order.js';
 
 const STATUS_LABELS = { new: 'Новая', confirmed: 'Подтверждена', production: 'В производстве', done: 'Готово' };
 
+// Список сохранённых комплектов прорисовок переехал в отдельную вкладку «Проекты»
+// (js/core/projects.js, таблица projects) — кабинет остался про заявки/конфигурации/выход.
 export async function renderCabinet() {
   if (!auth.session) {
-    document.getElementById('cabinetDrawingsEmpty').style.display = 'block';
-    document.getElementById('cabinetDrawingsEmpty').textContent = 'Личный кабинет недоступен локально — только на опубликованном сайте после входа.';
-    document.getElementById('cabinetOrdersEmpty').style.display = 'none';
+    document.getElementById('cabinetOrdersEmpty').style.display = 'block';
+    document.getElementById('cabinetOrdersEmpty').textContent = 'Личный кабинет недоступен без входа.';
     document.getElementById('cabinetConfigsEmpty').style.display = 'none';
     return;
   }
-  await Promise.all([renderMyDrawings(), renderMyOrders(), renderMyConfigs()]);
-}
-
-// Мои проекты (прорисовки) — плоский список прорисовок текущего менеджера, у каждой свои данные
-// клиента (могут повторяться для нескольких прорисовок одного клиента, могут различаться —
-// формальной группировки в отдельную сущность "проект" нет, только сортировка/фильтр по полю
-// клиента в списке). См. js/core/order.js bindOrderForm — сохраняет сюда.
-async function renderMyDrawings() {
-  const list  = document.getElementById('cabinetDrawingsList');
-  const empty = document.getElementById('cabinetDrawingsEmpty');
-  const sortSelect = document.getElementById('drawingsSortSelect');
-  const sortByClient = sortSelect && sortSelect.value === 'client';
-
-  const { data, error } = await supabase
-    .from('drawings')
-    .select('*')
-    .eq('user_id', auth.session.user.id)
-    .order(sortByClient ? 'client_name' : 'created_at', { ascending: sortByClient });
-
-  list.innerHTML = '';
-  if (error || !data || data.length === 0) {
-    empty.style.display = 'block';
-    return;
-  }
-  empty.style.display = 'none';
-
-  data.forEach(d => {
-    const date = new Date(d.created_at).toLocaleDateString('ru-RU');
-    const client = [d.client_name, d.client_phone].filter(Boolean).join(', ') || 'Без клиента';
-    const card = document.createElement('div');
-    card.className = 'order-card';
-    card.innerHTML = `
-      <div class="order-card-header">
-        <span class="order-card-num">${d.project_code ? `№ ${d.project_code} · ` : ''}${date}</span>
-        <span class="order-card-name">${client}<br>${d.summary.replace(/\n/g, '<br>')}</span>
-        <button class="order-card-remove" data-id="${d.id}" title="Удалить">×</button>
-      </div>
-      <div class="order-card-price">${fmt(d.total)}</div>
-      <button class="order-card-edit" data-id="${d.id}">Открыть</button>
-    `;
-    list.appendChild(card);
-  });
-
-  list.querySelectorAll('.order-card-remove').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      await supabase.from('drawings').delete().eq('id', Number(btn.dataset.id));
-      renderMyDrawings();
-    });
-  });
-  list.querySelectorAll('.order-card-edit').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const d = data.find(x => x.id === Number(btn.dataset.id));
-      if (d) loadDrawingForEdit(d);
-    });
-  });
+  await Promise.all([renderMyOrders(), renderMyConfigs()]);
 }
 
 async function renderMyOrders() {
@@ -183,5 +129,4 @@ async function saveCurrentConfig() {
 export function bindCabinetControls() {
   document.getElementById('saveConfigBtn').addEventListener('click', saveCurrentConfig);
   document.getElementById('logoutBtn').addEventListener('click', () => signOut());
-  document.getElementById('drawingsSortSelect').addEventListener('change', () => renderMyDrawings());
 }

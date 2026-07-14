@@ -304,3 +304,50 @@ create trigger drawings_assign_code
 дата, как раньше. Функция `security definer` — триггер обновляет чужую для RLS строку
 `profiles` (свою же, но политика допускает только select/update своих полей — определитель
 гарантирует право на update счётчика).
+
+## 11. Проекты-комплекты и заказы (сессия 22)
+
+Перестройка модели по заданию «прорисовки-проекты-заказы»: рабочий набор прорисовок
+(вкладка «Прорисовки», локально) сохраняется КОМПЛЕКТОМ в одну строку новой таблицы
+`projects` — либо как проект (`kind='project'`, клиент без адреса), либо как заказ
+(`kind='order'`, расширенные поля с адресом). Прорисовки комплекта лежат массивом в
+`items` (jsonb) — отдельная строка на прорисовку больше не создаётся.
+
+Таблица `drawings` остаётся как архив старых одиночных прорисовок (из UI больше не
+показывается; удалить можно позже, когда старые данные станут не нужны).
+
+Выполнить в **SQL Editor**:
+
+```sql
+create table public.projects (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  kind text not null default 'project',       -- project | order
+  client_name text not null default '',
+  client_phone text not null default '',
+  client_address text not null default '',
+  items jsonb not null default '[]'::jsonb,   -- [{label, total, snapshot|null}]
+  total numeric not null default 0,
+  project_code text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.projects enable row level security;
+
+create policy "projects_insert_own" on public.projects
+  for insert with check (auth.uid() = user_id);
+create policy "projects_select_own" on public.projects
+  for select using (auth.uid() = user_id);
+create policy "projects_update_own" on public.projects
+  for update using (auth.uid() = user_id);
+create policy "projects_delete_own" on public.projects
+  for delete using (auth.uid() = user_id);
+
+grant select, insert, update, delete on public.projects to authenticated;
+
+-- Тот же код проекта «{номер сотрудника}-{n}», что и был у drawings (функция из п.10)
+create trigger projects_assign_code
+  before insert on public.projects
+  for each row execute function public.assign_project_code();
+```

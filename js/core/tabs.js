@@ -862,7 +862,7 @@ export function bindTabSwitching() {
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-      const hideBar = ['type', 'presets', 'cabinet', 'admin', 'extras'].includes(btn.dataset.tab);
+      const hideBar = ['type', 'presets', 'cabinet', 'admin', 'extras', 'projects'].includes(btn.dataset.tab);
       document.getElementById('typeBar').style.display = hideBar ? 'none' : 'block';
     });
   });

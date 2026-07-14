@@ -648,6 +648,10 @@ html, body {
 
 .order-btn:hover { background: #2559c7; }
 
+/* «Добавить в заказ» — клиент готов к оформлению, зелёный акцент */
+.order-btn-accent { background: #1d9a4a; }
+.order-btn-accent:hover { background: #15803c; }
+
 /* ── Профиль дверей купе ── */
 .profile-grid {
   display: grid;
