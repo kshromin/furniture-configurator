@@ -5,7 +5,7 @@ import { buildFurniture } from './build.js';
 import { showToast } from './toast.js';
 import {
   lastBuildItemMeshes, lastBuildValetMeshes, lastBuildSectionCenters, lastBuildY0,
-  checkOverlap, sectionVerticalBounds, valetAnchorCandidates, resolveValetAnchorY,
+  checkOverlap, sectionVerticalBounds, sectionVerticalBoundsPhysical, valetAnchorCandidates, resolveValetAnchorY,
   itemPhysicalBands, itemPhysicalHeight,
 } from '../types/_wardrobe-shared.js';
 import { projectToOverlay, updateArrow, hideArrow } from './dimensions.js';
@@ -152,7 +152,8 @@ function updateEditInputs() {
     return;
   }
   const { sec, item, itemType, sectionIndex } = active;
-  const { fillBottom, fillTop } = sectionVerticalBounds();
+  // Физические границы (поверхность дна/низ крыши) — те же, что у статичных размерных линий.
+  const { fillBottom, fillTop } = sectionVerticalBoundsPhysical();
   const h = itemPhysicalHeight(itemType, sec); // физические края — согласовано с neighborGaps
   const y = currentItemY();
   const lo = y - h / 2, hi = y + h / 2;

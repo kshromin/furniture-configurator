@@ -3,7 +3,7 @@ import { camera, controls } from './scene.js';
 import { state } from './state.js';
 import { TYPES } from '../types/registry.js';
 import {
-  sectionVerticalBounds, itemPhysicalBands, lastBuildSectionCenters, lastBuildY0,
+  sectionVerticalBoundsPhysical, itemPhysicalBands, lastBuildSectionCenters, lastBuildY0,
 } from '../types/_wardrobe-shared.js';
 
 // Размерные линии наполнения — HTML/SVG-оверлей поверх канваса (не 3D-геометрия), см. #dimOverlay
@@ -86,11 +86,15 @@ export function sectionGaps(sec, fillBottom, fillTop) {
   const bands = itemPhysicalBands(sec, null).sort((a, b) => a.lo - b.lo);
   const gaps = [];
   let cursor = fillBottom;
+  // mm — разность ОКРУГЛЁННЫХ краёв (а не округление длины): дробные края (например, штанга
+  // ⌀25 на целом центре даёт .5) при независимом округлении длин дают сумму, не сходящуюся
+  // с внутренней высотой шкафа на ±1мм — пользователь сверяет на калькуляторе.
+  const push = (lo, hi) => gaps.push({ lo, hi, mm: Math.round(hi) - Math.round(lo) });
   bands.forEach(b => {
-    if (b.lo - cursor > 1) gaps.push({ lo: cursor, hi: b.lo, mm: Math.round(b.lo - cursor) });
+    if (b.lo - cursor > 1) push(cursor, b.lo);
     cursor = Math.max(cursor, b.hi);
   });
-  if (fillTop - cursor > 1) gaps.push({ lo: cursor, hi: fillTop, mm: Math.round(fillTop - cursor) });
+  if (fillTop - cursor > 1) push(cursor, fillTop);
   return gaps;
 }
 
@@ -119,7 +123,7 @@ function widthLineZ() { return state.depth / 2 + 15; }
 export function renderStaticDimensions() {
   clearStaticDimensions();
   if (!state.showDimensions || !sectionsHaveDimensions()) return;
-  const { fillBottom, fillTop } = sectionVerticalBounds();
+  const { fillBottom, fillTop } = sectionVerticalBoundsPhysical();
   const z = widthLineZ();
   state.sections.forEach((sec, s) => {
     if (sec.showDimensions === false) return;

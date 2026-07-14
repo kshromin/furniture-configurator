@@ -35,6 +35,14 @@ export function sectionVerticalBounds() {
   return { fillBottom, fillTop };
 }
 
+// Физические границы внутреннего пространства — поверхность дна и низ крыши, БЕЗ служебных
+// ±10мм отступов расстановки из sectionVerticalBounds. Для размерных линий: сумма просветов
+// и толщин элементов должна сходиться с внутренней высотой шкафа на калькуляторе.
+export function sectionVerticalBoundsPhysical() {
+  const { fillBottom, fillTop } = sectionVerticalBounds();
+  return { fillBottom: fillBottom - 10, fillTop: fillTop + 10 };
+}
+
 // Начальная Y-позиция структурной (pinned) полки при первом создании набора items — та же
 // формула, что раньше задавала ПОСТОЯННУЮ фиксированную верхнюю полку (TOP_SHELF_GAP от верхней
 // границы, со страховкой MIN_ZONE_GAP для низких секций) — теперь это только стартовое положение
