@@ -79,4 +79,5 @@ export async function renderProjects() {
 export function bindProjectsControls() {
   document.getElementById('projectsFilterSelect').addEventListener('change', renderProjects);
   document.getElementById('projectsSortSelect').addEventListener('change', renderProjects);
+  window.addEventListener('projects-changed', renderProjects);
 }

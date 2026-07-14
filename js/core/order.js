@@ -276,6 +276,8 @@ export function bindOrderForm() {
     result.textContent = modalKind === 'order' ? 'Заказ сохранён.' : 'Проект сохранён.';
     markStateSafe();
     renderOrderCards();
+    // обновить список на вкладке «Проекты» (projects.js слушает; прямой импорт дал бы цикл)
+    window.dispatchEvent(new CustomEvent('projects-changed'));
     setTimeout(() => overlay.classList.remove('visible'), 1200);
   });
 }
