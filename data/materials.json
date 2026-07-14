@@ -162,23 +162,21 @@
       "id": "delivery",
       "name": "Доставка",
       "items": [
-        { "id": "dlv_city",   "name": "Доставка по городу",          "price": 1500 },
-        { "id": "dlv_km",     "name": "Доставка за город (за 1 км)", "price": 50 }
+        { "id": "dlv_city",   "name": "Доставка в черте города",     "price": 3500 }
       ]
     },
     {
       "id": "lift",
       "name": "Подъём на этаж",
       "items": [
-        { "id": "lift_elev",  "name": "Подъём на лифте",             "price": 500 },
-        { "id": "lift_floor", "name": "Подъём без лифта (за этаж)",  "price": 300 }
+        { "id": "lift_floor", "name": "Подъём на этаж (за этаж)",    "price": 200 }
       ]
     },
     {
       "id": "montage",
       "name": "Монтаж",
       "items": [
-        { "id": "mnt_std",    "name": "Монтаж изделия",              "price": 5000 }
+        { "id": "mnt_1class", "name": "Монтаж 1 КЛАСС",              "price": 22000 }
       ]
     }
   ],
