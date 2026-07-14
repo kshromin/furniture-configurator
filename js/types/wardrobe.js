@@ -153,6 +153,7 @@ export default {
     // работает только когда та выключена; всегда ЛДСП (тот же тариф, что и обычная ЛДСП-стенка).
     let backWallM2 = 0;
     let backWallType = state.backWall;
+    let backWallSegmentCount = 0;
     if (state.backWall !== 'none') {
       backWallM2 = ((width - stojkaLeftOff - stojkaRightOff) * stojkaH) / 1e6;
     } else {
@@ -161,16 +162,51 @@ export default {
         sectionBackWallSegments(sec, idx).forEach(seg => {
           if (seg.eligible && sec.backWallSegments.includes(seg.key)) {
             backWallM2 += (sec.width * (seg.hiY - seg.loY)) / 1e6;
+            backWallSegmentCount++;
           }
         });
       });
       if (backWallM2 > 0) backWallType = 'ldsp';
     }
 
+    // ---------- крепёж и встройка (скрытые позиции, нигде не отображаются — только в
+    // стоимость; в будущей спецификации выйдут отдельными строками) ----------
+    // Крепёж 100₽ — к КАЖДОЙ детали ЛДСП. Встройка 300₽ — к деталям без двух сторон
+    // крепления: полки/крыша/дно, у которых сбоку нет стойки (встроенные в проём).
+    let fastenerCount = 0, embedCount = 0;
+    const sideMissing = noSideLeft || noSideRight;
+    if (!noBottom)  { fastenerCount++; if (sideMissing) embedCount++; } // дно
+    if (!noCeiling) { fastenerCount++; if (sideMissing) embedCount++; } // крыша
+    if (!noSideLeft)  fastenerCount++;                                  // стойки
+    if (!noSideRight) fastenerCount++;
+    fastenerCount += sections.length - 1;                               // перегородки
+    if (plinthH > 0) fastenerCount++;                                   // цоколь
+    // планки/короба вместо снятых панелей и выравниватели — тоже детали ЛДСП
+    [[noSideLeft, state.leftReplace], [noSideRight, state.rightReplace],
+     [noCeiling, state.topReplace],   [noBottom, state.bottomReplace]].forEach(([no, rep]) => {
+      if (no && rep !== 'none') fastenerCount++;
+    });
+    if (state.alignerLeft)  fastenerCount++;
+    if (state.alignerRight) fastenerCount++;
+    if (state.alignerTop)   fastenerCount++;
+    if (backWallType === 'ldsp' && state.backWall === 'ldsp') fastenerCount++; // общая стенка
+    fastenerCount += backWallSegmentCount;                              // посегментные стенки
+    sections.forEach((sec, s) => {
+      if (state.backWall !== 'ldsp') fastenerCount++;                   // планка жёсткости
+      const shelfCount = countOf(sec, 'shelf');
+      fastenerCount += shelfCount;                                      // полки
+      // полка в крайней секции без боковой стойки — встроенная
+      if (sectionMissingSideSupport(sections, s)) embedCount += shelfCount;
+      // ящики (если стоят) — сборная тумба, крепёж как одна деталь
+      if (!sectionMissingSideSupport(sections, s)) fastenerCount += countOf(sec, 'drawer');
+    });
+    const mountPrice = fastenerCount * 100 + embedCount * 300;
+
     return {
       korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2,
       fasadM2, fillM2, backWallM2, backWallType, meshPrice, basketPrice,
       edgeLengthM: edgeLengthMm / 1000,
+      mountPrice, fastenerCount, embedCount, // для будущей спецификации
     };
   },
 

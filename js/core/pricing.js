@@ -39,14 +39,17 @@ export function updatePrice(counts) {
   const type = TYPES[state.type] || TYPES['wardrobe'];
   const {
     korpusM2 = 0, fasadM2 = 0, fillM2 = 0, backWallM2 = 0, backWallType = state.backWall,
-    meshPrice = 0, basketPrice = 0, edgeLengthM = 0,
+    meshPrice = 0, basketPrice = 0, edgeLengthM = 0, mountPrice = 0,
   } = type.areas(counts);
 
   const kMat = getColor('korpus');
   const fMat = getColor('fasad');
   const nMat = getColor('fill');
 
-  const korpusPrice   = korpusM2   * kMat.pricePerM2;
+  // mountPrice — скрытые крепёж (100₽/деталь ЛДСП) и встройка (300₽/деталь без боковой опоры):
+  // отдельной строки в смете нет по заданию, суммы входят в «Корпус»; количества
+  // (fastenerCount/embedCount из wardrobe.js areas()) выйдут строками в будущей спецификации.
+  const korpusPrice   = korpusM2   * kMat.pricePerM2 + mountPrice;
   const fasadPrice    = fasadM2    * fMat.pricePerM2;
   // Сетчатые полки считаются за погонный метр (своя цена на комбинацию глубина+цвет), корзины —
   // за штуку по каталогу (комбинация ширина+глубина+высота+цвет) — не за м² по общему тарифу
