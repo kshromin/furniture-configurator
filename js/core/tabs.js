@@ -139,6 +139,9 @@ export function syncUIFromState() {
   document.querySelectorAll('#backWallGroup .opt-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.back === state.backWall);
   });
+  document.querySelectorAll('#thicknessGroup .opt-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.thick === (state.panel32 ? '32' : '16'));
+  });
   // На случай, если пресет/загруженная позиция заказа принесла несовместимую комбинацию
   // (задняя стенка + снятая стойка/крыша/дно) — блокирует кнопки и сбрасывает стенку так же,
   // как и ручное снятие галочки на вкладке «Внешнее».
@@ -324,6 +327,20 @@ export function bindFasadTab() {
 }
 
 // ---------- кнопки «Задняя стенка» ----------
+// Толщина деталей ЛДСП: 16мм / 32мм (цена ×2, кромка ×3 — см. pricing.js; геометрия — через
+// живую привязку PANEL_THICKNESS, см. state.js). Короба-замены и выравниватели не зависят.
+export function bindThickness() {
+  document.querySelectorAll('#thicknessGroup .opt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#thicknessGroup .opt-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.panel32 = btn.dataset.thick === '32';
+      buildFurniture();
+      renderSectionsList(); // толщина меняет просветы/доступные размеры в карточках секций
+    });
+  });
+}
+
 export function bindBackWall() {
   document.querySelectorAll('#backWallGroup .opt-btn').forEach(btn => {
     btn.addEventListener('click', () => {

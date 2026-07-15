@@ -1,4 +1,9 @@
-export const PANEL_THICKNESS = 16;
+// Толщина деталей ЛДСП: 16мм стандарт, 32мм — опция «в две плиты» (см. state.panel32).
+// Живая ES-привязка: все модули читают PANEL_THICKNESS в рантайме внутри функций, поэтому
+// syncPanelThickness() меняет толщину сразу во всей геометрии/расчётах без правки потребителей.
+// Короба-замены и выравниватели от неё не зависят (у них собственные размеры).
+export let PANEL_THICKNESS = 16;
+export function syncPanelThickness() { PANEL_THICKNESS = state.panel32 ? 32 : 16; }
 
 export let materials = { korpus: { producers: [] }, fasad: { producers: [] }, fill: { producers: [] }, fittings: [], meshShelf: [], presets: [] };
 export function setMaterials(m) { materials = m; }
@@ -116,6 +121,7 @@ export const state = {
   fasadProducer:  null, fasadId:  null,
   fillProducer:   null, fillId:   null,
   showDoors: true,
+  panel32: false,             // true = все детали ЛДСП 32мм (цена ×2, кромка ×3)
   backWall: 'none',           // none | ldsp | hdf
   plinthEnabled: true,
   plinthHeight: 50,

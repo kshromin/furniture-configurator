@@ -1,10 +1,11 @@
-import { state } from './state.js';
+import { state, syncPanelThickness } from './state.js';
 import { furnitureGroup, focusCameraOnFurniture } from './scene.js';
 import { TYPES } from '../types/registry.js';
 import { updatePrice } from './pricing.js';
 import { renderStaticDimensions } from './dimensions.js';
 
 export function buildFurniture() {
+  syncPanelThickness(); // толщина ЛДСП из state.panel32 (важно и при загрузке снапшотов)
   furnitureGroup.clear();
   const type = TYPES[state.type] || TYPES['wardrobe'];
   const counts = type.build();

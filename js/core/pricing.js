@@ -46,18 +46,24 @@ export function updatePrice(counts) {
   const fMat = getColor('fasad');
   const nMat = getColor('fill');
 
+  // Детали 32мм («в две плиты», state.panel32): материал ×2, кромка (толще лента) ×3.
+  // Не касается фурнитуры, сеток/корзин (готовые изделия), крепежа и коробов/выравнивателей.
+  const thickMul  = state.panel32 ? 2 : 1;
+  const kromkaMul = state.panel32 ? 3 : 1;
+
   // mountPrice — скрытые крепёж (100₽/деталь ЛДСП) и встройка (300₽/деталь без боковой опоры):
   // отдельной строки в смете нет по заданию, суммы входят в «Корпус»; количества
   // (fastenerCount/embedCount из wardrobe.js areas()) выйдут строками в будущей спецификации.
-  const korpusPrice   = korpusM2   * kMat.pricePerM2 + mountPrice;
+  const korpusPrice   = korpusM2   * kMat.pricePerM2 * thickMul + mountPrice;
+  // Фасады не умножаются: двери купе — рамочный профиль с наполнением, не плита 32мм.
   const fasadPrice    = fasadM2    * fMat.pricePerM2;
   // Сетчатые полки считаются за погонный метр (своя цена на комбинацию глубина+цвет), корзины —
   // за штуку по каталогу (комбинация ширина+глубина+высота+цвет) — не за м² по общему тарифу
   // наполнения, просто добавляем уже готовые суммы в ту же строку сметы.
-  const fillPrice     = fillM2     * nMat.pricePerM2 + meshPrice + basketPrice;
+  const fillPrice     = fillM2     * nMat.pricePerM2 * thickMul + meshPrice + basketPrice;
   // backWallType — может отличаться от state.backWall при посегментной стенке (см. wardrobe.js
   // areas()): общая стенка выключена ('none'), но конкретные сегменты по секциям — всегда ЛДСП.
-  const backWallPrice = backWallM2 * (BACK_WALL_RATE[backWallType] || 0);
+  const backWallPrice = backWallM2 * (BACK_WALL_RATE[backWallType] || 0) * thickMul;
 
   const fittingsPrice = (materials.fittings || []).reduce((sum, f) => {
     const n = f.per === 'front' ? counts.door + counts.drawer : (counts[f.per] || 0);
@@ -65,7 +71,7 @@ export function updatePrice(counts) {
   }, 0);
   // Кромка — ПВХ-лента по видимому переднему торцу ЛДСП, за погонный метр (см.
   // data/materials.json edgeBanding, длина считается в js/types/wardrobe.js areas()).
-  const kromkaPrice = edgeLengthM * (materials.edgeBanding?.pricePerM || 0);
+  const kromkaPrice = edgeLengthM * (materials.edgeBanding?.pricePerM || 0) * kromkaMul;
 
   const total = korpusPrice + fasadPrice + fillPrice + backWallPrice + fittingsPrice + kromkaPrice;
 
