@@ -13,7 +13,10 @@ export function fmt(v) { return Math.round(v).toLocaleString('ru-RU') + ' ₽'; 
 export function korpusBoxAreaM2(dividers = 0, heightOverride, skip = {}, sideHeightOverride) {
   const { width } = state;
   const height = heightOverride ?? state.height;
-  const t = PANEL_THICKNESS;
+  // База всегда 16мм: удорожание за 32мм (общий режим ×2 в pricing, «Детали 32мм» — добавка
+  // extraM2 в wardrobe.js) идёт отдельными множителями. Если брать живой PANEL_THICKNESS,
+  // при 32мм t-члены формулы удвоились бы САМИ + ещё раз множителем — двойной счёт (×4).
+  const t = 16;
   const sideHeight = sideHeightOverride ?? (height - 2 * t);
   // top + bottom + sides + dividers (без задней стенки — она считается отдельно)
   const areaMm2 =

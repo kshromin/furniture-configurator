@@ -1,4 +1,4 @@
-import { state, PANEL_THICKNESS } from '../core/state.js';
+import { state, PANEL_THICKNESS, detailT } from '../core/state.js';
 import { DOOR_DEPTH_ZONE, DOOR_OVERLAP, DOOR_MIN_W, DOOR_MAX_W, MESH_DEPTHS, VALET_LENGTHS, BASKET_WIDTHS, BASKET_DEPTHS_BY_WIDTH } from './wardrobe-constants.js';
 
 // Хелперы размеров/цены: сколько места реально доступно под тот или иной элемент наполнения
@@ -40,21 +40,22 @@ export function effectiveDoorSpan() {
           leftReplace, rightReplace, topReplace, bottomReplace,
           leftBoxW, rightBoxW, topBoxH, bottomBoxH,
           alignerLeft, alignerLeftW, alignerRight, alignerRightW, alignerTop, alignerTopH } = state;
-  const t = PANEL_THICKNESS;
+  // Толщина каждой стороны своя: панель может быть помечена как 32мм (см. detailT в state.js).
+  const tL = detailT('left'), tR = detailT('right'), tT = detailT('top'), tB = detailT('bottom');
 
-  function off(noPanel, replace, boxSize, alignerOn, alignerSize) {
+  function off(noPanel, replace, boxSize, alignerOn, alignerSize, tSide) {
     let base;
-    if (!noPanel)                   base = t;     // панель на месте
-    else if (replace === 'planka')  base = t;     // планка = та же толщина
+    if (!noPanel)                   base = tSide; // панель на месте
+    else if (replace === 'planka')  base = tSide; // планка = та же толщина
     else if (replace === 'box')     base = boxSize;
     else                             base = 0;     // ничего
     return base + (alignerOn ? alignerSize : 0);
   }
 
-  const leftOff   = off(noSideLeft,  leftReplace,   leftBoxW,   alignerLeft,  alignerLeftW);
-  const rightOff  = off(noSideRight, rightReplace,  rightBoxW,  alignerRight, alignerRightW);
-  const topOff    = off(noCeiling,   topReplace,    topBoxH,    alignerTop,   alignerTopH);
-  const bottomOff = off(noBottom,    bottomReplace, bottomBoxH, false,        0);
+  const leftOff   = off(noSideLeft,  leftReplace,   leftBoxW,   alignerLeft,  alignerLeftW, tL);
+  const rightOff  = off(noSideRight, rightReplace,  rightBoxW,  alignerRight, alignerRightW, tR);
+  const topOff    = off(noCeiling,   topReplace,    topBoxH,    alignerTop,   alignerTopH,  tT);
+  const bottomOff = off(noBottom,    bottomReplace, bottomBoxH, false,        0,            tB);
 
   // Стойки/задняя стенка/перегородки/выравниватели/наполнение идут во всю глубину короба, а
   // планка/короб — только декоративная накладка в передней дверной зоне (см. drawSideElem).
@@ -62,10 +63,10 @@ export function effectiveDoorSpan() {
   // замену — иначе они не дотягиваются до стены, хотя должны стоять вплотную к ней независимо
   // от замены. Дверной пролёт (spanW/leftOff/rightOff/topOff/bottomOff) — отдельно, без изменений
   // (плаka намеренно не меняет ширину дверного проёма).
-  const stojkaTopOff    = noCeiling  ? 0 : t + (alignerTop   ? alignerTopH   : 0);
-  const stojkaBottomOff = noBottom   ? 0 : t;
-  const stojkaLeftOff   = noSideLeft  ? 0 : t + (alignerLeft  ? alignerLeftW  : 0);
-  const stojkaRightOff  = noSideRight ? 0 : t + (alignerRight ? alignerRightW : 0);
+  const stojkaTopOff    = noCeiling  ? 0 : tT + (alignerTop   ? alignerTopH   : 0);
+  const stojkaBottomOff = noBottom   ? 0 : tB;
+  const stojkaLeftOff   = noSideLeft  ? 0 : tL + (alignerLeft  ? alignerLeftW  : 0);
+  const stojkaRightOff  = noSideRight ? 0 : tR + (alignerRight ? alignerRightW : 0);
 
   return {
     spanW:     width - leftOff - rightOff,
@@ -101,7 +102,7 @@ export function rebalanceSections(editedIndex = null) {
   const sections = state.sections;
   const n = sections.length;
   if (n === 0) return;
-  const t = PANEL_THICKNESS;
+  const t = detailT('dividers'); // перегородки могут быть помечены как 32мм
   const { innerSpanW } = effectiveDoorSpan();
   const available = innerSpanW - (n - 1) * t;
 
@@ -152,7 +153,7 @@ export function rebalanceSections(editedIndex = null) {
 // MIN_SECTION_WIDTH.
 export function canAddSection() {
   const sections = state.sections;
-  const t = PANEL_THICKNESS;
+  const t = detailT('dividers');
   const { innerSpanW } = effectiveDoorSpan();
   const newN = sections.length + 1;
   const availableNew = innerSpanW - (newN - 1) * t;

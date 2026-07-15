@@ -142,6 +142,7 @@ export function syncUIFromState() {
   document.querySelectorAll('#thicknessGroup .opt-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.thick === (state.panel32 ? '32' : '16'));
   });
+  syncThick32Details();
   // На случай, если пресет/загруженная позиция заказа принесла несовместимую комбинацию
   // (задняя стенка + снятая стойка/крыша/дно) — блокирует кнопки и сбрасывает стенку так же,
   // как и ручное снятие галочки на вкладке «Внешнее».
@@ -329,14 +330,34 @@ export function bindFasadTab() {
 // ---------- кнопки «Задняя стенка» ----------
 // Толщина деталей ЛДСП: 16мм / 32мм (цена ×2, кромка ×3 — см. pricing.js; геометрия — через
 // живую привязку PANEL_THICKNESS, см. state.js). Короба-замены и выравниватели не зависят.
+function syncThick32Details() {
+  // При общем режиме 32мм точечные галочки бессмысленны — блокируем и приглушаем.
+  const disabled = state.panel32;
+  document.querySelectorAll('.thick32-cb').forEach(cb => {
+    cb.disabled = disabled;
+    cb.closest('label').style.opacity = disabled ? '0.4' : '';
+    cb.checked = !!state.thick32?.[cb.dataset.key];
+  });
+}
+
 export function bindThickness() {
   document.querySelectorAll('#thicknessGroup .opt-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('#thicknessGroup .opt-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.panel32 = btn.dataset.thick === '32';
+      syncThick32Details();
       buildFurniture();
       renderSectionsList(); // толщина меняет просветы/доступные размеры в карточках секций
+    });
+  });
+
+  document.querySelectorAll('.thick32-cb').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (!state.thick32) state.thick32 = {};
+      state.thick32[cb.dataset.key] = cb.checked;
+      buildFurniture();
+      renderSectionsList();
     });
   });
 }

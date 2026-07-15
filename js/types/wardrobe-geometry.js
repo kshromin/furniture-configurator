@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { state, PANEL_THICKNESS } from '../core/state.js';
+import { state, PANEL_THICKNESS, detailT } from '../core/state.js';
 import { addPanel, furnitureGroup } from '../core/scene.js';
 import { getColor } from '../core/materials.js';
 import { DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_SHELF_GAP, MESH_DEPTHS, VALET_LENGTHS, BASKET_WIDTHS, BASKET_DEPTHS_BY_WIDTH } from './wardrobe-constants.js';
@@ -216,10 +216,12 @@ export function buildWardrobeBox() {
   const stojkaH = height - stojkaTopOff - stojkaBottomOff;
   const stojkaCenterY = y0 + stojkaBottomOff + stojkaH / 2;
 
-  if (!noBottom)    addPanel(width, t, depth, kColor, [0, y0 + t / 2, 0]);
-  if (!noCeiling)   addPanel(width, t, depth, kColor, [0, y0 + height - alTopH - t / 2, 0]);
-  if (!noSideLeft)  addPanel(t, stojkaH, depth, kColor, [-width / 2 + alLeftW + t / 2, stojkaCenterY, 0]);
-  if (!noSideRight) addPanel(t, stojkaH, depth, kColor, [width / 2 - alRightW - t / 2, stojkaCenterY, 0]);
+  // Толщина каждой корпусной детали своя — 16 или 32мм (галочки «Детали 32 мм» / общий режим)
+  const tB = detailT('bottom'), tT = detailT('top'), tL = detailT('left'), tR = detailT('right');
+  if (!noBottom)    addPanel(width, tB, depth, kColor, [0, y0 + tB / 2, 0]);
+  if (!noCeiling)   addPanel(width, tT, depth, kColor, [0, y0 + height - alTopH - tT / 2, 0]);
+  if (!noSideLeft)  addPanel(tL, stojkaH, depth, kColor, [-width / 2 + alLeftW + tL / 2, stojkaCenterY, 0]);
+  if (!noSideRight) addPanel(tR, stojkaH, depth, kColor, [width / 2 - alRightW - tR / 2, stojkaCenterY, 0]);
   if (state.alignerLeft)  addPanel(alLeftW,  stojkaH, t, kColor, [-width / 2 + alLeftW / 2, stojkaCenterY, alignZ]);
   if (state.alignerRight) addPanel(alRightW, stojkaH, t, kColor, [width / 2 - alRightW / 2, stojkaCenterY, alignZ]);
   if (state.alignerTop)   addPanel(width, alTopH, t, kColor, [0, y0 + height - alTopH / 2, alignZ]);
@@ -248,8 +250,9 @@ export function buildWardrobeBox() {
   // от innerSpanW (реальная ширина до стены), а не spanW (дверной пролёт) — наполнение должно
   // доходить до стены независимо от планки/короба на стойке.
   const sections = state.sections;
+  const tDiv = detailT('dividers'); // перегородки между секциями (та же толщина у всех)
   {
-    const available = innerSpanW - (sections.length - 1) * t;
+    const available = innerSpanW - (sections.length - 1) * tDiv;
     const sum = sections.reduce((s, sec) => s + sec.width, 0);
     if (Math.abs(sum - available) > 0.5) rebalanceSections();
   }
@@ -261,8 +264,8 @@ export function buildWardrobeBox() {
       sectionCenters.push(cursorX + sec.width / 2);
       cursorX += sec.width;
       if (i < sections.length - 1) {
-        addPanel(t, stojkaH, innerDepth, nColor, [cursorX + t / 2, stojkaCenterY, innerZ]);
-        cursorX += t;
+        addPanel(tDiv, stojkaH, innerDepth, nColor, [cursorX + tDiv / 2, stojkaCenterY, innerZ]);
+        cursorX += tDiv;
       }
     });
   }
@@ -272,23 +275,24 @@ export function buildWardrobeBox() {
   const elemZ = depth / 2 - DOOR_DEPTH_ZONE / 2;
   const totalH = state.height;
 
-  function drawSideElem(noSide, replace, boxW, xCenter) {
+  // Планка-замена — «та же толщина, что и панель этой стороны» (16/32, см. detailT).
+  function drawSideElem(noSide, replace, boxW, xCenter, tSide) {
     if (!noSide) return;
     if (replace === 'planka')
-      addPanel(t, totalH, DOOR_DEPTH_ZONE, kColor, [xCenter, totalH / 2, elemZ]);
+      addPanel(tSide, totalH, DOOR_DEPTH_ZONE, kColor, [xCenter, totalH / 2, elemZ]);
     else if (replace === 'box')
       addPanel(boxW, totalH, DOOR_DEPTH_ZONE, kColor, [xCenter, totalH / 2, elemZ]);
   }
-  drawSideElem(state.noSideLeft,  state.leftReplace,  state.leftBoxW,  -width / 2 + (state.leftReplace === 'box' ? state.leftBoxW : t) / 2);
-  drawSideElem(state.noSideRight, state.rightReplace, state.rightBoxW,  width / 2 - (state.rightReplace === 'box' ? state.rightBoxW : t) / 2);
+  drawSideElem(state.noSideLeft,  state.leftReplace,  state.leftBoxW,  -width / 2 + (state.leftReplace === 'box' ? state.leftBoxW : tL) / 2, tL);
+  drawSideElem(state.noSideRight, state.rightReplace, state.rightBoxW,  width / 2 - (state.rightReplace === 'box' ? state.rightBoxW : tR) / 2, tR);
 
   if (state.noCeiling) {
-    const h = state.topReplace === 'box' ? state.topBoxH : t;
+    const h = state.topReplace === 'box' ? state.topBoxH : tT;
     if (state.topReplace !== 'none')
       addPanel(width, h, DOOR_DEPTH_ZONE, kColor, [0, totalH - h / 2, elemZ]);
   }
   if (state.noBottom) {
-    const h = state.bottomReplace === 'box' ? state.bottomBoxH : t;
+    const h = state.bottomReplace === 'box' ? state.bottomBoxH : tB;
     if (state.bottomReplace !== 'none')
       addPanel(width, h, DOOR_DEPTH_ZONE, kColor, [0, h / 2, elemZ]);
   }
@@ -612,7 +616,10 @@ export function buildWardrobeBox() {
     sec.items.forEach(item => {
       switch (item.type) {
         case 'shelf': {
-          const mesh = addPanel(sw, t, innerDepth, nColor, [cx, y0 + item.y, innerZ]);
+          // Полка может быть индивидуально помечена 32мм (item.thick32 — тумблер в инфопанели
+          // при выделении полки в 3D); при общем режиме 32 t и так 32.
+          const shelfT = item.thick32 ? 32 : t;
+          const mesh = addPanel(sw, shelfT, innerDepth, nColor, [cx, y0 + item.y, innerZ]);
           tagItemMesh(mesh, s, item);
           totalShelves += 1;
           break;

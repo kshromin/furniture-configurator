@@ -53,9 +53,11 @@ function defaultPinnedShelfY(fillBottom, fillTop) {
   return y;
 }
 
-export function itemBandHeight(type, sec) {
+// item — опционально: полка может быть индивидуально 32мм (item.thick32); для кандидатов
+// на добавление (item ещё нет) берётся обычная толщина.
+export function itemBandHeight(type, sec, item = null) {
   switch (type) {
-    case 'shelf':  return PANEL_THICKNESS;
+    case 'shelf':  return item?.thick32 ? 32 : PANEL_THICKNESS;
     case 'drawer': return sec.drawerHeight + DRAWER_GAP;
     case 'mesh':   return MESH_THICKNESS + 10;
     case 'basket': return sec.basketHeight + BASKET_STACK_GAP;
@@ -67,7 +69,7 @@ export function itemBandHeight(type, sec) {
 // item.y хранится как Y ЦЕНТРА полосы коллизии для всех типов (в т.ч. корзины, хотя её
 // геометрия рисуется от нижнего края — конвертация в addBasket на месте вызова).
 export function itemRange(item, sec) {
-  const h = itemBandHeight(item.type, sec);
+  const h = itemBandHeight(item.type, sec, item);
   return [item.y - h / 2, item.y + h / 2];
 }
 
@@ -98,9 +100,9 @@ export function itemBands(sec, excludeId) {
 // Полоса коллизии включает служебные зазоры (4мм у ящика, 10 у сетки, 20 у корзины, 40мм-полоса
 // у штанги ⌀25) — для расстановки это правильно, но размерные линии должны показывать реальное
 // используемое расстояние между поверхностями элементов, а не между полосами коллизии.
-export function itemPhysicalHeight(type, sec) {
+export function itemPhysicalHeight(type, sec, item = null) {
   switch (type) {
-    case 'shelf':  return PANEL_THICKNESS;
+    case 'shelf':  return item?.thick32 ? 32 : PANEL_THICKNESS;
     case 'drawer': return sec.drawerHeight;
     case 'mesh':   return MESH_THICKNESS;
     case 'basket': return sec.basketHeight;
@@ -113,7 +115,7 @@ export function itemPhysicalHeight(type, sec) {
 // Вешало оставлено полосой коллизии: его физический низ и есть граница полезного пространства.
 export function itemPhysicalBands(sec, excludeId) {
   const bands = sec.items.filter(it => it.id !== excludeId).map(it => {
-    const h = itemPhysicalHeight(it.type, sec);
+    const h = itemPhysicalHeight(it.type, sec, it);
     return { id: it.id, lo: it.y - h / 2, hi: it.y + h / 2 };
   });
   if (sec.valet) {
@@ -129,8 +131,8 @@ export function itemPhysicalBands(sec, excludeId) {
 // красным), и при поиске свободного места. Верхняя полка теперь ОБЫЧНЫЙ item (просто pinned —
 // защищена от удаления в UI), отдельной границы для неё больше нет — валидный диапазон для
 // любого элемента, включая её саму, это весь [fillBottom, fillTop].
-export function checkOverlap(candidateY, type, excludeId, sec, fillBottom, fillTop) {
-  const h = itemBandHeight(type, sec);
+export function checkOverlap(candidateY, type, excludeId, sec, fillBottom, fillTop, item = null) {
+  const h = itemBandHeight(type, sec, item);
   const lo = candidateY - h / 2, hi = candidateY + h / 2;
   if (lo < fillBottom || hi > fillTop) return true;
   return itemBands(sec, excludeId).some(b => lo < b.hi && hi > b.lo);

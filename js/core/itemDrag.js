@@ -94,7 +94,23 @@ function describeActive() {
   if (kind === 'valet') return { title: 'Торцевое вешало', lines: [`Длина: ${sec.valetLength} мм`] };
   switch (itemType) {
     case 'shelf':
-      return { title: item.pinned ? 'Полка (опорная)' : 'Полка', lines: item.pinned ? ['С планкой жёсткости снизу'] : [] };
+      return {
+        title: item.pinned ? 'Полка (опорная)' : 'Полка',
+        lines: [
+          ...(item.pinned ? ['С планкой жёсткости снизу'] : []),
+          `Толщина: ${item.thick32 ? 32 : 16} мм`,
+        ],
+        // Тумблер толщины прямо в инфопанели — «по выделению», как просил пользователь.
+        actionLabel: item.thick32 ? 'Сделать 16 мм' : 'Сделать 32 мм',
+        action: () => {
+          item.thick32 = !item.thick32;
+          buildFurniture();
+          // пересборка пересоздала меши — переподсветим выбранную полку на новых
+          active.meshes = lastBuildItemMeshes.get(active.sectionIndex + '|' + item.id) || [];
+          setHighlight(active.meshes, SELECT_EMISSIVE);
+          showInfoPanel();
+        },
+      };
     case 'rod':
       return { title: 'Штанга', lines: ['Хром, ⌀25 мм'] };
     case 'drawer':
@@ -115,8 +131,16 @@ function describeActive() {
 }
 
 function showInfoPanel() {
-  const { title, lines } = describeActive();
+  const { title, lines, actionLabel, action } = describeActive();
   infoPanel.innerHTML = `<div class="drag-info-panel-title">${title}</div>${lines.map(l => `<div>${l}</div>`).join('')}`;
+  if (actionLabel && action) {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn';
+    btn.style.cssText = 'margin-top:6px;width:100%';
+    btn.textContent = actionLabel;
+    btn.addEventListener('click', e => { e.stopPropagation(); action(); });
+    infoPanel.appendChild(btn);
+  }
   infoPanel.classList.add('visible');
 }
 
@@ -154,7 +178,7 @@ function updateEditInputs() {
   const { sec, item, itemType, sectionIndex } = active;
   // Физические границы (поверхность дна/низ крыши) — те же, что у статичных размерных линий.
   const { fillBottom, fillTop } = sectionVerticalBoundsPhysical();
-  const h = itemPhysicalHeight(itemType, sec); // физические края — согласовано с neighborGaps
+  const h = itemPhysicalHeight(itemType, sec, item); // физические края — согласовано с neighborGaps
   const y = currentItemY();
   const lo = y - h / 2, hi = y + h / 2;
   const { belowHi, aboveLo } = neighborGaps(sec, item.id, lo, hi, fillBottom, fillTop);
@@ -189,7 +213,7 @@ function commitGapEdit(fromBelow) {
   const { fillBottom, fillTop } = sectionVerticalBounds();
   const h = active.h;
   const newY = fromBelow ? active.belowHi + val + h / 2 : active.aboveLo - val - h / 2;
-  if (checkOverlap(newY, itemType, item.id, sec, fillBottom, fillTop)) {
+  if (checkOverlap(newY, itemType, item.id, sec, fillBottom, fillTop, item)) {
     showToast('Нельзя поставить сюда — пересечение с другим элементом.');
     updateEditInputs();
     return;
@@ -299,7 +323,7 @@ function onPointerMove(e) {
     dragState.meshes.forEach((m, i) => { m.position.y = dragState.originalY[i] + deltaY; });
     const candidateY = dragState.startItemY + deltaY;
     dragState.candidateY = candidateY;
-    const overlapping = checkOverlap(candidateY, dragState.itemType, dragState.item.id, dragState.sec, dragState.fillBottom, dragState.fillTop);
+    const overlapping = checkOverlap(candidateY, dragState.itemType, dragState.item.id, dragState.sec, dragState.fillBottom, dragState.fillTop, dragState.item);
     if (overlapping !== dragState.overlapping) {
       setHighlight(dragState.meshes, overlapping ? RED_EMISSIVE : SELECT_EMISSIVE);
       dragState.overlapping = overlapping;

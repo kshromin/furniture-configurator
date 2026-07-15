@@ -64,6 +64,27 @@ export default {
       (state.alignerRight ? (state.alignerRightW * stojkaH) / 1e6 : 0) +
       (state.alignerTop   ? (width * state.alignerTopH) / 1e6 : 0);
 
+    // «Детали 32 мм» точечно (галочки в Опциях + item.thick32 у полок), когда общий режим 16:
+    // материал детали ×2 → её площадь добавляется ещё раз; кромка ×3 → её длина ещё дважды.
+    // При общем panel32 те же коэффициенты применяет pricing.js ко ВСЕМУ сразу — здесь ноль,
+    // иначе был бы двойной счёт. Площади частей — те же формулы, что и в базовом расчёте.
+    let extraKorpusM2 = 0, extraFillM2 = 0, extraEdgeMm = 0;
+    if (!state.panel32) {
+      const th = state.thick32 || {};
+      const B = 16; // базовая толщина формулы площади короба (см. korpusBoxAreaM2)
+      if (th.bottom && !noBottom)   { extraKorpusM2 += (width * B) / 1e6;    extraEdgeMm += 2 * (width + 2 * depth); }
+      if (th.top && !noCeiling)     { extraKorpusM2 += (width * B) / 1e6;    extraEdgeMm += 2 * (width + 2 * depth); }
+      if (th.left && !noSideLeft)   { extraKorpusM2 += (B * stojkaH) / 1e6;  extraEdgeMm += 2 * stojkaH; }
+      if (th.right && !noSideRight) { extraKorpusM2 += (B * stojkaH) / 1e6;  extraEdgeMm += 2 * stojkaH; }
+      if (th.dividers)              { extraKorpusM2 += ((sections.length - 1) * B * stojkaH) / 1e6; extraEdgeMm += 2 * (sections.length - 1) * stojkaH; }
+      if (th.plinth && plinthH > 0)   extraKorpusM2 += (width * (depth - 40)) / 1e6;
+      // планка-замена наследует толщину своей стороны (короба не участвуют — по заданию)
+      if (th.left  && state.noSideLeft  && state.leftReplace  === 'planka') { extraKorpusM2 += leftBoxM2;   extraEdgeMm += 2 * 2 * H; }
+      if (th.right && state.noSideRight && state.rightReplace === 'planka') { extraKorpusM2 += rightBoxM2;  extraEdgeMm += 2 * 2 * H; }
+      if (th.top   && state.noCeiling   && state.topReplace   === 'planka') { extraKorpusM2 += topBoxM2;    extraEdgeMm += 2 * 2 * width; }
+      if (th.bottom && state.noBottom   && state.bottomReplace === 'planka'){ extraKorpusM2 += bottomBoxM2; extraEdgeMm += 2 * 2 * width; }
+    }
+
     function meshPricePerM(depth, color) {
       const entry = (materials.meshShelf || []).find(m => m.depth === depth && m.color === color);
       return entry ? entry.pricePerM : 0;
@@ -144,9 +165,14 @@ export default {
       // _wardrobe-shared.js) плюс планка жёсткости (если задняя стенка не ЛДСП, висит от
       // структурной полки).
       if (state.backWall !== 'ldsp') fillM2 += (sw * STIFFENER_HEIGHT) / 1e6; // жёсткость — вертикальная пластина, площадь ширина×высота
-      const shelfCount = countOf(sec, 'shelf');
-      fillM2 += (shelfCount * sw * innerDepth) / 1e6;
-      edgeLengthMm += shelfCount * sw; // передний торец каждой полки — на всю ширину секции
+      sec.items.filter(it => it.type === 'shelf').forEach(it => {
+        fillM2 += (sw * innerDepth) / 1e6;
+        edgeLengthMm += sw; // передний торец полки — на всю ширину секции
+        if (!state.panel32 && it.thick32) { // полка 32мм: материал ×2, кромка ×3
+          extraFillM2 += (sw * innerDepth) / 1e6;
+          extraEdgeMm += 2 * sw;
+        }
+      });
     });
 
     // Посегментная задняя стенка (см. sec.backWallSegments) — альтернатива общей на весь шкаф,
@@ -203,9 +229,9 @@ export default {
     const mountPrice = fastenerCount * 100 + embedCount * 300;
 
     return {
-      korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2,
-      fasadM2, fillM2, backWallM2, backWallType, meshPrice, basketPrice,
-      edgeLengthM: edgeLengthMm / 1000,
+      korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2 + extraKorpusM2,
+      fasadM2, fillM2: fillM2 + extraFillM2, backWallM2, backWallType, meshPrice, basketPrice,
+      edgeLengthM: (edgeLengthMm + extraEdgeMm) / 1000,
       mountPrice, fastenerCount, embedCount, // для будущей спецификации
     };
   },
