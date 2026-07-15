@@ -462,6 +462,7 @@
       </div>
       <button id="saveProjectBtn" class="order-btn" style="margin-top:12px">Сохранить в проект</button>
       <button id="saveOrderBtn" class="order-btn order-btn-accent" style="margin-top:8px">Добавить в заказ</button>
+      <button id="newKitBtn" class="btn-secondary" style="width:100%;margin-top:8px;padding:10px;border-radius:8px">Начать новый комплект</button>
     </div>
 
     <!-- 7б. Проекты — сохранённые комплекты прорисовок (kind='project') -->
@@ -571,6 +572,9 @@
       <div class="field" id="orderAddressField" style="display:none">
         <label>Адрес доставки/монтажа</label>
         <input type="text" id="orderAddress" placeholder="Город, улица, дом, квартира">
+      </div>
+      <div class="field checkbox-field" id="saveAsNewField" style="display:none">
+        <label><input type="checkbox" id="saveAsNew"> Сохранить как новый (не обновлять открытый)</label>
       </div>
       <div id="orderResult" class="order-result"></div>
       <div class="order-actions">

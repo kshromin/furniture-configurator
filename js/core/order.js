@@ -200,12 +200,31 @@ export function orderSummaryFull() {
   return lines.join('\n') + `\n\nИтого по комплекту: ${fmt(grand)}`;
 }
 
+// Сброс рабочего комплекта — начать с чистого листа (новый клиент/новый проект).
+export function startNewKit() {
+  if (orderItems.length > 0 && !itemsSavedToProject) {
+    if (!window.confirm('Текущие прорисовки не сохранены и будут утеряны. Начать новый комплект?')) return;
+  }
+  orderItems = [];
+  editingItemId = null;
+  editingProjectId = null;
+  editingProjectClient = null;
+  editingProjectTitle = '';
+  itemsSavedToProject = false;
+  document.getElementById('addItemBtn').textContent = '+ Добавить в прорисовки';
+  renderOrderCards();
+  showToast('Новый комплект — прорисовки очищены.');
+}
+
 function openSaveModal(kind) {
   modalKind = kind;
   const overlay = document.getElementById('orderOverlay');
   document.getElementById('orderModalTitle').textContent =
     kind === 'order' ? 'Добавить в заказ' : 'Сохранить в проект';
   document.getElementById('orderAddressField').style.display = kind === 'order' ? 'block' : 'none';
+  // Если открыт сохранённый комплект — даём выбор: обновить его или сохранить как новый
+  document.getElementById('saveAsNewField').style.display = editingProjectId !== null ? 'block' : 'none';
+  document.getElementById('saveAsNew').checked = false;
   document.getElementById('orderSummary').textContent = orderSummaryFull();
   document.getElementById('orderResult').textContent = '';
   document.getElementById('orderTitle').value   = editingProjectTitle || '';
@@ -219,6 +238,7 @@ export function bindOrderForm() {
   const overlay = document.getElementById('orderOverlay');
   document.getElementById('saveProjectBtn').addEventListener('click', () => openSaveModal('project'));
   document.getElementById('saveOrderBtn').addEventListener('click', () => openSaveModal('order'));
+  document.getElementById('newKitBtn').addEventListener('click', startNewKit);
   document.getElementById('orderCancel').addEventListener('click', () => overlay.classList.remove('visible'));
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('visible'); });
 
@@ -258,8 +278,9 @@ export function bindOrderForm() {
       updated_at: new Date().toISOString(),
     };
 
+    const saveAsNew = document.getElementById('saveAsNew').checked;
     let error;
-    if (editingProjectId !== null) {
+    if (editingProjectId !== null && !saveAsNew) {
       ({ error } = await supabase.from('projects').update(row).eq('id', editingProjectId));
     } else {
       let data;
