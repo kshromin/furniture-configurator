@@ -20,6 +20,7 @@ let editingItemId = null; // id локально редактируемой пр
 // именно эту строку projects, а не создают новую.
 let editingProjectId = null;
 let editingProjectClient = null; // { name, phone, address }
+let editingProjectTitle = '';
 let itemsSavedToProject = false; // текущий комплект уже сохранён (для предупреждения при открытии другого)
 
 let modalKind = 'project'; // какой режим открыт в модалке: project | order
@@ -89,6 +90,7 @@ export function openProject(project) {
   editingProjectClient = {
     name: project.client_name || '', phone: project.client_phone || '', address: project.client_address || '',
   };
+  editingProjectTitle = project.title || '';
   orderItems = (project.items || []).map(it => ({ ...it, id: it.id || Date.now() + Math.random() }));
   itemsSavedToProject = true;
   editingItemId = null;
@@ -206,6 +208,7 @@ function openSaveModal(kind) {
   document.getElementById('orderAddressField').style.display = kind === 'order' ? 'block' : 'none';
   document.getElementById('orderSummary').textContent = orderSummaryFull();
   document.getElementById('orderResult').textContent = '';
+  document.getElementById('orderTitle').value   = editingProjectTitle || '';
   document.getElementById('orderName').value    = editingProjectClient?.name    || '';
   document.getElementById('orderPhone').value   = editingProjectClient?.phone   || '';
   document.getElementById('orderAddress').value = editingProjectClient?.address || '';
@@ -220,6 +223,7 @@ export function bindOrderForm() {
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('visible'); });
 
   document.getElementById('orderSubmit').addEventListener('click', async () => {
+    const title   = document.getElementById('orderTitle').value.trim();
     const name    = document.getElementById('orderName').value.trim();
     const phone   = document.getElementById('orderPhone').value.trim();
     const address = document.getElementById('orderAddress').value.trim();
@@ -228,6 +232,9 @@ export function bindOrderForm() {
     if (!phone) { result.style.color = 'red'; result.textContent = 'Укажите телефон'; return; }
     if (modalKind === 'order' && !address) {
       result.style.color = 'red'; result.textContent = 'Для заказа укажите адрес'; return;
+    }
+    if (modalKind === 'order' && !title) {
+      result.style.color = 'red'; result.textContent = 'Для заказа укажите название'; return;
     }
     if (!auth.session) {
       result.style.color = 'red';
@@ -244,6 +251,7 @@ export function bindOrderForm() {
     const total = items.reduce((s, it) => s + it.total, 0);
     const row = {
       kind: modalKind,
+      title,
       client_name: name, client_phone: phone, client_address: address,
       items: items.map(({ id, ...rest }) => rest), // локальные id не сохраняем
       total,
@@ -271,6 +279,7 @@ export function bindOrderForm() {
     }
 
     editingProjectClient = { name, phone, address };
+    editingProjectTitle = title;
     itemsSavedToProject = true;
     result.style.color = 'green';
     result.textContent = modalKind === 'order' ? 'Заказ сохранён.' : 'Проект сохранён.';

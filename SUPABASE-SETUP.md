@@ -351,3 +351,34 @@ create trigger projects_assign_code
   before insert on public.projects
   for each row execute function public.assign_project_code();
 ```
+
+## 12. Формат кода проекта с датой + название заказа (сессия 23)
+
+Код проекта вместо `2-3` теперь `260714_2_3` (дата создания ГГММДД + номер сотрудника +
+порядковый номер проекта сотрудника) — дата и создатель зашиты в код. Плюс поле «Название».
+
+Выполнить в **SQL Editor**:
+
+```sql
+alter table public.projects add column if not exists title text not null default '';
+
+create or replace function public.assign_project_code()
+returns trigger
+language plpgsql
+security definer
+as $$
+declare
+  mgr_no int;
+  proj_no int;
+begin
+  update public.profiles
+     set next_project_no = next_project_no + 1
+   where id = new.user_id
+   returning manager_no, next_project_no - 1 into mgr_no, proj_no;
+  new.project_code := to_char(now(), 'YYMMDD') || '_' || mgr_no || '_' || proj_no;
+  return new;
+end;
+$$;
+```
+
+Старые коды (`2-3`) не переписываются — только новые сохранения получают новый формат.
