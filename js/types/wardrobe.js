@@ -77,7 +77,6 @@ export default {
       if (th.left && !noSideLeft)   { extraKorpusM2 += (B * stojkaH) / 1e6;  extraEdgeMm += 2 * stojkaH; }
       if (th.right && !noSideRight) { extraKorpusM2 += (B * stojkaH) / 1e6;  extraEdgeMm += 2 * stojkaH; }
       if (th.dividers)              { extraKorpusM2 += ((sections.length - 1) * B * stojkaH) / 1e6; extraEdgeMm += 2 * (sections.length - 1) * stojkaH; }
-      if (th.plinth && plinthH > 0)   extraKorpusM2 += (width * (depth - 40)) / 1e6;
       // планка-замена наследует толщину своей стороны (короба не участвуют — по заданию)
       if (th.left  && state.noSideLeft  && state.leftReplace  === 'planka') { extraKorpusM2 += leftBoxM2;   extraEdgeMm += 2 * 2 * H; }
       if (th.right && state.noSideRight && state.rightReplace === 'planka') { extraKorpusM2 += rightBoxM2;  extraEdgeMm += 2 * 2 * H; }

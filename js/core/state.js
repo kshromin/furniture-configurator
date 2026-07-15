@@ -7,8 +7,8 @@ export function syncPanelThickness() { PANEL_THICKNESS = state.panel32 ? 32 : 16
 
 // Толщина конкретной корпусной детали: 32мм, если включён общий режим ИЛИ помечена эта деталь
 // (state.thick32, галочки «Детали 32 мм» в Опциях). Ключи: left/right (стойки), top (крыша),
-// bottom (дно), dividers (перегородки), plinth (цоколь). Полки — свой флаг на элементе
-// (item.thick32, переключается по выделению полки в 3D).
+// bottom (дно), dividers (перегородки). Цоколь толщину не меняет (не панель ЛДСП в этом смысле).
+// Полки — свой флаг на элементе (item.thick32, переключается по выделению полки в 3D).
 export function detailT(key) {
   return (state.panel32 || state.thick32?.[key]) ? 32 : 16;
 }
@@ -130,7 +130,7 @@ export const state = {
   fillProducer:   null, fillId:   null,
   showDoors: true,
   panel32: false,             // true = все детали ЛДСП 32мм (цена ×2, кромка ×3)
-  thick32: { left: false, right: false, top: false, bottom: false, dividers: false, plinth: false },
+  thick32: { left: false, right: false, top: false, bottom: false, dividers: false },
   backWall: 'none',           // none | ldsp | hdf
   plinthEnabled: true,
   plinthHeight: 50,

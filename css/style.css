@@ -97,7 +97,7 @@ html, body {
   pointer-events: none;
   z-index: 5;
 }
-.drag-info-panel.visible { display: block; }
+.drag-info-panel.visible { display: block; pointer-events: auto; }
 .drag-info-panel-title { font-weight: 700; color: #222; margin-bottom: 3px; font-size: 13px; }
 
 /* ── Sidebar (иконки вкладок) ── */

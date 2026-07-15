@@ -330,13 +330,33 @@ export function bindFasadTab() {
 // ---------- кнопки «Задняя стенка» ----------
 // Толщина деталей ЛДСП: 16мм / 32мм (цена ×2, кромка ×3 — см. pricing.js; геометрия — через
 // живую привязку PANEL_THICKNESS, см. state.js). Короба-замены и выравниватели не зависят.
+// Есть ли у стороны реальная ЛДСП-деталь (или планка, наследующая её толщину — см. wardrobe.js
+// areas()), которой есть смысл быть 32мм: короб — свой отдельный размер, не участвует в задании,
+// «Ничего» — там вообще ничего нет. left/right/top/bottom — единственные ключи с этой развилкой,
+// у dividers (перегородки) её нет — перегородка есть всегда.
+const THICK32_SIDE = {
+  left:   ['noSideLeft',  'leftReplace'],
+  right:  ['noSideRight', 'rightReplace'],
+  top:    ['noCeiling',   'topReplace'],
+  bottom: ['noBottom',    'bottomReplace'],
+};
+function thick32SideEligible(key) {
+  const pair = THICK32_SIDE[key];
+  if (!pair) return true; // dividers
+  const [noKey, replaceKey] = pair;
+  return !state[noKey] || state[replaceKey] === 'planka';
+}
+
 function syncThick32Details() {
   // При общем режиме 32мм точечные галочки бессмысленны — блокируем и приглушаем.
-  const disabled = state.panel32;
+  const panelMode = state.panel32;
   document.querySelectorAll('.thick32-cb').forEach(cb => {
+    const key = cb.dataset.key;
+    const eligible = thick32SideEligible(key);
+    const disabled = panelMode || !eligible;
     cb.disabled = disabled;
     cb.closest('label').style.opacity = disabled ? '0.4' : '';
-    cb.checked = !!state.thick32?.[cb.dataset.key];
+    cb.checked = eligible ? !!state.thick32?.[key] : false;
   });
 }
 
@@ -823,6 +843,7 @@ export function bindVariantControls() {
       block.style.display = e.target.checked ? 'block' : 'none';
       buildFurniture();
       renderSectionsList(); // пересчитать пригодность сегментов задней стенки (см. sectionBackWallSegments)
+      syncThick32Details(); // «нечему быть 32мм» без реальной панели с этой стороны
     });
 
     document.querySelectorAll(`#${groupId} .opt-btn`).forEach(btn => {
@@ -832,6 +853,7 @@ export function bindVariantControls() {
         state[replaceKey] = btn.dataset.replace;
         document.getElementById(boxFieldId).style.display = btn.dataset.replace === 'box' ? 'block' : 'none';
         buildFurniture();
+        syncThick32Details(); // планка/короб/ничего — доступность галочки толщины меняется
       });
     });
 
