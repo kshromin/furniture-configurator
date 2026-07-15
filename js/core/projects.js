@@ -4,9 +4,9 @@ import { auth } from './auth.js';
 import { openProject } from './order.js';
 
 // Списки сохранённых комплектов (таблица projects): вкладка «Проекты» (kind='project') и
-// вкладка «Заказы» (kind='order', компактные карточки). Общий механизм: сортировка по датам
-// создания/изменения (с диапазоном, диапазон фиксируется в localStorage) и по названию/клиенту
-// (с буквенной полоской для быстрого поиска). Помогаторы показываются под текущую сортировку.
+// вкладка «Заказы» (kind='order', компактные карточки). Общий механизм: текстовый поиск по
+// совпадению подстроки (название + клиент, в любом месте строки), сортировка по датам
+// создания/изменения (с диапазоном, диапазон фиксируется в localStorage) и по названию/клиенту.
 
 const KIND_LABELS = { project: 'Проект', order: 'Заказ' };
 
@@ -14,19 +14,17 @@ const KIND_LABELS = { project: 'Проект', order: 'Заказ' };
 const LISTS = {
   project: {
     kind: 'project', list: 'projectsList', empty: 'projectsEmpty', sort: 'projectsSortSelect',
-    alpha: 'projectsAlpha', range: 'projectsRange', from: 'projectsFrom', to: 'projectsTo',
-    clear: 'projectsRangeClear', storageKey: 'projectsDateRange', compact: false,
+    search: 'projectsSearch', range: 'projectsRange', from: 'projectsFrom', to: 'projectsTo',
+    clear: 'projectsRangeClear', storageKey: 'projectsDateRange',
     emptyText: 'Сохранённых проектов пока нет.',
   },
   order: {
     kind: 'order', list: 'ordersList', empty: 'ordersEmpty', sort: 'ordersSortSelect',
-    alpha: 'ordersAlpha', range: 'ordersRange', from: 'ordersFrom', to: 'ordersTo',
-    clear: 'ordersRangeClear', storageKey: 'ordersDateRange', compact: true,
+    search: 'ordersSearch', range: 'ordersRange', from: 'ordersFrom', to: 'ordersTo',
+    clear: 'ordersRangeClear', storageKey: 'ordersDateRange',
     emptyText: 'Заказов пока нет.',
   },
 };
-
-const alphaFilter = { project: null, order: null }; // выбранная буква на полоске (null = все)
 
 function sortField(cfg) { return document.getElementById(cfg.sort).value; } // created|updated|title|client
 
@@ -35,32 +33,6 @@ function loadRange(cfg) {
 }
 function saveRange(cfg, from, to) {
   localStorage.setItem(cfg.storageKey, JSON.stringify({ from, to }));
-}
-
-function letterOf(row, field) {
-  const src = field === 'title' ? (row.title || '') : (row.client_name || '');
-  return (src.trim()[0] || '').toUpperCase();
-}
-
-function renderAlphaStrip(cfg, rows, field) {
-  const strip = document.getElementById(cfg.alpha);
-  const letters = [...new Set(rows.map(r => letterOf(r, field)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'));
-  strip.innerHTML = '';
-  const allBtn = document.createElement('button');
-  allBtn.textContent = 'Все';
-  allBtn.className = alphaFilter[cfg.kind] === null ? 'active' : '';
-  allBtn.addEventListener('click', () => { alphaFilter[cfg.kind] = null; renderList(cfg.kind); });
-  strip.appendChild(allBtn);
-  letters.forEach(L => {
-    const b = document.createElement('button');
-    b.textContent = L;
-    b.className = alphaFilter[cfg.kind] === L ? 'active' : '';
-    b.addEventListener('click', () => {
-      alphaFilter[cfg.kind] = alphaFilter[cfg.kind] === L ? null : L;
-      renderList(cfg.kind);
-    });
-    strip.appendChild(b);
-  });
 }
 
 export async function renderList(kindKey) {
@@ -72,7 +44,6 @@ export async function renderList(kindKey) {
     list.innerHTML = '';
     empty.style.display = 'block';
     empty.textContent = 'Недоступно без входа.';
-    document.getElementById(cfg.alpha).style.display = 'none';
     document.getElementById(cfg.range).style.display = 'none';
     return;
   }
@@ -80,8 +51,7 @@ export async function renderList(kindKey) {
   const field = sortField(cfg);
   const byDate = field === 'created' || field === 'updated';
 
-  // Показ помогаторов под текущую сортировку
-  document.getElementById(cfg.alpha).style.display = byDate ? 'none' : 'flex';
+  // Диапазон дат показывается только при сортировке по датам; поиск виден всегда
   document.getElementById(cfg.range).style.display = byDate ? 'flex' : 'none';
 
   const { data, error } = await supabase
@@ -98,7 +68,16 @@ export async function renderList(kindKey) {
 
   let rows = data || [];
 
-  // Фильтры-помогаторы
+  // Текстовый поиск: подстрока в любом месте названия, имени клиента или телефона
+  const q = document.getElementById(cfg.search).value.trim().toLowerCase();
+  if (q) {
+    rows = rows.filter(r =>
+      (r.title || '').toLowerCase().includes(q) ||
+      (r.client_name || '').toLowerCase().includes(q) ||
+      (r.client_phone || '').toLowerCase().includes(q));
+  }
+
+  // Диапазон дат (при сортировке по датам)
   if (byDate) {
     const { from, to } = loadRange(cfg);
     const dateCol = field === 'created' ? 'created_at' : 'updated_at';
@@ -106,9 +85,6 @@ export async function renderList(kindKey) {
     if (to)   rows = rows.filter(r => r[dateCol] <= to + 'T23:59:59');
     document.getElementById(cfg.from).value = from || '';
     document.getElementById(cfg.to).value   = to || '';
-  } else {
-    renderAlphaStrip(cfg, rows, field);
-    if (alphaFilter[cfg.kind]) rows = rows.filter(r => letterOf(r, field) === alphaFilter[cfg.kind]);
   }
 
   // Сортировка
@@ -169,6 +145,7 @@ export const renderOrders   = () => renderList('order');
 function bindListControls(kindKey) {
   const cfg = LISTS[kindKey];
   document.getElementById(cfg.sort).addEventListener('change', () => renderList(kindKey));
+  document.getElementById(cfg.search).addEventListener('input', () => renderList(kindKey));
   const commitRange = () => {
     saveRange(cfg, document.getElementById(cfg.from).value, document.getElementById(cfg.to).value);
     renderList(kindKey);
