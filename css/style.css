@@ -187,6 +187,17 @@ html, body {
   display: none;
 }
 
+/* Типы «в разработке» — заблокированы, приглушены, с подписью */
+.type-btn:disabled { cursor: default; opacity: 0.45; }
+.type-btn:disabled:hover { border-color: #e0e0e0; color: inherit; }
+.wip-label {
+  display: block;
+  font-size: 9px;
+  font-weight: 600;
+  color: #b06a00;
+  margin-top: 2px;
+}
+
 /* Шапка контекста: сверху «Правка позиции #N» (крупнее), ниже комплект, ниже тип изделия */
 #editBar {
   font-size: 13px;

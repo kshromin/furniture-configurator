@@ -5,6 +5,7 @@ import { buildFurniture } from './core/build.js';
 import {
   bindTypeButtons, bindSlider, bindFasadTab, bindVariantControls,
   bindTabSwitching, bindToggleDoors, bindBackWall, bindThickness, bindSectionsControls, syncUIFromState,
+  markUnfinishedTypes,
 } from './core/tabs.js';
 import { addCurrentToOrder, renderOrderCards, bindOrderForm } from './core/order.js';
 import { renderExtras, bindExtras } from './core/extras.js';
@@ -40,6 +41,7 @@ async function init() {
 
   bindTabSwitching();
   bindTypeButtons();
+  markUnfinishedTypes();
 
   bindSlider('width',    'width',    ' мм');
   bindSlider('height',   'height',   ' мм');

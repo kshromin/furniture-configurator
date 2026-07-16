@@ -164,6 +164,24 @@ export function syncUIFromState() {
 }
 
 // ---------- вкладка «Тип изделия» ----------
+
+// Готовые к продаже типы. Остальные кнопки блокируются с подписью «в разработке» —
+// делаем типы по одному (сейчас — шкаф-купе); чтобы включить новый тип, добавь его id сюда.
+const READY_TYPES = ['wardrobe'];
+
+export function markUnfinishedTypes() {
+  document.querySelectorAll('.type-btn').forEach(btn => {
+    if (READY_TYPES.includes(btn.dataset.type)) return;
+    btn.disabled = true;
+    btn.classList.add('type-wip');
+    if (!btn.querySelector('.wip-label')) {
+      const label = document.createElement('span');
+      label.className = 'wip-label';
+      label.textContent = 'в разработке';
+      btn.appendChild(label);
+    }
+  });
+}
 function applyTypeSwitch(newType) {
   state.type = newType;
   document.querySelectorAll('.type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === newType));

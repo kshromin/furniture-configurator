@@ -42,7 +42,8 @@ export function renderPresets() {
   const container = document.getElementById('presets');
   if (!container) return;
   container.innerHTML = '';
-  (materials.presets || []).forEach(p => {
+  // Шаблоны типов «в разработке» скрываем — шаблон открыл бы заблокированный тип.
+  (materials.presets || []).filter(p => p.type === 'wardrobe').forEach(p => {
     const card = document.createElement('div');
     card.className = 'preset-card';
     const typeName = TYPES[p.type]?.name || p.type;
