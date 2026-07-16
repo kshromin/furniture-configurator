@@ -115,8 +115,8 @@
 
       <div class="field-group">
         <div class="field">
-          <div class="dim-label-row"><label>Ширина</label><input type="number" class="dim-input" id="widthVal" min="600" max="5000" step="10" value="1800"></div>
-          <input type="range" id="width" min="600" max="5000" step="10" value="1800">
+          <div class="dim-label-row"><label>Ширина</label><input type="number" class="dim-input" id="widthVal" min="400" max="5000" step="10" value="1800"></div>
+          <input type="range" id="width" min="400" max="5000" step="10" value="1800">
         </div>
         <div class="field">
           <div class="dim-label-row"><label>Высота</label><input type="number" class="dim-input" id="heightVal" min="600" max="3200" step="10" value="2400"></div>
@@ -338,6 +338,13 @@
         </div>
       </div>
 
+      <!-- Количество дверей — общий блок для купе и распашных (скрыт при «Без дверей») -->
+      <div class="field-group" id="doorCountBlock">
+        <div class="field-group-title">Количество дверей</div>
+        <div class="btn-group" id="doorCountGroup"></div>
+        <div class="swatch-name" id="doorCountHint"></div>
+      </div>
+
       <!-- Блок купе -->
       <div id="fasadSlidingBlock">
         <div class="field-group">
@@ -362,11 +369,6 @@
           </div>
         </div>
 
-        <div class="field-group">
-          <div class="field-group-title">Количество дверей</div>
-          <div class="btn-group" id="doorCountGroup"></div>
-          <div class="swatch-name" id="doorCountHint"></div>
-        </div>
 
         <div class="field-group">
           <div class="field-group-title">Наполнение дверей</div>

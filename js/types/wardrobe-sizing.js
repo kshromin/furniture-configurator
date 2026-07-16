@@ -17,15 +17,31 @@ export function doorCountOptions(spanW) {
   return opts;
 }
 
+// Распашные двери в той же купейной системе (рамка/профиль те же): двери в одну линию,
+// зазор 7мм по периметру и между дверями, 1 или 2 двери шириной 400–800мм.
+export const SWING_GAP = 7;
+export const SWING_DOOR_MIN_W = 400;
+export const SWING_DOOR_MAX_W = 800;
+export function swingDoorCountOptions(spanW) {
+  const opts = [];
+  for (let n = 1; n <= 2; n++) {
+    const w = (spanW - (n + 1) * SWING_GAP) / n;
+    if (w >= SWING_DOOR_MIN_W && w <= SWING_DOOR_MAX_W) opts.push({ n, w: Math.round(w) });
+  }
+  return opts;
+}
+
 // Количество дверей: выбор пользователя (state.doorCount, вкладка «Фасад»), если он допустим
-// для текущего пролёта; иначе — авто: вариант с шириной двери, ближайшей к 800мм.
-// Если допустимых вариантов нет вовсе (пролёт < 970мм — даже 2 двери уже дадут < 500мм),
-// рисуем 2 двери: купе из одной двери не бывает, узость видна и продавцу, и клиенту.
+// для текущего пролёта; иначе — авто. Купе: вариант с дверью, ближайшей к 800мм (нет
+// вариантов — 2, купе из одной двери не бывает). Распашные: ближайшая к 600мм; нет
+// вариантов — 1 для узких, 2 для широких.
 export function getDoorCount(spanW) {
-  const opts = doorCountOptions(spanW);
-  if (opts.length === 0) return 2;
+  const swing = state.fasadDoorType === 'swing';
+  const opts = swing ? swingDoorCountOptions(spanW) : doorCountOptions(spanW);
+  if (opts.length === 0) return swing ? (spanW < 2 * SWING_GAP + SWING_DOOR_MIN_W ? 1 : 2) : 2;
   if (state.doorCount && opts.some(o => o.n === state.doorCount)) return state.doorCount;
-  return opts.reduce((best, o) => Math.abs(o.w - 800) < Math.abs(best.w - 800) ? o : best).n;
+  const target = swing ? 600 : 800;
+  return opts.reduce((best, o) => Math.abs(o.w - target) < Math.abs(best.w - target) ? o : best).n;
 }
 
 // Вычисляет ширину/высоту дверного пролёта с учётом стоек/крыши/коробов/планок.

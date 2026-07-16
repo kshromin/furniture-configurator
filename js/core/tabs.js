@@ -9,6 +9,7 @@ import {
   basketSizeOptions, basketFits, requiredBasketProyom, canAddSection, canRemoveSection, BASKET_WIDTHS,
   sectionVerticalBounds, findFreeSlot, defaultItemsForSection, isSectionWidthLocked, sectionMissingSideSupport,
   sectionBackWallSegments, doorCountOptions, getDoorCount, effectiveDoorSpan, DOOR_MIN_W, DOOR_OVERLAP,
+  swingDoorCountOptions, SWING_GAP, SWING_DOOR_MIN_W, SWING_DOOR_MAX_W,
 } from '../types/_wardrobe-shared.js';
 
 // Общий список допустимых проёмов под корзины (не привязан к конкретной выбранной ширине) —
@@ -96,6 +97,20 @@ export function bindSlider(id, key, suffix) {
       if (val < minW) {
         val = minW;
         showToast(`Минимальная ширина шкафа-купе — ${minW} мм: две двери не могут быть уже 500 мм.`);
+      }
+    }
+    // Распашные: 1–2 двери шириной 400–800мм → ширина шкафа ограничена с обеих сторон.
+    if (key === 'width' && state.type === 'wardrobe' && state.fasadDoorType === 'swing') {
+      const span = effectiveDoorSpan();
+      const sideOffs = state.width - span.spanW;
+      const minW = Math.ceil((SWING_DOOR_MIN_W + 2 * SWING_GAP + sideOffs) / 10) * 10;
+      const maxW = Math.floor((2 * SWING_DOOR_MAX_W + 3 * SWING_GAP + sideOffs) / 10) * 10;
+      if (val < minW) {
+        val = minW;
+        showToast(`Минимум для распашных — ${minW} мм: дверь не может быть уже 400 мм.`);
+      } else if (val > maxW) {
+        val = maxW;
+        showToast(`Максимум для распашных — ${maxW} мм: две двери не могут быть шире 800 мм каждая.`);
       }
     }
     state[key] = val;
@@ -244,8 +259,14 @@ export function renderDoorCountOptions() {
   const hint  = document.getElementById('doorCountHint');
   if (!group || state.type !== 'wardrobe') return;
 
+  // При «Без дверей» выбор количества не имеет смысла — блок скрывается целиком.
+  const block = document.getElementById('doorCountBlock');
+  const swing = state.fasadDoorType === 'swing';
+  if (block) block.style.display = state.fasadDoorType === 'none' ? 'none' : 'block';
+  if (state.fasadDoorType === 'none') return;
+
   const { spanW } = effectiveDoorSpan();
-  const opts = doorCountOptions(spanW);
+  const opts = swing ? swingDoorCountOptions(spanW) : doorCountOptions(spanW);
   // Выбор, ставший недопустимым после изменения пролёта, сбрасываем в авто — иначе ни одна
   // кнопка не активна (модель уже рисует авто-количество через getDoorCount).
   if (state.doorCount && !opts.some(o => o.n === state.doorCount)) state.doorCount = null;
@@ -253,7 +274,9 @@ export function renderDoorCountOptions() {
 
   group.innerHTML = '';
   if (opts.length === 0) {
-    hint.textContent = 'Пролёт слишком узкий — 2 двери (уже допуска 500мм)';
+    hint.textContent = swing
+      ? 'Пролёт вне допуска распашных дверей (400–800 мм на дверь)'
+      : 'Пролёт слишком узкий — 2 двери (уже допуска 500мм)';
     return;
   }
 
@@ -278,7 +301,12 @@ export function renderDoorCountOptions() {
     group.appendChild(btn);
   });
 
-  const doorsWord = n => (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? 'двери' : 'дверей';
+  const doorsWord = n => {
+    const m = n % 10, h = n % 100;
+    if (m === 1 && h !== 11) return 'дверь';
+    if (m >= 2 && m <= 4 && (h < 12 || h > 14)) return 'двери';
+    return 'дверей';
+  };
   const activeOpt = opts.find(o => o.n === current);
   hint.textContent = activeOpt
     ? `${current} ${doorsWord(current)} · ширина ≈ ${activeOpt.w} мм${state.doorCount === null ? ' (авто)' : ''}`
@@ -297,6 +325,11 @@ export function bindFasadTab() {
       state.fasadDoorType = btn.dataset.fasad;
       document.getElementById('fasadSlidingBlock').style.display = state.fasadDoorType === 'sliding' ? 'block' : 'none';
       document.getElementById('fasadSwingBlock').style.display   = state.fasadDoorType === 'swing'   ? 'block' : 'none';
+      // У купе и распашных разные допустимые габариты — перепроверяем ширину через тот же
+      // кламп, что и при ручном вводе (иначе купе мог остаться на 450мм от распашных).
+      const wInput = document.getElementById('widthVal');
+      wInput.value = state.width;
+      wInput.dispatchEvent(new Event('change'));
       buildFurniture();
     });
   });

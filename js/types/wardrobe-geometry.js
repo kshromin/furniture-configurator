@@ -4,7 +4,7 @@ import { addPanel, furnitureGroup } from '../core/scene.js';
 import { getColor } from '../core/materials.js';
 import { DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_SHELF_GAP, MESH_DEPTHS, VALET_LENGTHS, BASKET_WIDTHS, BASKET_DEPTHS_BY_WIDTH } from './wardrobe-constants.js';
 import {
-  effectiveDoorSpan, rebalanceSections, getDoorCount,
+  effectiveDoorSpan, rebalanceSections, getDoorCount, SWING_GAP,
   maxDrawerDepth, availableMeshDepths, availableValetLengths, backWallClearance, valetBackClearance,
   drawerBoxSize, basketFits, availableBasketDepths, sectionMissingSideSupport,
 } from './wardrobe-sizing.js';
@@ -302,7 +302,26 @@ export function buildWardrobeBox() {
   const doorCount = getDoorCount(spanW);
   // «Без дверей» (fasadDoorType === 'none') — конструктив под купе сохраняется (дверная зона,
   // утопленное наполнение), но ни двери, ни направляющие не рисуются и не считаются в цену.
-  if (state.showDoors && state.fasadDoorType !== 'none') {
+  if (state.showDoors && state.fasadDoorType === 'swing') {
+    // Распашные в той же системе: двери в ОДНУ линию у переднего края, зазор SWING_GAP (7мм)
+    // по периметру и между дверями; вместо направляющих сверху и снизу — узкие полосы высотой
+    // как нижняя рельса купе, глубиной как сама дверь (рамка), тоже у переднего края.
+    const stripH = BOTTOM_RAIL_HEIGHT;
+    const stripZ = depth / 2 - DOOR_FRAME_DEPTH / 2;
+    addPanel(spanW, stripH, DOOR_FRAME_DEPTH, RAIL_COLOR, [spanCenterX, y0 + height - topOff - stripH / 2, stripZ]);
+    addPanel(spanW, stripH, DOOR_FRAME_DEPTH, RAIL_COLOR, [spanCenterX, y0 + bottomOff + stripH / 2, stripZ]);
+
+    const doorW = (spanW - (doorCount + 1) * SWING_GAP) / doorCount;
+    const doorBottom  = y0 + bottomOff + stripH + SWING_GAP;
+    const doorTop     = y0 + height - topOff - stripH - SWING_GAP;
+    const doorH       = doorTop - doorBottom;
+    const doorCenterY = (doorBottom + doorTop) / 2;
+
+    for (let i = 0; i < doorCount; i++) {
+      const x = spanCenterX - spanW / 2 + SWING_GAP + doorW / 2 + i * (doorW + SWING_GAP);
+      buildSlidingDoor(x, doorCenterY, stripZ, doorW, doorH, fColor);
+    }
+  } else if (state.showDoors && state.fasadDoorType !== 'none') {
     const gap = 4;
     const doorW = (spanW + (doorCount - 1) * DOOR_OVERLAP) / doorCount;
     const doorZoneZ = depth / 2 - DOOR_DEPTH_ZONE / 2;

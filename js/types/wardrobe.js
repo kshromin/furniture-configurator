@@ -3,7 +3,7 @@ import { korpusBoxAreaM2 } from '../core/pricing.js';
 import {
   buildWardrobeBox, getDoorCount, effectiveDoorSpan, drawerBoxSize, basketFits, sectionMissingSideSupport,
   sectionBackWallSegments,
-  DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_RAIL_HEIGHT, BOTTOM_RAIL_HEIGHT, STIFFENER_HEIGHT,
+  DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_RAIL_HEIGHT, BOTTOM_RAIL_HEIGHT, STIFFENER_HEIGHT, SWING_GAP,
 } from './_wardrobe-shared.js';
 
 export default {
@@ -38,8 +38,16 @@ export default {
 
     const dc = getDoorCount(spanW);
     const gap = 4;
-    const dw = (spanW + (dc - 1) * DOOR_OVERLAP) / dc;
-    const doorH = height - topOff - bottomOff - TOP_RAIL_HEIGHT - BOTTOM_RAIL_HEIGHT - 2 * gap;
+    // Купе и распашные — разная геометрия дверей (см. buildWardrobeBox): у купе нахлёст и
+    // направляющие, у распашных зазоры 7мм и узкие полосы высотой с нижнюю рельсу.
+    let dw, doorH;
+    if (state.fasadDoorType === 'swing') {
+      dw = (spanW - (dc + 1) * SWING_GAP) / dc;
+      doorH = height - topOff - bottomOff - 2 * BOTTOM_RAIL_HEIGHT - 2 * SWING_GAP;
+    } else {
+      dw = (spanW + (dc - 1) * DOOR_OVERLAP) / dc;
+      doorH = height - topOff - bottomOff - TOP_RAIL_HEIGHT - BOTTOM_RAIL_HEIGHT - 2 * gap;
+    }
     // «Без дверей»: конструктив под купе, но двери в стоимость не входят вообще
     // (дверная фурнитура обнуляется через counts.door в wardrobe-geometry.js).
     let fasadM2 = state.fasadDoorType === 'none' ? 0 : (dc * dw * doorH) / 1e6;
