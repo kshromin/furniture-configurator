@@ -29,15 +29,22 @@ let editingProjectCode = '';         // № открытого проекта/з
 function updateKitBar() {
   const bar = document.getElementById('kitBar');
   if (!bar) return;
+  let text;
   if (editingProjectId !== null) {
     const kindLabel = editingProjectKind === 'order' ? 'Заказ' : 'Проект';
     const name = editingProjectTitle || editingProjectClient?.name || '';
-    bar.textContent = `${kindLabel}${editingProjectCode ? ' ' + editingProjectCode : ''}${name ? ' — ' + name : ''}`;
+    text = `${kindLabel}${editingProjectCode ? ' ' + editingProjectCode : ''}${name ? ' — ' + name : ''}`;
     bar.classList.add('kit-editing');
   } else {
-    bar.textContent = 'Новая прорисовка';
+    text = 'Новая прорисовка';
     bar.classList.remove('kit-editing');
   }
+  // Режим правки конкретной позиции комплекта (кнопка «Изменить» → «✓ Обновить позицию»)
+  if (editingItemId !== null) {
+    const idx = orderItems.findIndex(it => it.id === editingItemId);
+    if (idx !== -1) text += ` · правка позиции #${idx + 1}`;
+  }
+  bar.textContent = text;
 }
 let itemsSavedToProject = false; // текущий комплект уже сохранён (для предупреждения при открытии другого)
 
@@ -92,7 +99,9 @@ export function loadItemForEdit(id) {
   });
   buildFurniture();
   document.getElementById('addItemBtn').textContent = '✓ Обновить позицию';
-  document.querySelector('[data-tab="type"]').click();
+  // Остаёмся на вкладке «Прорисовки»: карточка получает статус «Редактируется сейчас…»,
+  // в kitBar видно «правка позиции #N» — понятно, где находишься; на вкладки настроек
+  // пользователь перейдёт сам, когда надо (раньше насильно перекидывало на «Тип»).
   renderOrderCards();
   markStateSafe();
 }
