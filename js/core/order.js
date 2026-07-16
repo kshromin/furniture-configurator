@@ -28,23 +28,23 @@ let editingProjectCode = '';         // № открытого проекта/з
 // или название/№ открытого проекта/заказа. Обновляется при каждом renderOrderCards.
 function updateKitBar() {
   const bar = document.getElementById('kitBar');
+  const editBar = document.getElementById('editBar');
   if (!bar) return;
-  let text;
   if (editingProjectId !== null) {
     const kindLabel = editingProjectKind === 'order' ? 'Заказ' : 'Проект';
     const name = editingProjectTitle || editingProjectClient?.name || '';
-    text = `${kindLabel}${editingProjectCode ? ' ' + editingProjectCode : ''}${name ? ' — ' + name : ''}`;
+    bar.textContent = `${kindLabel}${editingProjectCode ? ' ' + editingProjectCode : ''}${name ? ' — ' + name : ''}`;
     bar.classList.add('kit-editing');
   } else {
-    text = 'Новая прорисовка';
+    bar.textContent = 'Новая прорисовка';
     bar.classList.remove('kit-editing');
   }
-  // Режим правки конкретной позиции комплекта (кнопка «Изменить» → «✓ Обновить позицию»)
-  if (editingItemId !== null) {
-    const idx = orderItems.findIndex(it => it.id === editingItemId);
-    if (idx !== -1) text += ` · правка позиции #${idx + 1}`;
+  // Верхняя строка — режим правки позиции («Изменить» → «✓ Обновить позицию»), самая заметная
+  if (editBar) {
+    const idx = editingItemId !== null ? orderItems.findIndex(it => it.id === editingItemId) : -1;
+    editBar.style.display = idx !== -1 ? 'block' : 'none';
+    if (idx !== -1) editBar.textContent = `Правка позиции #${idx + 1}`;
   }
-  bar.textContent = text;
 }
 let itemsSavedToProject = false; // текущий комплект уже сохранён (для предупреждения при открытии другого)
 

@@ -187,14 +187,19 @@ html, body {
   display: none;
 }
 
-/* Строка текущего комплекта под типом: «Новая прорисовка» или название открытого проекта/заказа */
+/* Шапка контекста: сверху «Правка позиции #N» (крупнее), ниже комплект, ниже тип изделия */
+#editBar {
+  font-size: 13px;
+  font-weight: 700;
+  color: #d97706;
+}
 #kitBar {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: #6b87c7;
-  margin-top: 2px;
 }
 #kitBar.kit-editing { color: #1d9a4a; }
+#typeBarName { font-size: 11px; font-weight: 600; margin-top: 1px; }
 
 .tab-pane {
   display: none;
