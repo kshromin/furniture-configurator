@@ -21,6 +21,24 @@ let editingItemId = null; // id локально редактируемой пр
 let editingProjectId = null;
 let editingProjectClient = null; // { name, phone, address }
 let editingProjectTitle = '';
+let editingProjectKind = 'project';  // project | order — что именно открыто
+let editingProjectCode = '';         // № открытого проекта/заказа (для строки-индикатора)
+
+// Строка под типом изделия (typeBar): в каком комплекте сейчас работаем — «Новая прорисовка»
+// или название/№ открытого проекта/заказа. Обновляется при каждом renderOrderCards.
+function updateKitBar() {
+  const bar = document.getElementById('kitBar');
+  if (!bar) return;
+  if (editingProjectId !== null) {
+    const kindLabel = editingProjectKind === 'order' ? 'Заказ' : 'Проект';
+    const name = editingProjectTitle || editingProjectClient?.name || '';
+    bar.textContent = `${kindLabel}${editingProjectCode ? ' ' + editingProjectCode : ''}${name ? ' — ' + name : ''}`;
+    bar.classList.add('kit-editing');
+  } else {
+    bar.textContent = 'Новая прорисовка';
+    bar.classList.remove('kit-editing');
+  }
+}
 let itemsSavedToProject = false; // текущий комплект уже сохранён (для предупреждения при открытии другого)
 
 let modalKind = 'project'; // какой режим открыт в модалке: project | order
@@ -91,6 +109,8 @@ export function openProject(project) {
     name: project.client_name || '', phone: project.client_phone || '', address: project.client_address || '',
   };
   editingProjectTitle = project.title || '';
+  editingProjectKind = project.kind || 'project';
+  editingProjectCode = project.project_code || '';
   orderItems = (project.items || []).map(it => ({ ...it, id: it.id || Date.now() + Math.random() }));
   itemsSavedToProject = true;
   editingItemId = null;
@@ -134,6 +154,7 @@ export function renderOrderCards() {
 
   list.innerHTML = '';
   updateEditingProjectNote();
+  updateKitBar();
 
   if (orderItems.length === 0) {
     empty.style.display   = 'block';
@@ -210,6 +231,8 @@ export function startNewKit() {
   editingProjectId = null;
   editingProjectClient = null;
   editingProjectTitle = '';
+  editingProjectKind = 'project';
+  editingProjectCode = '';
   itemsSavedToProject = false;
   document.getElementById('addItemBtn').textContent = '+ Добавить в прорисовки';
   renderOrderCards();
@@ -289,6 +312,7 @@ export function bindOrderForm() {
         .select('id, project_code').single());
       if (!error && data) {
         editingProjectId = data.id; // повторное сохранение обновит эту же строку
+        editingProjectCode = data.project_code || '';
       }
     }
 
@@ -301,6 +325,7 @@ export function bindOrderForm() {
 
     editingProjectClient = { name, phone, address };
     editingProjectTitle = title;
+    editingProjectKind = modalKind;
     itemsSavedToProject = true;
     result.style.color = 'green';
     result.textContent = modalKind === 'order' ? 'Заказ сохранён.' : 'Проект сохранён.';
