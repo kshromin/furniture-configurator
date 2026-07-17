@@ -50,6 +50,9 @@ html, body {
   position: absolute;
   z-index: 1;
   transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 3px;
   background: rgba(255,255,255,0.88);
   border: 1px solid #c8d0e0;
   border-radius: 4px;
@@ -59,6 +62,18 @@ html, body {
   color: #445;
   white-space: nowrap;
   pointer-events: none;
+}
+
+/* Галочка фиксации просвета (см. sec.lockedGaps, js/core/dimensions.js) — единственная
+   интерактивная часть подписи, родитель .dim-label сам pointer-events:none (не должен мешать
+   вращению камеры мышкой). */
+.dim-lock-cb {
+  pointer-events: auto;
+  width: 11px;
+  height: 11px;
+  margin: 0;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .dim-drag-input {

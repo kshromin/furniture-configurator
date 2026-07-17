@@ -24,6 +24,7 @@ export function applyPreset(p) {
     basketWidth: 300, basketDepth: 400, basketHeight: 120, basketColor: 'silver',
     widthLocked: false,
     backWallSegments: [],
+    lockedGaps: [],
   }));
 
   state.korpusProducer = p.korpusProducer;

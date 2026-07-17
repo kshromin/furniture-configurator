@@ -812,6 +812,7 @@ export function bindSectionsControls() {
       basketWidth: 300, basketDepth: 400, basketHeight: 120, basketColor: 'silver',
       widthLocked: false,
       backWallSegments: [],
+      lockedGaps: [],
     });
     rebalanceSections();
     renderSectionsList();

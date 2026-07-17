@@ -257,3 +257,81 @@ export function sectionBackWallSegments(sec, sectionIndex) {
   }
   return segments;
 }
+
+// ---------- фиксация просветов (sec.lockedGaps) ----------
+
+// Просветы секции снизу вверх с ключом каждого (тот же порядок/границы, что и статичные
+// размерные линии в dimensions.js — физические края элементов, БЕЗ служебных зазоров
+// расстановки). Ключ — id элемента, ограничивающего просвет СВЕРХУ, либо 'ceiling' для самого
+// верхнего (см. sec.lockedGaps в state.js). lockable=false у просветов, прилегающих к вешалу —
+// у него нет своего item/id, двигать в цепочке нечего, фиксировать нельзя.
+export function sectionGapsKeyed(sec, fillBottom, fillTop) {
+  const bands = itemPhysicalBands(sec, null).sort((a, b) => a.lo - b.lo);
+  const gaps = [];
+  let cursor = fillBottom, prevId = null;
+  bands.forEach(b => {
+    if (b.lo - cursor > 1) {
+      gaps.push({ lo: cursor, hi: b.lo, key: b.id, lockable: prevId !== '__valet__' && b.id !== '__valet__' });
+    }
+    cursor = Math.max(cursor, b.hi);
+    prevId = b.id;
+  });
+  if (fillTop - cursor > 1) {
+    gaps.push({ lo: cursor, hi: fillTop, key: 'ceiling', lockable: prevId !== '__valet__' });
+  }
+  return gaps;
+}
+
+// Каскад для одного двигаемого элемента с учётом зафиксированных просветов (sec.lockedGaps —
+// галочки на статичных размерных линиях, см. renderStaticDimensions в dimensions.js): просвет,
+// отмеченный галочкой, не должен меняться — вместо этого двигается следующий свободный элемент
+// по цепочке в нужную сторону, пока не найдётся незафиксированный просвет (он поглощает сдвиг)
+// либо цепочка не упрётся в пол/потолок секции или в вешало (сдвиг обрезается по месту упора —
+// см. задание «фиксация размеров»). Считает по ПОЛОСАМ КОЛЛИЗИИ (itemBands), не физическим —
+// чтобы результат не нарушал те же зазоры, что и обычное перетаскивание/checkOverlap.
+// Возвращает { updates: [{id, y}] } — итоговые позиции элементов цепочки (сам itemId и все, кто
+// сдвинулся вместе с ним); state не трогает, применение — на вызывающей стороне.
+export function resolveLockedMove(sec, itemId, targetY, fillBottom, fillTop) {
+  const order = itemBands(sec, null).sort((a, b) => a.lo - b.lo);
+  const idx = order.findIndex(b => b.id === itemId);
+  const item = sec.items.find(it => it.id === itemId);
+  if (idx === -1 || !item) return { updates: [{ id: itemId, y: targetY }] };
+
+  let delta = targetY - item.y;
+  if (delta === 0) return { updates: [] };
+
+  const locked = new Set(sec.lockedGaps || []);
+  const keyBelow = i => order[i].id;                                          // просвет ПОД order[i]
+  const keyAbove = i => (i + 1 < order.length ? order[i + 1].id : 'ceiling'); // просвет НАД order[i]
+
+  let loIdx = idx;
+  while (loIdx > 0 && order[loIdx - 1].id !== '__valet__' && locked.has(keyBelow(loIdx))) loIdx--;
+  let hiIdx = idx;
+  while (hiIdx < order.length - 1 && order[hiIdx + 1].id !== '__valet__' && locked.has(keyAbove(hiIdx))) hiIdx++;
+
+  // Цепочка упёрлась в САМЫЙ пол/потолок секции, а просвет там всё равно зафиксирован — двигать
+  // уже некого, этот просвет обязан остаться ровно тем же числом. Любой сдвиг (в ЛЮБУЮ сторону)
+  // меняет расстояние цепочки до пола/потолка — значит сдвиг целиком запрещён, а не подрезается
+  // «до упора», как со свободной незафиксированной границей.
+  const frozen = (loIdx === 0 && locked.has(keyBelow(0)))
+    || (hiIdx === order.length - 1 && locked.has(keyAbove(order.length - 1)));
+  if (frozen) return { updates: [] };
+
+  if (delta < 0) {
+    let limit = fillBottom - order[loIdx].lo;
+    if (loIdx > 0) limit = Math.max(limit, order[loIdx - 1].hi - order[loIdx].lo);
+    delta = Math.max(delta, limit);
+  } else {
+    let limit = fillTop - order[hiIdx].hi;
+    if (hiIdx < order.length - 1) limit = Math.min(limit, order[hiIdx + 1].lo - order[hiIdx].hi);
+    delta = Math.min(delta, limit);
+  }
+  if (delta === 0) return { updates: [] };
+
+  const updates = [];
+  for (let i = loIdx; i <= hiIdx; i++) {
+    const it = sec.items.find(x => x.id === order[i].id);
+    updates.push({ id: order[i].id, y: it.y + delta });
+  }
+  return { updates };
+}

@@ -2,11 +2,10 @@ import * as THREE from 'three';
 import { camera, renderer, controls, furnitureGroup, isFrontView, showPerspectiveView } from './scene.js';
 import { state } from './state.js';
 import { buildFurniture } from './build.js';
-import { showToast } from './toast.js';
 import {
   lastBuildItemMeshes, lastBuildValetMeshes, lastBuildSectionCenters, lastBuildY0,
-  checkOverlap, sectionVerticalBounds, sectionVerticalBoundsPhysical, valetAnchorCandidates, resolveValetAnchorY,
-  itemPhysicalBands, itemPhysicalHeight,
+  sectionVerticalBounds, sectionVerticalBoundsPhysical, valetAnchorCandidates, resolveValetAnchorY,
+  itemPhysicalBands, itemPhysicalHeight, resolveLockedMove,
 } from '../types/_wardrobe-shared.js';
 import { projectToOverlay, updateArrow, hideArrow } from './dimensions.js';
 
@@ -209,16 +208,18 @@ function commitGapEdit(fromBelow) {
   const inp = fromBelow ? belowInput : aboveInput;
   const val = Number(inp.value);
   if (!Number.isFinite(val) || val < 0) { updateEditInputs(); return; }
-  const { sec, item, itemType } = active;
+  const { sec, item } = active;
   const { fillBottom, fillTop } = sectionVerticalBounds();
   const h = active.h;
   const newY = fromBelow ? active.belowHi + val + h / 2 : active.aboveLo - val - h / 2;
-  if (checkOverlap(newY, itemType, item.id, sec, fillBottom, fillTop, item)) {
-    showToast('Нельзя поставить сюда — пересечение с другим элементом.');
-    updateEditInputs();
-    return;
-  }
-  item.y = newY;
+  // Зафиксированные просветы дальше по цепочке (sec.lockedGaps) двигают следующий свободный
+  // элемент вместо себя — см. resolveLockedMove. Если упёрлись в границу секции, сдвиг просто
+  // урезается по месту упора (без отдельного тоста — число в поле само покажет, что получилось).
+  const { updates } = resolveLockedMove(sec, item.id, newY, fillBottom, fillTop);
+  updates.forEach(u => {
+    const it = sec.items.find(x => x.id === u.id);
+    if (it) it.y = u.y;
+  });
   buildFurniture();
   // buildFurniture пересобрал меши — active.meshes устарели (старая группа очищена), обновляем
   // ссылку и переподсвечиваем на новых мешах (подсветка не переживает пересборку сама по себе).
@@ -320,10 +321,15 @@ function onPointerMove(e) {
   const deltaY = planeHit.y - dragState.startPointerY;
 
   if (dragState.kind === 'item') {
-    dragState.meshes.forEach((m, i) => { m.position.y = dragState.originalY[i] + deltaY; });
-    const candidateY = dragState.startItemY + deltaY;
+    const rawCandidateY = dragState.startItemY + deltaY;
+    // Зафиксированные просветы (sec.lockedGaps) могут урезать реально достижимую позицию — двигаем
+    // меш не за сырой координатой мыши, а за клампнутым результатом (см. resolveLockedMove),
+    // иначе элемент визуально проезжал бы сквозь то, что каскад всё равно не позволит на отпускании.
+    const { updates } = resolveLockedMove(dragState.sec, dragState.item.id, rawCandidateY, dragState.fillBottom, dragState.fillTop);
+    const candidateY = updates.find(u => u.id === dragState.item.id)?.y ?? dragState.item.y;
+    dragState.meshes.forEach((m, i) => { m.position.y = dragState.originalY[i] + (candidateY - dragState.startItemY); });
     dragState.candidateY = candidateY;
-    const overlapping = checkOverlap(candidateY, dragState.itemType, dragState.item.id, dragState.sec, dragState.fillBottom, dragState.fillTop, dragState.item);
+    const overlapping = Math.abs(candidateY - rawCandidateY) > 0.5; // упёрлись в границу/цепочку — сдвиг урезан
     if (overlapping !== dragState.overlapping) {
       setHighlight(dragState.meshes, overlapping ? RED_EMISSIVE : SELECT_EMISSIVE);
       dragState.overlapping = overlapping;
@@ -356,12 +362,14 @@ function onPointerUp() {
 
   const wasItem = dragState.kind === 'item';
   if (wasItem) {
-    if (dragState.overlapping) {
-      showToast('Здесь нельзя разместить элемент — пересечение с другим. Возвращён на место.');
-    } else {
-      dragState.item.y = dragState.candidateY;
-    }
-    // При пересечении state не трогаем — buildFurniture() ниже вернёт геометрию на исходное место.
+    // dragState.candidateY уже клампнут по месту (см. onPointerMove) — пересчитываем каскад ещё
+    // раз, чтобы применить итоговые позиции ВСЕХ элементов цепочки (не только двигаемого), их
+    // меши во время драга не следовали за мышью, buildFurniture() ниже перерисует всё разом.
+    const { updates } = resolveLockedMove(dragState.sec, dragState.item.id, dragState.candidateY, dragState.fillBottom, dragState.fillTop);
+    updates.forEach(u => {
+      const it = dragState.sec.items.find(x => x.id === u.id);
+      if (it) it.y = u.y;
+    });
   } else {
     dragState.sec.valetAnchorId = dragState.currentAnchorId;
   }

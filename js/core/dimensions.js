@@ -3,7 +3,7 @@ import { camera, controls } from './scene.js';
 import { state } from './state.js';
 import { TYPES } from '../types/registry.js';
 import {
-  sectionVerticalBoundsPhysical, itemPhysicalBands, lastBuildSectionCenters, lastBuildY0,
+  sectionVerticalBoundsPhysical, sectionGapsKeyed, lastBuildSectionCenters, lastBuildY0,
 } from '../types/_wardrobe-shared.js';
 
 // Размерные линии наполнения — HTML/SVG-оверлей поверх канваса (не 3D-геометрия), см. #dimOverlay
@@ -79,23 +79,16 @@ function sectionsHaveDimensions() {
 }
 
 // Просветы секции снизу вверх: от пола наполнения до первого элемента, между соседними
-// элементами, от последнего элемента до потолка наполнения. Границы — ФИЗИЧЕСКИЕ края
-// элементов (реально используемые потребителем расстояния), а не полосы коллизии со
-// служебными зазорами — см. itemPhysicalBands в wardrobe-items.js.
+// элементами, от последнего элемента до потолка наполнения — см. sectionGapsKeyed в
+// wardrobe-items.js (те же физические границы + ключ просвета для фиксации, см. sec.lockedGaps).
 export function sectionGaps(sec, fillBottom, fillTop) {
-  const bands = itemPhysicalBands(sec, null).sort((a, b) => a.lo - b.lo);
-  const gaps = [];
-  let cursor = fillBottom;
-  // mm — разность ОКРУГЛЁННЫХ краёв (а не округление длины): дробные края (например, штанга
-  // ⌀25 на целом центре даёт .5) при независимом округлении длин дают сумму, не сходящуюся
-  // с внутренней высотой шкафа на ±1мм — пользователь сверяет на калькуляторе.
-  const push = (lo, hi) => gaps.push({ lo, hi, mm: Math.round(hi) - Math.round(lo) });
-  bands.forEach(b => {
-    if (b.lo - cursor > 1) push(cursor, b.lo);
-    cursor = Math.max(cursor, b.hi);
-  });
-  if (fillTop - cursor > 1) push(cursor, fillTop);
-  return gaps;
+  return sectionGapsKeyed(sec, fillBottom, fillTop).map(g => ({
+    ...g,
+    // mm — разность ОКРУГЛЁННЫХ краёв (а не округление длины): дробные края (например, штанга
+    // ⌀25 на целом центре даёт .5) при независимом округлении длин дают сумму, не сходящуюся
+    // с внутренней высотой шкафа на ±1мм — пользователь сверяет на калькуляторе.
+    mm: Math.round(g.hi) - Math.round(g.lo),
+  }));
 }
 
 export function clearStaticDimensions() {
@@ -104,10 +97,26 @@ export function clearStaticDimensions() {
   clearArrows('static-');
 }
 
-function pushEntry(text, key, p1, p2) {
+// lockInfo (только у просветов наполнения, не у ширины секции) — { checked, onToggle } — рисует
+// галочку фиксации просвета внутри подписи (см. sec.lockedGaps, задание «фиксация размеров»).
+// Галочка — единственный интерактивный элемент во всём #dimOverlay (тот иначе pointer-events:none,
+// чтобы не мешать вращению камеры мышкой) — включаем клики только на ней самой, не на подписи.
+function pushEntry(text, key, p1, p2, lockInfo) {
   const el = document.createElement('div');
   el.className = 'dim-label';
-  el.textContent = text;
+  if (lockInfo) {
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'dim-lock-cb';
+    cb.checked = lockInfo.checked;
+    cb.title = 'Зафиксировать просвет — не изменится, когда двигаешь/меняешь размер соседних';
+    cb.addEventListener('pointerdown', e => e.stopPropagation());
+    cb.addEventListener('change', () => lockInfo.onToggle(cb.checked));
+    el.appendChild(cb);
+  }
+  const span = document.createElement('span');
+  span.textContent = text;
+  el.appendChild(span);
   overlay.appendChild(el);
   entries.push({ el, key, p1, p2 });
 }
@@ -130,7 +139,16 @@ export function renderStaticDimensions() {
     const cx = lastBuildSectionCenters[s];
     if (cx === undefined) return;
     sectionGaps(sec, fillBottom, fillTop).forEach((g, gi) => {
-      pushEntry(g.mm + ' мм', `static-${s}-${gi}`, [cx, lastBuildY0 + g.lo, 0], [cx, lastBuildY0 + g.hi, 0]);
+      const lockInfo = g.lockable ? {
+        checked: (sec.lockedGaps || []).includes(g.key),
+        onToggle: checked => {
+          if (!sec.lockedGaps) sec.lockedGaps = [];
+          const i = sec.lockedGaps.indexOf(g.key);
+          if (checked && i === -1) sec.lockedGaps.push(g.key);
+          if (!checked && i !== -1) sec.lockedGaps.splice(i, 1);
+        },
+      } : null;
+      pushEntry(g.mm + ' мм', `static-${s}-${gi}`, [cx, lastBuildY0 + g.lo, 0], [cx, lastBuildY0 + g.hi, 0], lockInfo);
     });
     const halfW = sec.width / 2;
     pushEntry(Math.round(sec.width) + ' мм', `static-w-${s}`, [cx - halfW, WIDTH_LINE_Y, z], [cx + halfW, WIDTH_LINE_Y, z]);
