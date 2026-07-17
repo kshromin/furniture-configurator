@@ -586,7 +586,12 @@ export function renderSectionsList() {
           <button class="section-add-btn" data-idx="${i}" data-type="drawer" title="Добавить ящик">+</button>
           <input type="number" class="mini-input mini-input-wide section-drawer-height-input" data-idx="${i}" value="${sec.drawerHeight}" min="50" max="500" step="10" title="Высота фасада, мм">
           <input type="number" class="mini-input mini-input-wide section-drawer-depth-input" data-idx="${i}" value="${sec.drawerDepth}" min="250" max="${maxDD}" step="50" title="Глубина короба, мм (250-${maxDD})">
-          <label class="el-row-check" title="Без доводчика"><input type="checkbox" class="section-drawer-no-softclose-input" data-idx="${i}" ${sec.drawerSoftClose ? '' : 'checked'}> SC</label>
+          <select class="mini-select section-drawer-slide-input" data-idx="${i}" title="Тип направляющих">
+            <option value="ball" ${sec.drawerSlideType === 'ball' ? 'selected' : ''}>Шариковые</option>
+            <option value="soft" ${sec.drawerSlideType === 'soft' ? 'selected' : ''}>Скрытые, доводчик</option>
+            <option value="push" ${sec.drawerSlideType === 'push' ? 'selected' : ''}>Скрытые, push</option>
+            <option value="blum" ${sec.drawerSlideType === 'blum' ? 'selected' : ''}>Скрытые BLUM</option>
+          </select>
         </div>
         <div class="el-row" title="Торцевое вешало — крепится к полке, мышкой прыгает между полками (не двигается свободно)">
           <span class="el-row-label">Вешало</span>
@@ -689,9 +694,9 @@ export function renderSectionsList() {
       buildFurniture();
     });
   });
-  container.querySelectorAll('.section-drawer-no-softclose-input').forEach(inp => {
-    inp.addEventListener('change', e => {
-      state.sections[Number(e.target.dataset.idx)].drawerSoftClose = !e.target.checked;
+  container.querySelectorAll('.section-drawer-slide-input').forEach(sel => {
+    sel.addEventListener('change', e => {
+      state.sections[Number(e.target.dataset.idx)].drawerSlideType = e.target.value;
       buildFurniture();
     });
   });
@@ -807,7 +812,7 @@ export function bindSectionsControls() {
     state.sections.push({
       width: MIN_SECTION_WIDTH,
       items: defaultItemsForSection({ shelves: 1, drawers: 0, rod: 1, drawerHeight: 150 }),
-      drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true,
+      drawerHeight: 150, drawerDepth: 500, drawerSlideType: 'soft',
       meshDepth: 400, meshColor: 'silver', valet: 0, valetAnchorId: null, valetLength: 400,
       basketWidth: 300, basketDepth: 400, basketHeight: 120, basketColor: 'silver',
       widthLocked: false,

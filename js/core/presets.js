@@ -19,7 +19,7 @@ export function applyPreset(p) {
   state.sections = Array.from({ length: n }, () => ({
     width: 0,
     items: defaultItemsForSection({ shelves: 1 + (p.shelves || 0), drawers: p.drawers || 0, rod: p.rod ? 1 : 0, drawerHeight: 150 }),
-    drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true,
+    drawerHeight: 150, drawerDepth: 500, drawerSlideType: 'soft',
     meshDepth: 400, meshColor: 'silver', valet: 0, valetAnchorId: null, valetLength: 400,
     basketWidth: 300, basketDepth: 400, basketHeight: 120, basketColor: 'silver',
     widthLocked: false,

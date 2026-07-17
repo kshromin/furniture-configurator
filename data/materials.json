@@ -72,8 +72,10 @@
     { "id": "handle",        "name": "Ручка",                           "price": 300,  "per": "door"   },
     { "id": "hardware_set",  "name": "Крепёж и доводчики (на изделие)", "price": 500,  "per": "item"   },
     { "id": "shelf_support", "name": "Опоры полки (компл.)",            "price": 150,  "per": "shelf"  },
-    { "id": "drawer_slide_soft",  "name": "Направляющие ящика (компл., с доводчиком)", "price": 600, "per": "drawerSoft"  },
-    { "id": "drawer_slide_basic", "name": "Направляющие ящика (компл., без доводчика)", "price": 450, "per": "drawerBasic" },
+    { "id": "drawer_slide_ball", "name": "Направляющие ящика (компл., шариковые)",             "price": 450,  "per": "drawerBall" },
+    { "id": "drawer_slide_soft", "name": "Направляющие ящика (компл., скрытые, с доводчиком)", "price": 600,  "per": "drawerSoft" },
+    { "id": "drawer_slide_push", "name": "Направляющие ящика (компл., скрытые, push)",         "price": 750,  "per": "drawerPush" },
+    { "id": "drawer_slide_blum", "name": "Направляющие ящика (компл., скрытые BLUM)",           "price": 1200, "per": "drawerBlum" },
     { "id": "rod",           "name": "Штанга для одежды",               "price": 400,  "per": "rod"    },
     { "id": "valet",         "name": "Торцевое вешало (выдвижное)",     "price": 1500, "per": "valet"  }
   ],

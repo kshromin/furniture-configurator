@@ -87,6 +87,7 @@ function buildDragPlane(worldAnchor) {
 // ---------- инфопанель выбранного элемента ----------
 
 const COLOR_LABELS = { silver: 'серебро/хром', white: 'белый', black: 'чёрный' };
+const DRAWER_SLIDE_LABELS = { ball: 'шариковые', soft: 'скрытые, доводчик', push: 'скрытые, push', blum: 'скрытые BLUM' };
 
 function describeActive() {
   const { kind, sec, item, itemType } = active;
@@ -115,7 +116,7 @@ function describeActive() {
     case 'drawer':
       return {
         title: 'Ящик',
-        lines: [`Фасад: ${sec.drawerHeight} мм`, `Глубина короба: ${sec.drawerDepth} мм`, sec.drawerSoftClose ? 'С доводчиком' : 'Без доводчика'],
+        lines: [`Фасад: ${sec.drawerHeight} мм`, `Глубина короба: ${sec.drawerDepth} мм`, `Направляющие: ${DRAWER_SLIDE_LABELS[sec.drawerSlideType] || sec.drawerSlideType}`],
       };
     case 'mesh':
       return { title: 'Сетчатая полка', lines: [`Глубина: ${sec.meshDepth} мм`, `Цвет: ${COLOR_LABELS[sec.meshColor] || sec.meshColor}`] };

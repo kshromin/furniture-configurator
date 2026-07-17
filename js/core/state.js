@@ -54,7 +54,10 @@ export const state = {
   // Ящики секции — по глубине вровень с внутренней перегородкой (за дверями купе), короб
   // (дно/боковины/задняя стенка) — наполнение/ЛДСП, фасад — отдельная лицевая панель.
   // drawerHeight — высота фасада (мм), drawerDepth — глубина короба (250-600, шаг 50),
-  // drawerSoftClose — направляющие с доводчиком (по умолчанию true).
+  // drawerSlideType — тип направляющих, один на всю секцию: 'ball' (шариковые, самые дешёвые,
+  // без доводчика) / 'soft' (скрытые с доводчиком, по умолчанию) / 'push' (скрытые push) /
+  // 'blum' (скрытые BLUM, самые дорогие) — см. fittings в data/materials.json (drawerBall/
+  // drawerSoft/drawerPush/drawerBlum).
   // Сетчатые полки (metal mesh) — ширина всегда во всю секцию (как обычная полка, от стойки до
   // стойки), а глубина — фиксированный выбор 300/400/500мм (доступные варианты зависят от
   // реальной глубины короба, см. availableMeshDepths). Цена — за погонный метр, зависит от
@@ -104,7 +107,7 @@ export const state = {
         { id: 'default-top-shelf-1', type: 'shelf', y: 1774, pinned: true },
         { id: 'default-rod-1', type: 'rod', y: 1704 },
       ],
-      drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true,
+      drawerHeight: 150, drawerDepth: 500, drawerSlideType: 'soft',
       meshDepth: 400, meshColor: 'silver',
       valet: 0, valetAnchorId: null, valetLength: 400,
       basketWidth: 300, basketDepth: 400, basketHeight: 120, basketColor: 'silver',
@@ -119,7 +122,7 @@ export const state = {
         { id: 'default-top-shelf-2', type: 'shelf', y: 1774, pinned: true },
         { id: 'default-rod-2', type: 'rod', y: 1704 },
       ],
-      drawerHeight: 150, drawerDepth: 500, drawerSoftClose: true,
+      drawerHeight: 150, drawerDepth: 500, drawerSlideType: 'soft',
       meshDepth: 400, meshColor: 'silver',
       valet: 0, valetAnchorId: null, valetLength: 400,
       basketWidth: 300, basketDepth: 400, basketHeight: 120, basketColor: 'silver',

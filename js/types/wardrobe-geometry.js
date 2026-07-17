@@ -351,7 +351,8 @@ export function buildWardrobeBox() {
   // Граница дверной зоны — та же, что и у полок/перегородки (innerZ ± innerDepth/2): ящики
   // должны быть с ней вровень, а не торчать вперёд к самим дверям.
   const frontZ = depth / 2 - DOOR_DEPTH_ZONE;
-  let totalShelves = 0, totalDrawers = 0, totalRod = 0, totalDrawerSoft = 0, totalDrawerBasic = 0, totalMeshShelves = 0, totalValet = 0, totalBaskets = 0;
+  let totalShelves = 0, totalDrawers = 0, totalRod = 0, totalMeshShelves = 0, totalValet = 0, totalBaskets = 0;
+  const drawerSlideCounts = { ball: 0, soft: 0, push: 0, blum: 0 }; // см. sec.drawerSlideType
 
   function addRod(cx, y, sw) {
     const rodGeo = new THREE.CylinderGeometry(ROD_RADIUS, ROD_RADIUS, sw, 24);
@@ -651,7 +652,7 @@ export function buildWardrobeBox() {
           const meshes = addDrawer(cx, item.y, sw, sec);
           meshes.forEach(m => tagItemMesh(m, s, item));
           totalDrawers += 1;
-          if (sec.drawerSoftClose) totalDrawerSoft += 1; else totalDrawerBasic += 1;
+          drawerSlideCounts[sec.drawerSlideType || 'soft'] += 1;
           break;
         }
         case 'mesh': {
@@ -702,7 +703,9 @@ export function buildWardrobeBox() {
     door: (state.fasadDoorType === 'none' || state.fasadDoorType === 'swing') ? 0 : doorCount,
     swingDoor: state.fasadDoorType === 'swing' ? doorCount : 0,
     drawer: totalDrawers, shelf: totalShelves, rod: totalRod, item: 1,
-    drawerSoft: totalDrawerSoft, drawerBasic: totalDrawerBasic, meshShelf: totalMeshShelves, valet: totalValet,
+    drawerBall: drawerSlideCounts.ball, drawerSoft: drawerSlideCounts.soft,
+    drawerPush: drawerSlideCounts.push, drawerBlum: drawerSlideCounts.blum,
+    meshShelf: totalMeshShelves, valet: totalValet,
     basket: totalBaskets,
   };
 }
