@@ -232,7 +232,9 @@ export function resolveValetAnchorY(sec) {
 // опора есть. Средние секции всегда опираются на перегородку (она есть всегда), крайняя
 // левая/правая — на настоящую боковую стойку короба, если та не снята («без левой/правой стойки»).
 export function sectionBackWallSegments(sec, sectionIndex) {
-  const { fillBottom, fillTop } = sectionVerticalBounds();
+  // Физические границы (без ±10мм зазора расстановки items из sectionVerticalBounds) — панель
+  // должна реально доходить до пола/крыши секции, а не останавливаться за 10мм до них.
+  const { fillBottom, fillTop } = sectionVerticalBoundsPhysical();
   const isFirst = sectionIndex === 0;
   const isLast = sectionIndex === state.sections.length - 1;
   const leftOk = !isFirst || !state.noSideLeft;
