@@ -697,7 +697,10 @@ export function buildWardrobeBox() {
 
   return {
     // «Без дверей» — дверной фурнитуры (рельсы и пр.) в смете тоже нет.
-    door: state.fasadDoorType === 'none' ? 0 : doorCount,
+    // Распашные — купейная фурнитура (rail/ручка per door) не начисляется, вместо неё
+    // отдельная позиция «Фурнитура распашных дверей» по счётчику swingDoor (см. pricing.js).
+    door: (state.fasadDoorType === 'none' || state.fasadDoorType === 'swing') ? 0 : doorCount,
+    swingDoor: state.fasadDoorType === 'swing' ? doorCount : 0,
     drawer: totalDrawers, shelf: totalShelves, rod: totalRod, item: 1,
     drawerSoft: totalDrawerSoft, drawerBasic: totalDrawerBasic, meshShelf: totalMeshShelves, valet: totalValet,
     basket: totalBaskets,

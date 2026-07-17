@@ -347,7 +347,8 @@
 
       <!-- Блок купе -->
       <div id="fasadSlidingBlock">
-        <div class="field-group">
+        <!-- Выбор профиля — в разработке (не влияет на 3D/цену), скрыт до реализации -->
+        <div class="field-group" style="display:none">
           <div class="field-group-title">Профиль</div>
           <div class="profile-grid" id="profileGrid">
             <button class="profile-btn active" data-profile="standard">
@@ -371,8 +372,10 @@
 
 
         <div class="field-group">
-          <div class="field-group-title">Наполнение дверей</div>
-          <div class="door-fill-btns">
+          <div class="field-group-title">Цвет фасада (ЛДСП)</div>
+          <!-- Выбор типа наполнения (ЛДСП/зеркало/стекло) — в разработке, скрыт до реализации;
+               пока всегда ЛДСП (state.doorFill = 'ldsp'), виден только выбор цвета -->
+          <div class="door-fill-btns" style="display:none">
             <button class="door-fill-btn active" data-fill="ldsp">ЛДСП</button>
             <button class="door-fill-btn" data-fill="mirror">Зеркало</button>
             <button class="door-fill-btn" data-fill="glass">Стекло</button>
@@ -408,8 +411,8 @@
             </div>
           </div>
 
-          <!-- Комбо -->
-          <div class="field-group" style="margin-top:12px">
+          <!-- Комбо — в разработке (не влияет на 3D/цену), скрыт до реализации -->
+          <div class="field-group" style="margin-top:12px;display:none">
             <div class="field checkbox-field">
               <label><input type="checkbox" id="doorCombo"> Комбинированная дверь (верх + низ)</label>
             </div>
@@ -559,6 +562,7 @@
           <div class="price-row"><span>Фасады</span><span id="priceFasad">0 ₽</span></div>
           <div class="price-row"><span>Наполнение</span><span id="priceFill">0 ₽</span></div>
           <div class="price-row"><span>Фурнитура</span><span id="priceFittings">0 ₽</span></div>
+          <div class="price-row"><span>Фурнитура распашных дверей</span><span id="priceSwingHw">—</span></div>
           <div class="price-row"><span>Кромка</span><span id="priceKromka">0 ₽</span></div>
         </div>
         <div class="price-row current-total"><span>Текущая позиция</span><span id="priceTotal">0 ₽</span></div>

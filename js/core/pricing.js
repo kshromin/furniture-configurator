@@ -72,11 +72,15 @@ export function updatePrice(counts) {
     const n = f.per === 'front' ? counts.door + counts.drawer : (counts[f.per] || 0);
     return sum + f.price * n;
   }, 0);
+  // Фурнитура распашных дверей — отдельная позиция по счётчику swingDoor (купейные rail/ручка
+  // на распашные не начисляются, см. counts в wardrobe-geometry.js). 500₽/дверь — заглушка,
+  // реальная цена будет уточнена.
+  const swingHwPrice = (counts.swingDoor || 0) * (materials.swingDoorHardware?.pricePerDoor || 0);
   // Кромка — ПВХ-лента по видимому переднему торцу ЛДСП, за погонный метр (см.
   // data/materials.json edgeBanding, длина считается в js/types/wardrobe.js areas()).
   const kromkaPrice = edgeLengthM * (materials.edgeBanding?.pricePerM || 0) * kromkaMul;
 
-  const total = korpusPrice + fasadPrice + fillPrice + backWallPrice + fittingsPrice + kromkaPrice;
+  const total = korpusPrice + fasadPrice + fillPrice + backWallPrice + fittingsPrice + swingHwPrice + kromkaPrice;
 
   document.getElementById('priceKorpus').textContent   = fmt(korpusPrice);
   document.getElementById('priceFasad').textContent    = fmt(fasadPrice);
@@ -87,6 +91,9 @@ export function updatePrice(counts) {
 
   const bwEl = document.getElementById('priceBackWall');
   if (bwEl) bwEl.textContent = backWallPrice > 0 ? fmt(backWallPrice) : '—';
+
+  const swEl = document.getElementById('priceSwingHw');
+  if (swEl) swEl.textContent = swingHwPrice > 0 ? fmt(swingHwPrice) : '—';
 
   state.lastTotal = total;
 }
