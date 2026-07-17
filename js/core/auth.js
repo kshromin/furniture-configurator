@@ -36,19 +36,22 @@ export function bindLoginForm() {
   const resultEl = document.getElementById('loginResult');
 
   const submit = async () => {
-    const email = emailEl.value.trim();
+    let email = emailEl.value.trim();
     const password = passEl.value;
     if (!email || !password) {
       resultEl.style.color = 'red';
-      resultEl.textContent = 'Введите email и пароль';
+      resultEl.textContent = 'Введите логин и пароль';
       return;
     }
+    // Короткие логины сотрудников: вводится «ivan» — подставляем служебный домен
+    // (аккаунты в Supabase заводятся как ivan@conf.conf). Полный e-mail с «@» — как есть.
+    if (!email.includes('@')) email += '@conf.conf';
     resultEl.style.color = '#555';
     resultEl.textContent = 'Вход...';
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       resultEl.style.color = 'red';
-      resultEl.textContent = 'Неверный email или пароль';
+      resultEl.textContent = 'Неверный логин или пароль';
       return;
     }
     resultEl.textContent = '';
