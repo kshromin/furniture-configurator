@@ -347,23 +347,24 @@
 
       <!-- Блок купе -->
       <div id="fasadSlidingBlock">
-        <!-- Выбор профиля — в разработке (не влияет на 3D/цену), скрыт до реализации -->
-        <div class="field-group" style="display:none">
-          <div class="field-group-title">Профиль</div>
+        <!-- Выбор профиля — в разработке (не влияет на 3D/цену): виден, но заблокирован,
+             чтобы раздел был на глазах; при реализации убрать disabled и пометку -->
+        <div class="field-group">
+          <div class="field-group-title">Профиль <span class="wip-label">в разработке</span></div>
           <div class="profile-grid" id="profileGrid">
-            <button class="profile-btn active" data-profile="standard">
+            <button class="profile-btn active" disabled data-profile="standard">
               <svg viewBox="0 0 20 50"><rect x="6" y="0" width="8" height="50" rx="1" fill="currentColor" opacity="0.15"/><rect x="7" y="0" width="2" height="50" fill="currentColor"/><rect x="11" y="0" width="2" height="50" fill="currentColor"/></svg>
               <span>Стандарт</span>
             </button>
-            <button class="profile-btn" data-profile="slim">
+            <button class="profile-btn" disabled data-profile="slim">
               <svg viewBox="0 0 20 50"><rect x="8" y="0" width="4" height="50" rx="1" fill="currentColor" opacity="0.15"/><rect x="9" y="0" width="2" height="50" fill="currentColor"/></svg>
               <span>Slim</span>
             </button>
-            <button class="profile-btn" data-profile="anod">
+            <button class="profile-btn" disabled data-profile="anod">
               <svg viewBox="0 0 20 50"><rect x="6" y="0" width="8" height="50" rx="1" fill="currentColor" opacity="0.3"/><rect x="7" y="0" width="2" height="50" fill="currentColor" opacity="0.7"/><rect x="11" y="0" width="2" height="50" fill="currentColor" opacity="0.7"/></svg>
               <span>Анодир.</span>
             </button>
-            <button class="profile-btn" data-profile="black">
+            <button class="profile-btn" disabled data-profile="black">
               <svg viewBox="0 0 20 50"><rect x="6" y="0" width="8" height="50" rx="1" fill="#222"/><rect x="7" y="0" width="2" height="50" fill="#000"/><rect x="11" y="0" width="2" height="50" fill="#000"/></svg>
               <span>Чёрный</span>
             </button>
@@ -372,13 +373,14 @@
 
 
         <div class="field-group">
-          <div class="field-group-title">Цвет фасада (ЛДСП)</div>
-          <!-- Выбор типа наполнения (ЛДСП/зеркало/стекло) — в разработке, скрыт до реализации;
-               пока всегда ЛДСП (state.doorFill = 'ldsp'), виден только выбор цвета -->
-          <div class="door-fill-btns" style="display:none">
+          <div class="field-group-title">Наполнение дверей <span class="wip-label">зеркало/стекло — в разработке</span></div>
+          <!-- Зеркало/стекло — в разработке: видны, но заблокированы, чтобы раздел был на
+               глазах; пока всегда ЛДСП (работает выбор цвета ниже). При реализации убрать
+               disabled и пометку в заголовке -->
+          <div class="door-fill-btns">
             <button class="door-fill-btn active" data-fill="ldsp">ЛДСП</button>
-            <button class="door-fill-btn" data-fill="mirror">Зеркало</button>
-            <button class="door-fill-btn" data-fill="glass">Стекло</button>
+            <button class="door-fill-btn" disabled data-fill="mirror">Зеркало</button>
+            <button class="door-fill-btn" disabled data-fill="glass">Стекло</button>
           </div>
 
           <!-- ЛДСП -->
@@ -411,10 +413,10 @@
             </div>
           </div>
 
-          <!-- Комбо — в разработке (не влияет на 3D/цену), скрыт до реализации -->
-          <div class="field-group" style="margin-top:12px;display:none">
+          <!-- Комбо — в разработке (не влияет на 3D/цену): видно, но заблокировано -->
+          <div class="field-group" style="margin-top:12px">
             <div class="field checkbox-field">
-              <label><input type="checkbox" id="doorCombo"> Комбинированная дверь (верх + низ)</label>
+              <label><input type="checkbox" id="doorCombo" disabled> Комбинированная дверь (верх + низ) <span class="wip-label">в разработке</span></label>
             </div>
             <div id="doorComboBlock" style="display:none;margin-top:8px">
               <div class="field-group-title">Нижняя секция двери</div>

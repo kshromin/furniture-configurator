@@ -197,6 +197,12 @@ html, body {
   color: #b06a00;
   margin-top: 2px;
 }
+/* Пометка «в разработке» в заголовке группы/подписи чекбокса — в строку, не блоком */
+.field-group-title .wip-label,
+.checkbox-field .wip-label { display: inline; margin-left: 6px; }
+/* Заблокированные контролы «в разработке» на «Фасаде» (профиль, зеркало/стекло) */
+.profile-btn:disabled,
+.door-fill-btn:disabled { cursor: default; opacity: 0.45; }
 
 /* Шапка контекста: сверху «Правка позиции #N» (крупнее), ниже комплект, ниже тип изделия */
 #editBar {
