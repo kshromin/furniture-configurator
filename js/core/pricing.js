@@ -42,7 +42,7 @@ export function updatePrice(counts) {
   const type = TYPES[state.type] || TYPES['wardrobe'];
   const {
     korpusM2 = 0, fasadM2 = 0, fillM2 = 0, backWallM2 = 0, backWallType = state.backWall,
-    meshPrice = 0, basketPrice = 0, edgeLengthM = 0, mountPrice = 0,
+    meshPrice = 0, basketPrice = 0, drawerSlidePrice = 0, edgeLengthM = 0, mountPrice = 0,
   } = type.areas(counts);
 
   const kMat = getColor('korpus');
@@ -68,10 +68,13 @@ export function updatePrice(counts) {
   // areas()): общая стенка выключена ('none'), но конкретные сегменты по секциям — всегда ЛДСП.
   const backWallPrice = backWallM2 * (BACK_WALL_RATE[backWallType] || 0) * thickMul;
 
+  // Направляющие ящика — не в общем цикле по fittings: цена зависит от ДВУХ параметров
+  // (тип + длина под глубину короба), а не просто счётчика, см. drawerSlideUnitPrice в
+  // wardrobe.js areas(). Итог уже посчитан там, здесь просто добавляем к фурнитуре.
   const fittingsPrice = (materials.fittings || []).reduce((sum, f) => {
     const n = f.per === 'front' ? counts.door + counts.drawer : (counts[f.per] || 0);
     return sum + f.price * n;
-  }, 0);
+  }, 0) + drawerSlidePrice;
   // Фурнитура распашных дверей — отдельная позиция по счётчику swingDoor (купейные rail/ручка
   // на распашные не начисляются, см. counts в wardrobe-geometry.js). 500₽/дверь — заглушка,
   // реальная цена будет уточнена.

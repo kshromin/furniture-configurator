@@ -104,7 +104,21 @@ export default {
       return entry ? entry.price : 0;
     }
 
-    let fillM2 = 0, meshPrice = 0, basketPrice = 0;
+    // Направляющие ящика — комплект зависит от типа (шариковые/скрытые доводчик/push/BLUM) И
+    // длины (= глубина короба ящика, каталог 250-600 с шагом 50) — длиннее направляющая, дороже
+    // комплект. См. data/materials.json → drawerSlide (матрица тип×длина), sec.drawerSlideType.
+    // Реальная глубина короба (boxDepth в drawerBoxSize) — это ФИЗИЧЕСКИЙ лимит места в шкафу,
+    // не обязательно кратный 50 (клампится по остатку места, см. drawerBoxSize в
+    // wardrobe-sizing.js) — берём ближайшую направляющую, которая ещё помещается по длине
+    // (первую в каталоге ≥ факта), а не точное совпадение: направляющая короче факта физически
+    // не дотянется до задней стенки короба.
+    function drawerSlideUnitPrice(type, length) {
+      const options = (materials.drawerSlide || []).filter(d => d.type === type).sort((a, b) => a.length - b.length);
+      const match = options.find(d => d.length >= length) || options[options.length - 1];
+      return match ? match.price : 0;
+    }
+
+    let fillM2 = 0, meshPrice = 0, basketPrice = 0, drawerSlidePrice = 0;
     const innerDepth = depth - DOOR_DEPTH_ZONE;
     // Наполнение секции теперь свободно перетаскиваемые items (см. state.js), а не счётчики —
     // считаем штуки по типу; общие на тип параметры (высота/глубина/цвет) не изменились.
@@ -155,6 +169,9 @@ export default {
         const sideWallsEdge = 2 * (boxDepth + 2 * boxH);
         const backWallEdge = boxW;
         edgeLengthMm += drawerCount * (facadeEdge + sideWallsEdge + backWallEdge);
+        // Длина направляющей — по реальной (уже клампнутой под глубину короба) физической
+        // глубине ящика, не по «желаемому» sec.drawerDepth — то же значение, что режет короб.
+        drawerSlidePrice += drawerCount * drawerSlideUnitPrice(sec.drawerSlideType, boxDepth);
       }
       // Сетчатые полки — цена за погонный метр (ширина секции), а не за м², зависит от
       // выбранной глубины и цвета (см. materials.json meshShelf).
@@ -237,7 +254,7 @@ export default {
 
     return {
       korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2 + extraKorpusM2,
-      fasadM2, fillM2: fillM2 + extraFillM2, backWallM2, backWallType, meshPrice, basketPrice,
+      fasadM2, fillM2: fillM2 + extraFillM2, backWallM2, backWallType, meshPrice, basketPrice, drawerSlidePrice,
       edgeLengthM: (edgeLengthMm + extraEdgeMm) / 1000,
       mountPrice, fastenerCount, embedCount, // для будущей спецификации
     };

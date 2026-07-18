@@ -262,10 +262,13 @@ export function availableValetLengths(depth) {
 // секции) = ширина + 23мм (зазор под направляющие каждой стороны). Если ширина секции не равна
 // этому значению — корзина физически не встанет, включать её нельзя.
 export const BASKET_HEIGHTS = [120, 190];
-export const BASKET_PROYOM_GAP = 23; // обязательный проём = basketWidth + этот зазор
+export const BASKET_PROYOM_GAP = 23; // обязательный проём = basketWidth + этот зазор (кроме исключений ниже)
+// 600мм — зазор под направляющие шире обычного (не 23, а 27мм), проём 627 — цифра от
+// поставщика (МДМ-Комплект), не по общей формуле остальных ширин.
+const BASKET_PROYOM_OVERRIDE = { 600: 627 };
 
 export function requiredBasketProyom(basketWidth) {
-  return basketWidth + BASKET_PROYOM_GAP;
+  return BASKET_PROYOM_OVERRIDE[basketWidth] ?? (basketWidth + BASKET_PROYOM_GAP);
 }
 
 export function basketFits(sec) {

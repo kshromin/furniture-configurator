@@ -72,15 +72,21 @@
     { "id": "handle",        "name": "Ручка",                           "price": 300,  "per": "door"   },
     { "id": "hardware_set",  "name": "Крепёж и доводчики (на изделие)", "price": 500,  "per": "item"   },
     { "id": "shelf_support", "name": "Опоры полки (компл.)",            "price": 150,  "per": "shelf"  },
-    { "id": "drawer_slide_ball", "name": "Направляющие ящика (компл., шариковые)",             "price": 450,  "per": "drawerBall" },
-    { "id": "drawer_slide_soft", "name": "Направляющие ящика (компл., скрытые, с доводчиком)", "price": 600,  "per": "drawerSoft" },
-    { "id": "drawer_slide_push", "name": "Направляющие ящика (компл., скрытые, push)",         "price": 750,  "per": "drawerPush" },
-    { "id": "drawer_slide_blum", "name": "Направляющие ящика (компл., скрытые BLUM)",           "price": 1200, "per": "drawerBlum" },
     { "id": "rod",           "name": "Штанга для одежды",               "price": 400,  "per": "rod"    },
     { "id": "valet",         "name": "Торцевое вешало (выдвижное)",     "price": 1500, "per": "valet"  }
   ],
   "swingDoorHardware": { "name": "Фурнитура распашной двери (компл.)", "pricePerDoor": 500 },
   "edgeBanding": { "pricePerM": 150 },
+  "drawerSlide": [
+    { "type": "ball", "length": 250, "price": 320  }, { "type": "ball", "length": 300, "price": 350  }, { "type": "ball", "length": 350, "price": 390  }, { "type": "ball", "length": 400, "price": 430  },
+    { "type": "ball", "length": 450, "price": 470  }, { "type": "ball", "length": 500, "price": 510  }, { "type": "ball", "length": 550, "price": 550  }, { "type": "ball", "length": 600, "price": 580  },
+    { "type": "soft", "length": 250, "price": 420  }, { "type": "soft", "length": 300, "price": 470  }, { "type": "soft", "length": 350, "price": 520  }, { "type": "soft", "length": 400, "price": 570  },
+    { "type": "soft", "length": 450, "price": 630  }, { "type": "soft", "length": 500, "price": 680  }, { "type": "soft", "length": 550, "price": 730  }, { "type": "soft", "length": 600, "price": 780  },
+    { "type": "push", "length": 250, "price": 520  }, { "type": "push", "length": 300, "price": 590  }, { "type": "push", "length": 350, "price": 650  }, { "type": "push", "length": 400, "price": 720  },
+    { "type": "push", "length": 450, "price": 780  }, { "type": "push", "length": 500, "price": 850  }, { "type": "push", "length": 550, "price": 910  }, { "type": "push", "length": 600, "price": 970  },
+    { "type": "blum", "length": 250, "price": 840  }, { "type": "blum", "length": 300, "price": 940  }, { "type": "blum", "length": 350, "price": 1050 }, { "type": "blum", "length": 400, "price": 1150 },
+    { "type": "blum", "length": 450, "price": 1250 }, { "type": "blum", "length": 500, "price": 1350 }, { "type": "blum", "length": 550, "price": 1460 }, { "type": "blum", "length": 600, "price": 1560 }
+  ],
   "meshShelf": [
     { "depth": 300, "color": "white",  "name": "Белая, 300мм",   "pricePerM": 900  },
     { "depth": 300, "color": "silver", "name": "Серебро, 300мм", "pricePerM": 1100 },
@@ -151,7 +157,21 @@
     { "width": 500, "depth": 600, "height": 120, "color": "black",  "price": 1680 },
     { "width": 500, "depth": 600, "height": 190, "color": "silver", "price": 1920 },
     { "width": 500, "depth": 600, "height": 190, "color": "white",  "price": 1670 },
-    { "width": 500, "depth": 600, "height": 190, "color": "black",  "price": 1840 }
+    { "width": 500, "depth": 600, "height": 190, "color": "black",  "price": 1840 },
+
+    { "width": 600, "depth": 550, "height": 120, "color": "silver", "price": 1100 },
+    { "width": 600, "depth": 550, "height": 120, "color": "white",  "price": 1864 },
+    { "width": 600, "depth": 550, "height": 120, "color": "black",  "price": 2064 },
+    { "width": 600, "depth": 550, "height": 190, "color": "silver", "price": 2264 },
+    { "width": 600, "depth": 550, "height": 190, "color": "white",  "price": 2168 },
+    { "width": 600, "depth": 550, "height": 190, "color": "black",  "price": 2408 },
+
+    { "width": 600, "depth": 600, "height": 120, "color": "silver", "price": 1310 },
+    { "width": 600, "depth": 600, "height": 120, "color": "white",  "price": 1255 },
+    { "width": 600, "depth": 600, "height": 120, "color": "black",  "price": 1225 },
+    { "width": 600, "depth": 600, "height": 190, "color": "silver", "price": 2448 },
+    { "width": 600, "depth": 600, "height": 190, "color": "white",  "price": 2304 },
+    { "width": 600, "depth": 600, "height": 190, "color": "black",  "price": 2552 }
   ],
   "extras": [
     {

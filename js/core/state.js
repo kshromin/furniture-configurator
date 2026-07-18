@@ -56,8 +56,9 @@ export const state = {
   // drawerHeight — высота фасада (мм), drawerDepth — глубина короба (250-600, шаг 50),
   // drawerSlideType — тип направляющих, один на всю секцию: 'ball' (шариковые, самые дешёвые,
   // без доводчика) / 'soft' (скрытые с доводчиком, по умолчанию) / 'push' (скрытые push) /
-  // 'blum' (скрытые BLUM, самые дорогие) — см. fittings в data/materials.json (drawerBall/
-  // drawerSoft/drawerPush/drawerBlum).
+  // 'blum' (скрытые BLUM, самые дорогие). Цена зависит ещё и от длины (= глубина короба
+  // ящика) — см. data/materials.json → drawerSlide (матрица тип×длина) и drawerSlideUnitPrice
+  // в wardrobe.js.
   // Сетчатые полки (metal mesh) — ширина всегда во всю секцию (как обычная полка, от стойки до
   // стойки), а глубина — фиксированный выбор 300/400/500мм (доступные варианты зависят от
   // реальной глубины короба, см. availableMeshDepths). Цена — за погонный метр, зависит от
