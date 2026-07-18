@@ -5,6 +5,7 @@ import { TYPES } from '../types/registry.js';
 import { syncUIFromState } from './tabs.js';
 import { renderSwatches } from './materials.js';
 import { buildFurniture } from './build.js';
+import { resetHistory } from './history.js';
 import { supabase } from './supabaseClient.js';
 import { auth } from './auth.js';
 import { showToast } from './toast.js';
@@ -104,6 +105,7 @@ export function loadItemForEdit(id) {
   // пользователь перейдёт сам, когда надо (раньше насильно перекидывало на «Тип»).
   renderOrderCards();
   markStateSafe();
+  resetHistory(); // другая прорисовка — не откатываться в историю прежней (см. history.js)
 }
 
 // Открыть сохранённый комплект из вкладки «Проекты». Если в «Прорисовках» лежит несохранённый
@@ -135,6 +137,7 @@ export function openProject(project) {
     });
     buildFurniture();
     markStateSafe();
+    resetHistory(); // другой проект — не откатываться в историю прежнего (см. history.js)
   }
   document.querySelector('[data-tab="order"]').click();
   showToast(`Проект${project.project_code ? ' № ' + project.project_code : ''} открыт — комплект в «Прорисовках».`);

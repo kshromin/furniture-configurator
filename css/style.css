@@ -15,6 +15,36 @@ html, body {
   bottom: 0;
 }
 
+/* ── Кнопка «Назад» (отмена последних изменений, см. js/core/history.js) — плавающая поверх
+   3D-вида, всегда доступна независимо от активной вкладки. Задизейблена, когда откатываться
+   некуда (только текущее состояние в истории). ── */
+#undoBtn {
+  position: absolute;
+  top: 16px; left: 16px;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 1px solid #d0d7e3;
+  background: rgba(255,255,255,0.92);
+  color: #445;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  z-index: 6;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
+}
+#undoBtn svg {
+  width: 20px; height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#undoBtn:hover:not(:disabled) { background: #eef2fb; color: #2f6fed; border-color: #2f6fed; }
+#undoBtn:disabled { opacity: 0.35; cursor: default; }
+
 /* ── Оверлей размерных линий поверх 3D-вида (js/core/dimensions.js) — HTML-слой, не 3D-геометрия,
    поэтому всегда поверх содержимого канваса независимо от перекрытий. pointer-events:none на
    контейнере и на статичных подписях (не мешают вращению камеры мышкой), редактируемые поля во

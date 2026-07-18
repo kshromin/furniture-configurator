@@ -15,6 +15,7 @@ import { renderCabinet, bindCabinetControls } from './core/cabinet.js';
 import { renderAdminOrders } from './core/admin.js';
 import { initItemDrag } from './core/itemDrag.js';
 import { initDimensions } from './core/dimensions.js';
+import { initHistory, undo, onHistoryChange } from './core/history.js';
 
 async function init() {
   bindLoginForm();
@@ -72,6 +73,10 @@ async function init() {
 
   initItemDrag();
   initDimensions();
+  initHistory();
+  const undoBtn = document.getElementById('undoBtn');
+  undoBtn.addEventListener('click', undo);
+  onHistoryChange(count => { undoBtn.disabled = count < 2; });
 
   syncUIFromState();
   buildFurniture();

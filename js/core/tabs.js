@@ -1,4 +1,5 @@
 import { state, newItemId, hasUnsavedChanges, markStateSafe } from './state.js';
+import { resetHistory } from './history.js';
 import { TYPES } from '../types/registry.js';
 import { renderProducerSelect, renderSwatches } from './materials.js';
 import { buildFurniture } from './build.js';
@@ -178,6 +179,12 @@ export function syncUIFromState() {
   updateAllContexts();
 }
 
+// Откат истории (см. js/core/history.js) подменяет весь state целиком и сам вызывает
+// buildFurniture() — но контролы сайдбара (слайдеры/галочки/карточки секций) не обновляются
+// автоматически при прямой мутации state, нужен явный syncUIFromState(), как и при загрузке
+// пресета/прорисовки.
+window.addEventListener('history-restored', syncUIFromState);
+
 // ---------- вкладка «Тип изделия» ----------
 
 // Готовые к продаже типы. Остальные кнопки блокируются с подписью «в разработке» —
@@ -207,6 +214,9 @@ function applyTypeSwitch(newType) {
   // «продолжить без сохранения») — без этого следующая же проверка снова решила бы, что есть
   // несохранённые изменения, хотя пользователь ничего не трогал в новом типе.
   markStateSafe();
+  // Другое изделие — откатываться «шагом назад» в историю прежнего типа не нужно, только собьёт
+  // с толку (см. js/core/history.js).
+  resetHistory();
 }
 
 // Если текущий дизайн не добавлен в проект (или добавлен, но с тех пор что-то поменяли) —

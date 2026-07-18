@@ -2,6 +2,7 @@ import { state, materials, markStateSafe } from './state.js';
 import { TYPES } from '../types/registry.js';
 import { syncUIFromState } from './tabs.js';
 import { buildFurniture } from './build.js';
+import { resetHistory } from './history.js';
 import { rebalanceSections, defaultItemsForSection } from '../types/_wardrobe-shared.js';
 
 export function applyPreset(p) {
@@ -37,6 +38,7 @@ export function applyPreset(p) {
   syncUIFromState();
   buildFurniture();
   markStateSafe();
+  resetHistory(); // другой пресет — не откатываться в историю прежнего дизайна (см. history.js)
 }
 
 export function renderPresets() {
