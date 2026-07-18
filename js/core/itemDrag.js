@@ -5,7 +5,7 @@ import { buildFurniture } from './build.js';
 import {
   lastBuildItemMeshes, lastBuildValetMeshes, lastBuildSectionCenters, lastBuildY0,
   checkOverlap, sectionVerticalBounds, sectionVerticalBoundsPhysical, valetAnchorCandidates, resolveValetAnchorY,
-  itemPhysicalBands, itemPhysicalHeight, resolveLockedMove,
+  itemPhysicalBands, itemPhysicalHeight, resolveLockedMove, absorbIntoLockedGap,
 } from '../types/_wardrobe-shared.js';
 import { projectToOverlay, updateArrow, hideArrow } from './dimensions.js';
 
@@ -221,6 +221,7 @@ function commitGapEdit(fromBelow) {
     const it = sec.items.find(x => x.id === u.id);
     if (it) it.y = u.y;
   });
+  absorbIntoLockedGap(sec, item.id);
   buildFurniture();
   // buildFurniture пересобрал меши — active.meshes устарели (старая группа очищена), обновляем
   // ссылку и переподсвечиваем на новых мешах (подсветка не переживает пересборку сама по себе).
@@ -372,6 +373,10 @@ function onPointerUp() {
       const it = dragState.sec.items.find(x => x.id === u.id);
       if (it) it.y = u.y;
     });
+    // Если элемент попал между парой с зафиксированным просветом (см. задание «фиксация
+    // размеров»), фиксируем и новую нижнюю половину — иначе исходный промежуток держится жёстким
+    // только сверху.
+    absorbIntoLockedGap(dragState.sec, dragState.item.id);
   } else {
     dragState.sec.valetAnchorId = dragState.currentAnchorId;
   }

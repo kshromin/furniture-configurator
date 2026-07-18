@@ -309,6 +309,16 @@ export function resolveLockedMove(sec, itemId, targetY, fillBottom, fillTop) {
   let hiIdx = idx;
   while (hiIdx < order.length - 1 && order[hiIdx + 1].id !== '__valet__' && locked.has(keyAbove(hiIdx))) hiIdx++;
 
+  // Ни один соседний просвет не зафиксирован — цепочка не расширилась (loIdx/hiIdx остались на
+  // самом itemId). Клампинг к соседу тут неуместен: обычное перетаскивание должно уметь
+  // «перепрыгнуть» через соседний элемент в свободное место дальше (как было до фиксации
+  // просветов) — единственное условие успеха, как раньше, пересечение в ИТОГОВОЙ позиции с
+  // ЛЮБЫМ элементом секции (не только с ближайшим соседом), проверяем всей секцией целиком.
+  if (loIdx === idx && hiIdx === idx) {
+    if (checkOverlap(targetY, item.type, itemId, sec, fillBottom, fillTop, item)) return { updates: [] };
+    return { updates: [{ id: itemId, y: targetY }] };
+  }
+
   // Цепочка упёрлась в САМЫЙ пол/потолок секции, а просвет там всё равно зафиксирован — двигать
   // уже некого, этот просвет обязан остаться ровно тем же числом. Любой сдвиг (в ЛЮБУЮ сторону)
   // меняет расстояние цепочки до пола/потолка — значит сдвиг целиком запрещён, а не подрезается
@@ -334,4 +344,24 @@ export function resolveLockedMove(sec, itemId, targetY, fillBottom, fillTop) {
     updates.push({ id: order[i].id, y: it.y + delta });
   }
   return { updates };
+}
+
+// Если элемент (только что добавленный или перетащенный) оказался МЕЖДУ парой, чей просвет
+// зафиксирован — просвет НАД парой автоматически «наследуется» новым соседом (ключ — id верхнего
+// элемента пары, он не меняется), а вот новый НИЖНИЙ просвет остаётся незафиксированным по
+// умолчанию — весь исходный промежуток перестаёт быть жёстким целиком, только его верхняя
+// половина. Пользователь ожидает обратное: раз зафиксировали расстояние между парой, оно должно
+// оставаться неизменным целиком, даже если между ними что-то добавили — так что если это
+// произошло, дозафиксировываем и нижнюю половину тоже. Вызывать после любой фиксации новой
+// позиции элемента (добавление, перетаскивание, ввод точного размера) — идемпотентно, если
+// абсорбировать нечего, ничего не делает.
+export function absorbIntoLockedGap(sec, itemId) {
+  const locked = sec.lockedGaps;
+  if (!locked || !locked.length) return;
+  const order = itemBands(sec, null).sort((a, b) => a.lo - b.lo);
+  const idx = order.findIndex(b => b.id === itemId);
+  if (idx === -1) return;
+  const aboveKey = idx + 1 < order.length ? order[idx + 1].id : 'ceiling';
+  if (aboveKey === '__valet__') return;
+  if (locked.includes(aboveKey) && !locked.includes(itemId)) locked.push(itemId);
 }

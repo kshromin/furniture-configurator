@@ -7,7 +7,7 @@ import { renderStaticDimensions } from './dimensions.js';
 import {
   rebalanceSections, MIN_SECTION_WIDTH, maxDrawerDepth, availableMeshDepths, availableValetLengths, clampSectionSizes,
   basketSizeOptions, basketFits, requiredBasketProyom, canAddSection, canRemoveSection, BASKET_WIDTHS,
-  sectionVerticalBounds, findFreeSlot, defaultItemsForSection, isSectionWidthLocked, sectionMissingSideSupport,
+  sectionVerticalBounds, findFreeSlot, defaultItemsForSection, isSectionWidthLocked, sectionMissingSideSupport, absorbIntoLockedGap,
   sectionBackWallSegments, doorCountOptions, getDoorCount, effectiveDoorSpan, DOOR_MIN_W, DOOR_OVERLAP,
   swingDoorCountOptions, SWING_GAP, SWING_DOOR_MIN_W, SWING_DOOR_MAX_W,
 } from '../types/_wardrobe-shared.js';
@@ -663,7 +663,11 @@ export function renderSectionsList() {
         showToast('Нет места для нового элемента в этой секции.');
         return;
       }
-      sec.items.push({ id: newItemId(), type, y });
+      const newId = newItemId();
+      sec.items.push({ id: newId, type, y });
+      // Если новый элемент попал между парой с зафиксированным просветом (см. задание «фиксация
+      // размеров»), фиксируем и новую нижнюю половину — весь исходный промежуток остаётся жёстким.
+      absorbIntoLockedGap(sec, newId);
       renderSectionsList();
       buildFurniture();
     });
