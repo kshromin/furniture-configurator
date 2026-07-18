@@ -4,7 +4,7 @@ import { state } from './state.js';
 import { buildFurniture } from './build.js';
 import {
   lastBuildItemMeshes, lastBuildValetMeshes, lastBuildSectionCenters, lastBuildY0,
-  sectionVerticalBounds, sectionVerticalBoundsPhysical, valetAnchorCandidates, resolveValetAnchorY,
+  checkOverlap, sectionVerticalBounds, sectionVerticalBoundsPhysical, valetAnchorCandidates, resolveValetAnchorY,
   itemPhysicalBands, itemPhysicalHeight, resolveLockedMove,
 } from '../types/_wardrobe-shared.js';
 import { projectToOverlay, updateArrow, hideArrow } from './dimensions.js';
@@ -322,15 +322,15 @@ function onPointerMove(e) {
   const deltaY = planeHit.y - dragState.startPointerY;
 
   if (dragState.kind === 'item') {
-    const rawCandidateY = dragState.startItemY + deltaY;
-    // Зафиксированные просветы (sec.lockedGaps) могут урезать реально достижимую позицию — двигаем
-    // меш не за сырой координатой мыши, а за клампнутым результатом (см. resolveLockedMove),
-    // иначе элемент визуально проезжал бы сквозь то, что каскад всё равно не позволит на отпускании.
-    const { updates } = resolveLockedMove(dragState.sec, dragState.item.id, rawCandidateY, dragState.fillBottom, dragState.fillTop);
-    const candidateY = updates.find(u => u.id === dragState.item.id)?.y ?? dragState.item.y;
-    dragState.meshes.forEach((m, i) => { m.position.y = dragState.originalY[i] + (candidateY - dragState.startItemY); });
+    // Живой драг — меш свободно следует за мышью (может визуально проходить мимо/через другие
+    // элементы, только подсвечивается красным), а не клампится в реальном времени: так было и
+    // до фиксации просветов (сессия 28), пользователь заметил регресс — с клампом в моменте
+    // драг ощущался «залипающим», элемент переставал протаскиваться мимо соседей. Финальная
+    // позиция (в т.ч. каскад по sec.lockedGaps) считается один раз на отпускании — см. onPointerUp.
+    dragState.meshes.forEach((m, i) => { m.position.y = dragState.originalY[i] + deltaY; });
+    const candidateY = dragState.startItemY + deltaY;
     dragState.candidateY = candidateY;
-    const overlapping = Math.abs(candidateY - rawCandidateY) > 0.5; // упёрлись в границу/цепочку — сдвиг урезан
+    const overlapping = checkOverlap(candidateY, dragState.itemType, dragState.item.id, dragState.sec, dragState.fillBottom, dragState.fillTop, dragState.item);
     if (overlapping !== dragState.overlapping) {
       setHighlight(dragState.meshes, overlapping ? RED_EMISSIVE : SELECT_EMISSIVE);
       dragState.overlapping = overlapping;
@@ -363,9 +363,10 @@ function onPointerUp() {
 
   const wasItem = dragState.kind === 'item';
   if (wasItem) {
-    // dragState.candidateY уже клампнут по месту (см. onPointerMove) — пересчитываем каскад ещё
-    // раз, чтобы применить итоговые позиции ВСЕХ элементов цепочки (не только двигаемого), их
-    // меши во время драга не следовали за мышью, buildFurniture() ниже перерисует всё разом.
+    // dragState.candidateY — сырая позиция под курсором (см. onPointerMove, live-драг ничего не
+    // клампит). Здесь, один раз на отпускании, считаем каскад/клампинг по месту упора и по
+    // зафиксированным просветам (sec.lockedGaps) — buildFurniture() ниже перерисует всё разом,
+    // включая цепочку соседей, которые тоже сдвинулись.
     const { updates } = resolveLockedMove(dragState.sec, dragState.item.id, dragState.candidateY, dragState.fillBottom, dragState.fillTop);
     updates.forEach(u => {
       const it = dragState.sec.items.find(x => x.id === u.id);
