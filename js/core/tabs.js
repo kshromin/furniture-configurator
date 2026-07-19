@@ -4,7 +4,7 @@ import { TYPES } from '../types/registry.js';
 import { renderProducerSelect, renderSwatches } from './materials.js';
 import { buildFurniture } from './build.js';
 import { showToast } from './toast.js';
-import { renderStaticDimensions } from './dimensions.js';
+import { renderStaticDimensions, setSelectedSection } from './dimensions.js';
 import {
   rebalanceSections, MIN_SECTION_WIDTH, maxDrawerDepth, availableMeshDepths, availableValetLengths, clampSectionSizes,
   basketSizeOptions, basketFits, requiredBasketProyom, canAddSection, canRemoveSection, BASKET_WIDTHS,
@@ -23,6 +23,11 @@ const BASKET_PROYOMS_HINT = `Допустимые проёмы для корзи
 // на сам объект секции — переживает re-render (renderSectionsList вызывается часто), но не
 // требует привязки к индексу, который может съехать при добавлении/удалении секций.
 const collapsedSections = new WeakSet();
+
+// Выбранная карточка секции — клик по карточке подсвечивает её в 3D (см. dimensions.js). Ссылка
+// на объект секции, не индекс (тот же приём, что и у collapsedSections). Одна секция за раз —
+// повторный клик по уже выбранной снимает выделение.
+let selectedSection = null;
 
 function activeType() { return TYPES[state.type] || TYPES['wardrobe']; }
 
@@ -536,7 +541,7 @@ export function renderSectionsList() {
     // считаем на каждую секцию отдельно, а не один раз на все сразу.
     const basketSizes = basketSizeOptions(state.depth, sec.width);
     const card = document.createElement('div');
-    card.className = 'section-card';
+    card.className = 'section-card' + (selectedSection === sec ? ' selected' : '');
     // Удалить нельзя, если освободившуюся ширину некому занять — все остальные секции
     // зафиксированы (корзиной или галочкой), см. canRemoveSection в _wardrobe-shared.js.
     const removable = state.sections.length > 1 && canRemoveSection(i);
@@ -629,6 +634,16 @@ export function renderSectionsList() {
         ${state.backWall === 'none' ? renderBackWallSegmentsRow(sec, i) : ''}
       </div>
     `;
+    // Клик по карточке (не по вложенным полям/кнопкам) выделяет секцию — подсвечивается рамкой
+    // в панели и полупрозрачным прямоугольником на передней грани в 3D (см. dimensions.js),
+    // задание «интерфейс 19,07»: проще увидеть, какую секцию сейчас правишь.
+    card.addEventListener('click', e => {
+      if (e.target.closest('input, select, button, label')) return;
+      selectedSection = selectedSection === sec ? null : sec;
+      card.parentElement?.querySelectorAll('.section-card.selected').forEach(c => { if (c !== card) c.classList.remove('selected'); });
+      card.classList.toggle('selected', selectedSection === sec);
+      setSelectedSection(selectedSection);
+    });
     container.appendChild(card);
   });
 

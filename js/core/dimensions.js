@@ -15,6 +15,45 @@ const overlay = document.getElementById('dimOverlay');
 const arrowsSvg = document.getElementById('dimArrowsSvg');
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+// Подсветка выбранной карточки секции (клик по карточке в боковой панели, см. tabs.js) —
+// полупрозрачный прямоугольник по передней грани секции, тот же принцип перепроецирования,
+// что и у статичных подписей. Храним ссылку на объект секции (не индекс) — переживает
+// добавление/удаление других секций без сдвига (тот же приём, что и collapsedSections в tabs.js).
+const highlightEl = document.createElement('div');
+highlightEl.id = 'sectionHighlight';
+highlightEl.style.display = 'none';
+overlay.appendChild(highlightEl);
+let selectedSection = null;
+
+export function setSelectedSection(sec) {
+  selectedSection = sec;
+  repositionSectionHighlight();
+}
+
+export function repositionSectionHighlight() {
+  const idx = selectedSection ? state.sections.indexOf(selectedSection) : -1;
+  const cx = lastBuildSectionCenters[idx];
+  if (idx === -1 || cx === undefined) { highlightEl.style.display = 'none'; return; }
+  const sec = state.sections[idx];
+  const halfW = sec.width / 2;
+  const z = widthLineZ();
+  const corners = [
+    [cx - halfW, lastBuildY0, z],
+    [cx + halfW, lastBuildY0, z],
+    [cx - halfW, state.height, z],
+    [cx + halfW, state.height, z],
+  ].map(([x, y, zz]) => projectToOverlay(x, y, zz));
+  if (corners.some(c => c.behind)) { highlightEl.style.display = 'none'; return; }
+  const xs = corners.map(c => c.x), ys = corners.map(c => c.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  highlightEl.style.left = minX + 'px';
+  highlightEl.style.top = minY + 'px';
+  highlightEl.style.width = (maxX - minX) + 'px';
+  highlightEl.style.height = (maxY - minY) + 'px';
+  highlightEl.style.display = '';
+}
+
 let entries = []; // { el, key, p1:[x,y,z], p2:[x,y,z] } — мировые координаты подписи+стрелки для перепроецирования при повороте камеры
 const arrowPool = new Map(); // key -> <line> — переиспользуются между вызовами (и статикой, и драгом), чтобы не пересоздавать SVG-элементы на каждый кадр
 
@@ -154,6 +193,7 @@ export function renderStaticDimensions() {
     pushEntry(Math.round(sec.width) + ' мм', `static-w-${s}`, [cx - halfW, WIDTH_LINE_Y, z], [cx + halfW, WIDTH_LINE_Y, z]);
   });
   repositionStaticDimensions();
+  repositionSectionHighlight();
 }
 
 export function repositionStaticDimensions() {
@@ -167,6 +207,6 @@ export function repositionStaticDimensions() {
 }
 
 export function initDimensions() {
-  controls.addEventListener('change', repositionStaticDimensions);
-  window.addEventListener('resize', repositionStaticDimensions);
+  controls.addEventListener('change', () => { repositionStaticDimensions(); repositionSectionHighlight(); });
+  window.addEventListener('resize', () => { repositionStaticDimensions(); repositionSectionHighlight(); });
 }
