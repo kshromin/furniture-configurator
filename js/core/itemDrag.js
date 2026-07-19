@@ -8,6 +8,7 @@ import {
   itemPhysicalBands, itemPhysicalHeight, resolveLockedMove, absorbIntoLockedGap,
 } from '../types/_wardrobe-shared.js';
 import { projectToOverlay, updateArrow, hideArrow } from './dimensions.js';
+import { renderSectionsList } from './tabs.js';
 
 // Свободное перетаскивание мышкой наполнения секции (полки/ящики/сетка/корзины/штанга) — во
 // время драга элемент может визуально проходить сквозь другие (двигаем меши напрямую, без
@@ -112,7 +113,24 @@ function describeActive() {
         },
       };
     case 'rod':
-      return { title: 'Штанга', lines: ['Хром, ⌀25 мм'] };
+      return {
+        title: 'Штанга',
+        lines: [
+          'Хром, ⌀25 мм',
+          ...(item.verticalSupport ? ['+ вертикальная стойка до полки/дна'] : []),
+        ],
+        // Тумблер вертикальной стойки прямо в инфопанели — «по выделению», тот же приём, что и
+        // толщина полки. Опора — ближайшая ЛДСП-поверхность снизу (полка секции или пол), см.
+        // nearestSupportSurfaceY/addRodSupport в wardrobe-geometry.js.
+        actionLabel: item.verticalSupport ? 'Убрать вертикальную стойку' : 'Добавить вертикальную стойку',
+        action: () => {
+          item.verticalSupport = !item.verticalSupport;
+          buildFurniture();
+          active.meshes = lastBuildItemMeshes.get(active.sectionIndex + '|' + item.id) || [];
+          setHighlight(active.meshes, SELECT_EMISSIVE);
+          showInfoPanel();
+        },
+      };
     case 'drawer':
       return {
         title: 'Ящик',
@@ -254,6 +272,20 @@ function closeActive() {
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && active && document.activeElement !== belowInput && document.activeElement !== aboveInput) closeActive();
+  // Del/Backspace удаляет выделенный элемент — тот же приём, что и «×» на чипе в карточке
+  // секции (см. tabs.js), просто без похода мышкой до сайдбара. Не трогаем валет (свой
+  // чекбокс, не чип) и структурную (pinned) полку — та неудаляемая и через «×».
+  if ((e.key === 'Delete' || e.key === 'Backspace') && active?.kind === 'item') {
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return; // не мешаем редактированию текстовых полей
+    e.preventDefault(); // Backspace без фокуса на поле иначе уводит браузер «назад»
+    if (active.item.pinned) return;
+    const { sec, item } = active;
+    sec.items = sec.items.filter(it => it.id !== item.id);
+    closeActive();
+    renderSectionsList();
+    buildFurniture();
+  }
 });
 
 function onPointerDown(e) {

@@ -8,7 +8,10 @@ import {
   maxDrawerDepth, availableMeshDepths, availableValetLengths, backWallClearance, valetBackClearance,
   drawerBoxSize, basketFits, availableBasketDepths, sectionMissingSideSupport,
 } from './wardrobe-sizing.js';
-import { sectionVerticalBounds, clampItemPositions, resolveValetAnchorY, sectionBackWallSegments } from './wardrobe-items.js';
+import {
+  sectionVerticalBounds, sectionVerticalBoundsPhysical, clampItemPositions, resolveValetAnchorY,
+  sectionBackWallSegments, nearestSupportSurfaceY,
+} from './wardrobe-items.js';
 
 // Геометрия/рендер: собственно построение 3D-модели шкафа-купе (buildWardrobeBox) — короб,
 // двери, наполнение секций. Опирается на wardrobe-sizing.js (сколько места доступно) и
@@ -36,6 +39,12 @@ export const STIFFENER_THICKNESS = 10;
 export const STIFFENER_HEIGHT = 100;
 const ROD_COLOR = 0xc0c0c0; // хром
 const ROD_RADIUS = 12.5; // диаметр штанги 25мм
+// Схематичная фурнитура трубы (см. задание «трубы вертикально») — не настоящая модель крепежа,
+// просто узнаваемый маркер узла, чтобы на глаз было видно, где фланцы/соединение, раз уж они
+// отдельно оплачиваются в смете.
+const FLANGE_RADIUS = 20;
+const FLANGE_THICKNESS = 8;
+const T_CRAB_SIZE = 26;
 
 // Сетчатые полки — независимое от ящиков поле, тоже строятся снизу вверх (максимум 3шт),
 // но ширина всегда во всю секцию (как обычная полка), а фиксированный выбор глубины (300/400/500мм)
@@ -348,10 +357,14 @@ export function buildWardrobeBox() {
   // уже посчитана здесь (bottomOff/topOff/height в области видимости), вынесена в общую функцию,
   // чтобы clampSectionSizes/renderSectionsList считали идентично, не дублируя.
   const { fillBottom, fillTop } = sectionVerticalBounds();
+  // Физический пол секции (без служебного зазора расстановки) — точка опоры вертикальной трубы-
+  // стойки под штангой (см. item.verticalSupport ниже), та же функция, что у задней стенки/
+  // размерных линий.
+  const { fillBottom: fillBottomPhysical } = sectionVerticalBoundsPhysical();
   // Граница дверной зоны — та же, что и у полок/перегородки (innerZ ± innerDepth/2): ящики
   // должны быть с ней вровень, а не торчать вперёд к самим дверям.
   const frontZ = depth / 2 - DOOR_DEPTH_ZONE;
-  let totalShelves = 0, totalDrawers = 0, totalRod = 0, totalMeshShelves = 0, totalValet = 0, totalBaskets = 0;
+  let totalShelves = 0, totalDrawers = 0, totalRod = 0, totalRodSupports = 0, totalMeshShelves = 0, totalValet = 0, totalBaskets = 0;
 
   function addRod(cx, y, sw) {
     const rodGeo = new THREE.CylinderGeometry(ROD_RADIUS, ROD_RADIUS, sw, 24);
@@ -361,6 +374,45 @@ export function buildWardrobeBox() {
     rodMesh.position.set(cx, y0 + y, innerZ);
     furnitureGroup.add(rodMesh);
     return rodMesh;
+  }
+
+  // Вертикальная труба-стойка под штангой (item.verticalSupport, задание «трубы вертикально») —
+  // от ближайшей ЛДСП-поверхности снизу (полка секции или пол — см. nearestSupportSurfaceY) вверх
+  // до самой штанги. Тот же диаметр/материал, что у штанги — цилиндр в естественной (вертикальной)
+  // ориентации, поворот не нужен.
+  function addRodSupport(cx, loY, hiY) {
+    const h = hiY - loY;
+    const geo = new THREE.CylinderGeometry(ROD_RADIUS, ROD_RADIUS, h, 24);
+    const mat = new THREE.MeshStandardMaterial({ color: ROD_COLOR, metalness: 0.9, roughness: 0.15 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(cx, y0 + (loY + hiY) / 2, innerZ);
+    furnitureGroup.add(mesh);
+    return mesh;
+  }
+
+  // Фланец — короткий широкий диск, плашмя к поверхности крепления. axis='x' — торцевой фланец
+  // штанги (плоскость диска смотрит на боковую стойку/перегородку, тот же поворот, что у самой
+  // штанги); axis='y' (по умолчанию) — нижний фланец вертикальной стойки (плашмя на полке/дне,
+  // поворот не нужен — цилиндр и так «стоит», как труба).
+  function addFlange(x, y, z, axis) {
+    const geo = new THREE.CylinderGeometry(FLANGE_RADIUS, FLANGE_RADIUS, FLANGE_THICKNESS, 20);
+    const mat = new THREE.MeshStandardMaterial({ color: ROD_COLOR, metalness: 0.9, roughness: 0.2 });
+    const mesh = new THREE.Mesh(geo, mat);
+    if (axis === 'x') mesh.rotation.z = Math.PI / 2;
+    mesh.position.set(x, y0 + y, z);
+    furnitureGroup.add(mesh);
+    return mesh;
+  }
+
+  // Т-краб — схематичный маркер узла соединения вертикальной стойки с горизонтальной штангой
+  // (не настоящая модель фитинга, просто заметный кубик в точке стыка).
+  function addTCrab(x, y, z) {
+    const geo = new THREE.BoxGeometry(T_CRAB_SIZE, T_CRAB_SIZE, T_CRAB_SIZE);
+    const mat = new THREE.MeshStandardMaterial({ color: ROD_COLOR, metalness: 0.9, roughness: 0.2 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y0 + y, z);
+    furnitureGroup.add(mesh);
+    return mesh;
   }
 
   // Ящик = фасад (лицевая панель, цвет фасада, вровень с перегородкой) + короб позади него
@@ -675,6 +727,18 @@ export function buildWardrobeBox() {
           const mesh = addRod(cx, item.y, sw);
           tagItemMesh(mesh, s, item);
           totalRod += 1;
+          // Торцевые фланцы — на концах штанги, впритык к боковым стойкам/перегородкам (тот же
+          // размах sw, что и у самой трубы).
+          tagItemMesh(addFlange(cx - sw / 2, item.y, innerZ, 'x'), s, item);
+          tagItemMesh(addFlange(cx + sw / 2, item.y, innerZ, 'x'), s, item);
+          if (item.verticalSupport) {
+            const surfaceY = nearestSupportSurfaceY(sec, item, fillBottomPhysical);
+            const supportMesh = addRodSupport(cx, surfaceY, item.y);
+            tagItemMesh(supportMesh, s, item);
+            tagItemMesh(addFlange(cx, surfaceY, innerZ, 'y'), s, item); // фланец снизу, на полке/дне
+            tagItemMesh(addTCrab(cx, item.y, innerZ), s, item);         // узел стыка со штангой
+            totalRodSupports += 1;
+          }
           break;
         }
       }
@@ -701,6 +765,10 @@ export function buildWardrobeBox() {
     door: (state.fasadDoorType === 'none' || state.fasadDoorType === 'swing') ? 0 : doorCount,
     swingDoor: state.fasadDoorType === 'swing' ? doorCount : 0,
     drawer: totalDrawers, shelf: totalShelves, rod: totalRod, item: 1,
+    // Фланцы — крепление трубы к стойкам: 2 на каждую штангу (оба конца) + 1 на каждую
+    // вертикальную стойку (низ, на полке/дне). Т-краб — только на вертикальных стойках, узел
+    // соединения с горизонтальной штангой (см. addRodSupport/nearestSupportSurfaceY выше).
+    rodFlange: totalRod * 2 + totalRodSupports, rodTCrab: totalRodSupports,
     meshShelf: totalMeshShelves, valet: totalValet,
     basket: totalBaskets,
   };

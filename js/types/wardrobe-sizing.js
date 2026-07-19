@@ -282,9 +282,18 @@ export function availableBasketDepths(basketWidth, cabinetDepth) {
 
 // Плоский список всех валидных сочетаний ширина/глубина/высота корзины при текущей глубине
 // шкафа — используется для одного select'а «размер корзины» в UI (вместо трёх раздельных полей).
-export function basketSizeOptions(cabinetDepth) {
+// sectionWidth — если передана и точно совпадает с обязательным проёмом какой-то из ширин
+// (см. requiredBasketProyom), список сужается ТОЛЬКО до неё (плюс доступные по глубине шкафа
+// варианты) — нет смысла предлагать ширины, которые в эту секцию физически не встанут. Пока
+// секция ещё не подогнана ни под одну ширину — показываем полный список (по глубине), чтобы
+// пользователь видел, какие вообще бывают варианты и под что подгонять ширину секции.
+export function basketSizeOptions(cabinetDepth, sectionWidth) {
   const opts = [];
-  BASKET_WIDTHS.forEach(w => {
+  const fittingWidths = sectionWidth === undefined
+    ? BASKET_WIDTHS
+    : BASKET_WIDTHS.filter(w => Math.round(sectionWidth) === requiredBasketProyom(w));
+  const widths = fittingWidths.length ? fittingWidths : BASKET_WIDTHS;
+  widths.forEach(w => {
     availableBasketDepths(w, cabinetDepth).forEach(d => {
       BASKET_HEIGHTS.forEach(h => opts.push({ w, d, h }));
     });

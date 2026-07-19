@@ -73,6 +73,8 @@
     { "id": "hardware_set",  "name": "Крепёж и доводчики (на изделие)", "price": 500,  "per": "item"   },
     { "id": "shelf_support", "name": "Опоры полки (компл.)",            "price": 150,  "per": "shelf"  },
     { "id": "rod",           "name": "Штанга для одежды",               "price": 400,  "per": "rod"    },
+    { "id": "rod_flange",    "name": "Фланец крепления трубы",          "price": 50,   "per": "rodFlange" },
+    { "id": "rod_t_crab",    "name": "Краб Т-образный (соединение труб)", "price": 300, "per": "rodTCrab" },
     { "id": "valet",         "name": "Торцевое вешало (выдвижное)",     "price": 1500, "per": "valet"  }
   ],
   "swingDoorHardware": { "name": "Фурнитура распашной двери (компл.)", "pricePerDoor": 500 },

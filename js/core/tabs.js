@@ -528,11 +528,13 @@ export function renderSectionsList() {
   const maxDD = maxDrawerDepth(state.depth);
   const meshDepths = availableMeshDepths(state.depth);
   const valetLengths = availableValetLengths(state.depth);
-  const basketSizes = basketSizeOptions(state.depth);
   // Наполнение секции — свободно перетаскиваемые мышкой items (см. state.js), не счётчики.
   const byType = (sec, type) => sec.items.filter(it => it.type === type);
 
   state.sections.forEach((sec, i) => {
+    // Список размеров корзины зависит от ШИРИНЫ этой конкретной секции (см. basketSizeOptions) —
+    // считаем на каждую секцию отдельно, а не один раз на все сразу.
+    const basketSizes = basketSizeOptions(state.depth, sec.width);
     const card = document.createElement('div');
     card.className = 'section-card';
     // Удалить нельзя, если освободившуюся ширину некому занять — все остальные секции

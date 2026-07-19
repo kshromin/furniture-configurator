@@ -84,7 +84,12 @@ function valetBand(sec) {
   return [hi - VALET_DROP_HEIGHT, hi];
 }
 
-export function itemBands(sec, excludeId) {
+// pipeFillBottom — если передан, в полосы добавляется занятое вертикальными трубами-стойками
+// пространство (item.verticalSupport, задание «трубы вертикально»): от ближайшей полки/пола под
+// штангой и до самой штанги — труба не может проходить сквозь ящик/корзину/сетчатую полку.
+// Обычные полки НЕ проверяются на эту полосу (см. checkOverlap/findFreeSlot ниже) — труба сама
+// укорачивается до новой ближайшей полки, а не блокирует её постановку.
+export function itemBands(sec, excludeId, pipeFillBottom) {
   const bands = sec.items.filter(it => it.id !== excludeId).map(it => {
     const [lo, hi] = itemRange(it, sec);
     return { id: it.id, lo, hi };
@@ -93,8 +98,19 @@ export function itemBands(sec, excludeId) {
     const [lo, hi] = valetBand(sec);
     bands.push({ id: '__valet__', lo, hi });
   }
+  if (pipeFillBottom !== undefined) {
+    sec.items.forEach(it => {
+      if (it.type !== 'rod' || !it.verticalSupport || it.id === excludeId) return;
+      const surfaceY = nearestSupportSurfaceY(sec, it, pipeFillBottom);
+      bands.push({ id: '__pipe__' + it.id, lo: surfaceY, hi: it.y });
+    });
+  }
   return bands;
 }
+
+// Типы, которые физически не могут делить пространство с вертикальной трубой-стойкой (труба не
+// проходит сквозь них) — полки и штанги исключены сознательно, см. комментарий у itemBands.
+const PIPE_BLOCKED_TYPES = new Set(['drawer', 'basket', 'mesh']);
 
 // ---------- физические габариты (для размерных линий) ----------
 // Полоса коллизии включает служебные зазоры (4мм у ящика, 10 у сетки, 20 у корзины, 40мм-полоса
@@ -125,6 +141,20 @@ export function itemPhysicalBands(sec, excludeId) {
   return bands;
 }
 
+// Ближайшая ЛДСП-поверхность СНИЗУ от штанги — опора для вертикальной трубы-стойки (см.
+// item.verticalSupport, задание «трубы вертикально»): полка, если она есть под штангой в этой же
+// секции, иначе пол секции (физический, не полоса коллизии). Только полки — сетка/ящики/корзины
+// не жёсткая ЛДСП-опора, к ним трубу не привязываем.
+export function nearestSupportSurfaceY(sec, rodItem, fillBottomPhysical) {
+  let best = fillBottomPhysical;
+  sec.items.forEach(it => {
+    if (it.type !== 'shelf' || it.id === rodItem.id) return;
+    const top = it.y + itemPhysicalHeight('shelf', sec, it) / 2;
+    if (top <= rodItem.y && top > best) best = top;
+  });
+  return best;
+}
+
 // Пересекается ли кандидатная позиция (Y центра) элемента типа type с каким-либо другим
 // элементом секции (кроме excludeId — самого себя при перетаскивании), с вешалом (если есть),
 // или с границами секции (пол/потолок наполнения). Используется и во время драга (подсветка
@@ -135,7 +165,8 @@ export function checkOverlap(candidateY, type, excludeId, sec, fillBottom, fillT
   const h = itemBandHeight(type, sec, item);
   const lo = candidateY - h / 2, hi = candidateY + h / 2;
   if (lo < fillBottom || hi > fillTop) return true;
-  return itemBands(sec, excludeId).some(b => lo < b.hi && hi > b.lo);
+  const pipeFillBottom = PIPE_BLOCKED_TYPES.has(type) ? fillBottom : undefined;
+  return itemBands(sec, excludeId, pipeFillBottom).some(b => lo < b.hi && hi > b.lo);
 }
 
 // Ищет первый достаточный по высоте свободный промежуток снизу вверх (от пола до потолка
@@ -143,7 +174,8 @@ export function checkOverlap(candidateY, type, excludeId, sec, fillBottom, fillT
 // не нашлось (вызывающий код должен показать тост).
 export function findFreeSlot(sec, type, fillBottom, fillTop) {
   const h = itemBandHeight(type, sec);
-  const bands = itemBands(sec, null).sort((a, b) => a.lo - b.lo);
+  const pipeFillBottom = PIPE_BLOCKED_TYPES.has(type) ? fillBottom : undefined;
+  const bands = itemBands(sec, null, pipeFillBottom).sort((a, b) => a.lo - b.lo);
   let cursor = fillBottom;
   for (const b of bands) {
     if (b.lo - cursor >= h) return cursor + h / 2;
