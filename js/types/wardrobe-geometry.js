@@ -309,6 +309,14 @@ export function buildWardrobeBox() {
     // выравнивателях — bwCenterX ниже).
     const shelfCenterX = (stojkaLeftOff - stojkaRightOff) / 2;
     addPanel(innerSpanW, t, innerDepth, nColor, [shelfCenterX, shelfBotWorldY + t / 2, innerZ]);
+    // Планка жёсткости — теперь ровно одна на весь короб (полка сама одна, не по секциям), висит
+    // от НЕЁ, а не от какой-то из секций (см. правку выше — секции больше не рисуют свою). Тот же
+    // принцип «не нужна, если задняя стенка ЛДСП», что и у обычной pinned-полки.
+    if (state.backWall !== 'ldsp') {
+      const stiffenerZ = -depth / 2 + STIFFENER_THICKNESS / 2;
+      const stiffenerCenterY = shelfBotWorldY - STIFFENER_HEIGHT / 2; // висит от НИЖНЕЙ поверхности полки
+      addPanel(innerSpanW, STIFFENER_HEIGHT, STIFFENER_THICKNESS, nColor, [shelfCenterX, stiffenerCenterY, stiffenerZ]);
+    }
   }
 
   const sectionCenters = [];
@@ -904,14 +912,18 @@ export function buildWardrobeBox() {
       // Планка жёсткости под верхней (структурной, pinned) полкой — не нужна, если задняя стенка
       // сама держит форму (ЛДСП). Вертикальная пластина (перпендикулярно полке, свисает вниз от
       // неё), стоит в плоскости задней стенки. Полка теперь перетаскиваемая — жёсткость висит от
-      // её ТЕКУЩЕЙ (возможно, перетащенной) позиции, а не от фиксированной константы.
+      // её ТЕКУЩЕЙ (возможно, перетащенной) позиции, а не от фиксированной константы. Только когда
+      // pinned-полка реально есть В ЭТОЙ секции — без запасной позиции: при включённой верхней
+      // части (задание «антресоли 19,07») у основных секций и секций верхней части своей pinned-
+      // полки больше нет вовсе (её роль — общая полка, см. отдельная планка ниже, одна на неё).
       if (state.backWall !== 'ldsp') {
         const pinnedItem = sec.items.find(it => it.type === 'shelf' && it.pinned);
-        const pinnedY = pinnedItem ? pinnedItem.y : zFillTop - TOP_SHELF_GAP;
-        const stiffenerZ = -depth / 2 + STIFFENER_THICKNESS / 2;
-        const stiffenerY = pinnedY - t / 2 - STIFFENER_HEIGHT / 2;
-        const stiffenerMesh = addPanel(sw, STIFFENER_HEIGHT, STIFFENER_THICKNESS, nColor, [cx, y0 + stiffenerY, stiffenerZ]);
-        if (pinnedItem) tag(stiffenerMesh, pinnedItem);
+        if (pinnedItem) {
+          const stiffenerZ = -depth / 2 + STIFFENER_THICKNESS / 2;
+          const stiffenerY = pinnedItem.y - t / 2 - STIFFENER_HEIGHT / 2;
+          const stiffenerMesh = addPanel(sw, STIFFENER_HEIGHT, STIFFENER_THICKNESS, nColor, [cx, y0 + stiffenerY, stiffenerZ]);
+          tag(stiffenerMesh, pinnedItem);
+        }
       }
     });
   }
