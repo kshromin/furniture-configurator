@@ -146,6 +146,24 @@ export function slidingDoorsCanClear(gx1, gx2) {
       && railCanClear(backCount, doorW, railMinX, railMaxX, x1, x2);
 }
 
+// Автоподбор смещающего элемента (задание «ящики-двери 19,07», второй раунд) — когда секция не
+// открывается на всю ширину, ищет МИНИМАЛЬНО достаточную заглушку (с шагом 5мм, та же гранулярность,
+// что и DRAWER_ACCESS_MARGIN) на каждой из сторон и выбирает более выгодную (меньше материала).
+// sw/cx — ширина/мировой X-центр секции целиком (та же величина, что передаётся в
+// slidingDoorsCanClear как gx1/gx2 при проверке на всю ширину). null — не помогает даже
+// максимальное сужение (MIN_DRAWER_REMAINING_WIDTH) ни с одной стороны.
+const OFFSET_SEARCH_STEP = 5;
+export function findMinDrawerOffset(sw, cx) {
+  const maxOffset = Math.max(MIN_DRAWER_OFFSET_WIDTH, sw - MIN_DRAWER_REMAINING_WIDTH);
+  for (let off = MIN_DRAWER_OFFSET_WIDTH; off <= maxOffset; off += OFFSET_SEARCH_STEP) {
+    // 'left' — заглушка слева, ящик прижат к правому краю секции.
+    if (slidingDoorsCanClear(cx - sw / 2 + off, cx + sw / 2)) return { side: 'left', width: off };
+    // 'right' — заглушка справа, ящик прижат к левому краю секции.
+    if (slidingDoorsCanClear(cx - sw / 2, cx + sw / 2 - off)) return { side: 'right', width: off };
+  }
+  return null;
+}
+
 // Секции наполнения имеют произвольную ширину, но сумма их ширин + перегородки между ними
 // обязана совпадать с реальной внутренней шириной короба (effectiveDoorSpan().innerSpanW —
 // доходит до стены независимо от планки/короба, в отличие от дверного пролёта spanW). Эта

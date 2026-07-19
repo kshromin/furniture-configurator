@@ -3,7 +3,7 @@ import { resetHistory } from './history.js';
 import { TYPES } from '../types/registry.js';
 import { renderProducerSelect, renderSwatches } from './materials.js';
 import { buildFurniture } from './build.js';
-import { showToast } from './toast.js';
+import { showToast, showChoiceDialog } from './toast.js';
 import { renderStaticDimensions, setSelectedSection } from './dimensions.js';
 import {
   rebalanceSections, MIN_SECTION_WIDTH, maxDrawerDepth, availableMeshDepths, availableValetLengths, clampSectionSizes,
@@ -12,7 +12,7 @@ import {
   sectionBackWallSegments, doorCountOptions, getDoorCount, effectiveDoorSpan, DOOR_MIN_W, DOOR_OVERLAP,
   swingDoorCountOptions, SWING_GAP, SWING_DOOR_MIN_W, SWING_DOOR_MAX_W,
   mezzanineVerticalBounds, MESH_DEPTHS, clampItemPositions, defaultPinnedShelfY,
-  slidingDoorsCanClear, lastBuildSectionCenters,
+  slidingDoorsCanClear, lastBuildSectionCenters, findMinDrawerOffset,
 } from '../types/_wardrobe-shared.js';
 
 // Общий список допустимых проёмов под корзины (не привязан к конкретной выбранной ширине) —
@@ -697,7 +697,7 @@ export function renderSectionsList() {
   // (findFreeSlot), либо тост «нет места». Крестик на чипе — удаляет конкретный экземпляр по id.
   // Позиционирование/перестановка — мышкой в 3D-виде (js/core/itemDrag.js), не здесь.
   container.querySelectorAll('.section-add-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const i = Number(btn.dataset.idx);
       const type = btn.dataset.type;
       const sec = state.sections[i];
@@ -717,24 +717,44 @@ export function renderSectionsList() {
       }
       // Купе-двери не распашные — если секция физически не открывается ни при какой расстановке
       // дверей (см. slidingDoorsCanClear, задание «ящики-двери 19,07»), ящик/корзина не выдвинется.
-      // Не блокируем — предупреждаем и даём поставить осознанно (confirm — единственный доступный
-      // в проекте способ спросить да/нет, не блокируя дальнейшую работу). Касается и корзин — узить
-      // корзину нечем (типоразмер жёстко завязан на обязательный проём, см. basketFits), поэтому
-      // для неё только предупреждение, без варианта «сузить».
+      // Не блокируем — предупреждаем и даём поставить осознанно. У корзины сузить нечем (типоразмер
+      // жёстко завязан на обязательный проём, см. basketFits) — для неё простой confirm (да/нет).
+      // У ящика — второй раунд задания: полноценный выбор из трёх вариантов (диалог с кнопками,
+      // не голый confirm, тому не хватает третьего варианта), «сузить» считает сторону/ширину сама
+      // (findMinDrawerOffset) и сразу проставляет их на новом ящике.
+      let offsetSide = null, offsetWidth = null;
       if (type === 'drawer' || type === 'basket') {
         const cx = lastBuildSectionCenters[i];
         if (cx !== undefined && !slidingDoorsCanClear(cx - sec.width / 2, cx + sec.width / 2)) {
-          const label = type === 'drawer' ? 'ящик' : 'корзина';
-          // Ящик можно сузить смещающим элементом (задание «ящики-двери 19,07», второй раунд) —
-          // после добавления, через инфопанель выделенного ящика в 3D (см. itemDrag.js). У корзины
-          // такой возможности нет (типоразмер жёстко завязан на проём), для неё подсказки не будет.
-          const hint = type === 'drawer' ? ' Можно сузить его смещающим элементом (после добавления — через панель у выделенного ящика).' : '';
-          const ok = confirm(`Эта секция не откроется целиком ни при какой расстановке раздвижных дверей — ${label} не выдвинется.${hint} Всё равно поставить на всю ширину?`);
-          if (!ok) return;
+          if (type === 'basket') {
+            const ok = confirm('Эта секция не откроется целиком ни при какой расстановке раздвижных дверей — корзина не выдвинется. Всё равно поставить на всю ширину?');
+            if (!ok) return;
+          } else {
+            const fit = findMinDrawerOffset(sec.width, cx);
+            const options = [
+              { label: 'Отмена', value: 'cancel' },
+              { label: 'Проигнорировать — поставить на всю ширину', value: 'ignore' },
+            ];
+            if (fit) {
+              options.push({
+                label: `Сузить и поставить (${fit.side === 'left' ? 'слева' : 'справа'}, ${fit.width} мм)`,
+                value: 'narrow', primary: true,
+              });
+            }
+            const choice = await showChoiceDialog(
+              'Эта секция не откроется целиком ни при какой расстановке раздвижных дверей — ящик не выдвинется.' +
+              (fit ? '' : ' Даже максимально возможное сужение смещающим элементом не помогает.'),
+              options,
+            );
+            if (!choice || choice === 'cancel') return;
+            if (choice === 'narrow' && fit) { offsetSide = fit.side; offsetWidth = fit.width; }
+          }
         }
       }
       const newId = newItemId();
-      sec.items.push({ id: newId, type, y });
+      const newItem = { id: newId, type, y };
+      if (offsetSide) { newItem.offsetSide = offsetSide; newItem.offsetWidth = offsetWidth; }
+      sec.items.push(newItem);
       // Если новый элемент попал между парой с зафиксированным просветом (см. задание «фиксация
       // размеров»), фиксируем и новую нижнюю половину — весь исходный промежуток остаётся жёстким.
       absorbIntoLockedGap(sec, newId);
