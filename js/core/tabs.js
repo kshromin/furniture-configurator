@@ -111,11 +111,11 @@ async function warnAboutNewlyBrokenClearance(before) {
   const hasBaskets = broken.some(b => b.item.type === 'basket');
 
   if (!drawers.length) {
-    showToast('После изменения ширины секции корзина (или несколько) больше не откроется целиком ни при какой расстановке дверей — сузить нечем, поправьте вручную.');
+    showToast('Корзина (или несколько) больше не откроется целиком ни при какой расстановке дверей — сузить нечем, поправьте вручную.');
     return;
   }
   const choice = await showChoiceDialog(
-    'После изменения ширины секции ящик (или несколько) перестал открываться целиком ни при какой расстановке дверей.' +
+    'Ящик (или несколько) перестал открываться целиком ни при какой расстановке дверей.' +
     (hasBaskets ? ' Задета и корзина — её сузить нечем, поправьте вручную.' : ''),
     [
       { label: 'Оставить как есть', value: 'keep' },
@@ -403,12 +403,18 @@ export function renderDoorCountOptions() {
     return;
   }
 
+  // Количество дверей меняет ширину/раскладку всех дверей разом (не одной секции, как ширина
+  // секции) — та же проверка открываемости ящиков/корзин, что и при смене ширины секции (задание
+  // «ящики-двери 19,07», четвёртый раунд): снимок "было" до смены, диалог про то, что сломалось,
+  // после пересборки.
   const autoBtn = document.createElement('button');
   autoBtn.className = 'opt-btn' + (state.doorCount === null ? ' active' : '');
   autoBtn.textContent = 'Авто';
-  autoBtn.addEventListener('click', () => {
+  autoBtn.addEventListener('click', async () => {
+    const before = snapshotDrawerClearance();
     state.doorCount = null;
     buildFurniture();
+    await warnAboutNewlyBrokenClearance(before);
   });
   group.appendChild(autoBtn);
 
@@ -417,9 +423,11 @@ export function renderDoorCountOptions() {
     btn.className = 'opt-btn' + (state.doorCount === o.n ? ' active' : '');
     btn.textContent = String(o.n);
     btn.title = `Ширина двери ≈ ${o.w} мм`;
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
+      const before = snapshotDrawerClearance();
       state.doorCount = o.n;
       buildFurniture();
+      await warnAboutNewlyBrokenClearance(before);
     });
     group.appendChild(btn);
   });
