@@ -123,8 +123,10 @@ function railCanClear(doorsOnRail, doorW, railMinX, railMaxX, gx1, gx2) {
 // gx1/gx2 — мировые X-границы проверяемого участка (например, секции с ящиком). true, если
 // раздвижные двери вообще не используются (нет проблемы) либо существует расстановка дверей,
 // полностью открывающая участок; false — участок недостижим ни при какой расстановке.
+// state.showDoors — ТОЛЬКО визуальный тумблер (спрятать двери в 3D-виде, чтобы видеть внутрь) —
+// физически двери никуда не деваются, поэтому НЕ освобождает от проверки (баг: раньше освобождал).
 export function slidingDoorsCanClear(gx1, gx2) {
-  if (!state.showDoors || state.fasadDoorType !== 'sliding') return true;
+  if (state.fasadDoorType !== 'sliding') return true;
   const { spanW, leftOff } = effectiveDoorSpan();
   const spanCenterX = -state.width / 2 + leftOff + spanW / 2;
   const railMinX = spanCenterX - spanW / 2;
