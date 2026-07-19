@@ -7,6 +7,7 @@ import {
   checkOverlap, boundsForZone, boundsForZonePhysical, secForZone, valetAnchorCandidates, resolveValetAnchorY,
   itemPhysicalBands, itemPhysicalHeight, resolveLockedMove, absorbIntoLockedGap,
   nearestSupportSurfaceY, horizontalSupportYRange,
+  clampDrawerOffsetWidth, MIN_DRAWER_OFFSET_WIDTH, MIN_DRAWER_REMAINING_WIDTH, DEFAULT_DRAWER_OFFSET_WIDTH,
 } from '../types/_wardrobe-shared.js';
 import { projectToOverlay, updateArrow, hideArrow } from './dimensions.js';
 import { renderSectionsList } from './tabs.js';
@@ -167,11 +168,48 @@ function describeActive() {
           ] : []),
         ],
       };
-    case 'drawer':
+    case 'drawer': {
+      // Смещающий элемент (задание «ящики-двери 19,07») — заглушка слева/справа той же высоты,
+      // сам ящик становится уже секции на её ширину и сдвигается к противоположному краю. Ширина
+      // заглушки — редактируемое поле (numberField), сторона — переключатель (actions), тот же
+      // приём «по выделению», что и толщина полки/стойки штанги выше.
+      const sw = sec.width;
+      const offW = item.offsetSide ? clampDrawerOffsetWidth(sw, item.offsetWidth) : 0;
       return {
         title: 'Ящик',
-        lines: [`Фасад: ${sec.drawerHeight} мм`, `Глубина короба: ${sec.drawerDepth} мм`, `Направляющие: ${DRAWER_SLIDE_LABELS[sec.drawerSlideType] || sec.drawerSlideType}`],
+        lines: [
+          `Фасад: ${sec.drawerHeight} мм`, `Глубина короба: ${sec.drawerDepth} мм`,
+          `Направляющие: ${DRAWER_SLIDE_LABELS[sec.drawerSlideType] || sec.drawerSlideType}`,
+          ...(item.offsetSide ? [`Смещающий элемент: ${item.offsetSide === 'left' ? 'слева' : 'справа'}, ${Math.round(offW)} мм`] : []),
+        ],
+        actions: item.offsetSide ? [
+          {
+            label: item.offsetSide === 'left' ? 'Перенести элемент вправо' : 'Перенести элемент влево',
+            onClick: () => { item.offsetSide = item.offsetSide === 'left' ? 'right' : 'left'; refreshActive(); },
+          },
+          {
+            label: 'Убрать смещающий элемент',
+            onClick: () => { item.offsetSide = null; refreshActive(); },
+          },
+        ] : [
+          {
+            label: 'Смещающий элемент слева',
+            onClick: () => { item.offsetSide = 'left'; item.offsetWidth = clampDrawerOffsetWidth(sw, item.offsetWidth || DEFAULT_DRAWER_OFFSET_WIDTH); refreshActive(); },
+          },
+          {
+            label: 'Смещающий элемент справа',
+            onClick: () => { item.offsetSide = 'right'; item.offsetWidth = clampDrawerOffsetWidth(sw, item.offsetWidth || DEFAULT_DRAWER_OFFSET_WIDTH); refreshActive(); },
+          },
+        ],
+        numberField: item.offsetSide ? {
+          label: 'Ширина заглушки, мм',
+          value: offW,
+          min: MIN_DRAWER_OFFSET_WIDTH,
+          max: Math.max(MIN_DRAWER_OFFSET_WIDTH, sw - MIN_DRAWER_REMAINING_WIDTH),
+          onChange: v => { item.offsetWidth = clampDrawerOffsetWidth(sw, v); refreshActive(); },
+        } : null,
       };
+    }
     case 'mesh':
       return { title: 'Сетчатая полка', lines: [`Глубина: ${sec.meshDepth} мм`, `Цвет: ${COLOR_LABELS[sec.meshColor] || sec.meshColor}`] };
     case 'basket':
@@ -185,7 +223,7 @@ function describeActive() {
 }
 
 function showInfoPanel() {
-  const { title, lines, actions } = describeActive();
+  const { title, lines, actions, numberField } = describeActive();
   infoPanel.innerHTML = `<div class="drag-info-panel-title">${title}</div>${lines.map(l => `<div>${l}</div>`).join('')}`;
   (actions || []).forEach(({ label, onClick }) => {
     const btn = document.createElement('button');
@@ -195,6 +233,26 @@ function showInfoPanel() {
     btn.addEventListener('click', e => { e.stopPropagation(); onClick(); });
     infoPanel.appendChild(btn);
   });
+  // Редактируемое числовое поле прямо в инфопанели (ширина заглушки смещающего элемента, задание
+  // «ящики-двери 19,07») — тот же приём, что и тумблеры-actions выше, просто с числом вместо кнопки.
+  if (numberField) {
+    const row = document.createElement('div');
+    row.style.cssText = 'margin-top:6px;display:flex;align-items:center;justify-content:space-between;gap:6px';
+    const label = document.createElement('span');
+    label.textContent = numberField.label;
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.className = 'dim-input';
+    inp.style.width = '64px';
+    inp.min = numberField.min;
+    inp.max = numberField.max;
+    inp.value = Math.round(numberField.value);
+    inp.addEventListener('pointerdown', e => e.stopPropagation());
+    inp.addEventListener('change', () => numberField.onChange(Number(inp.value)));
+    row.appendChild(label);
+    row.appendChild(inp);
+    infoPanel.appendChild(row);
+  }
   infoPanel.classList.add('visible');
 }
 

@@ -1,5 +1,8 @@
 import { state, PANEL_THICKNESS, detailT } from '../core/state.js';
-import { DOOR_DEPTH_ZONE, DOOR_OVERLAP, DOOR_MIN_W, DOOR_MAX_W, MESH_DEPTHS, VALET_LENGTHS, BASKET_WIDTHS, BASKET_DEPTHS_BY_WIDTH } from './wardrobe-constants.js';
+import {
+  DOOR_DEPTH_ZONE, DOOR_OVERLAP, DOOR_MIN_W, DOOR_MAX_W, MESH_DEPTHS, VALET_LENGTHS, BASKET_WIDTHS, BASKET_DEPTHS_BY_WIDTH,
+  MIN_DRAWER_OFFSET_WIDTH, MIN_DRAWER_REMAINING_WIDTH,
+} from './wardrobe-constants.js';
 
 // Хелперы размеров/цены: сколько места реально доступно под тот или иной элемент наполнения
 // (ящик/сетка/вешало/корзина) при текущих габаритах шкафа, и балансировка ширины секций.
@@ -243,6 +246,15 @@ export function sectionMissingSideSupport(sections, idx) {
   const isFirst = idx === 0;
   const isLast = idx === sections.length - 1;
   return (isFirst && state.noSideLeft) || (isLast && state.noSideRight);
+}
+
+// Смещающий элемент ящика (задание «ящики-двери 19,07») — клампит сохранённую ширину заглушки
+// под текущую ширину секции (та могла измениться): не меньше MIN_DRAWER_OFFSET_WIDTH и не больше
+// того, что оставляет ящику хотя бы MIN_DRAWER_REMAINING_WIDTH. Общая функция для geometry (что
+// рисовать), itemDrag.js (что показывать/клампить в инфопанели) и pricing (площадь/кромка).
+export function clampDrawerOffsetWidth(sw, offsetWidth) {
+  const maxOffset = Math.max(MIN_DRAWER_OFFSET_WIDTH, sw - MIN_DRAWER_REMAINING_WIDTH);
+  return Math.min(Math.max(offsetWidth || MIN_DRAWER_OFFSET_WIDTH, MIN_DRAWER_OFFSET_WIDTH), maxOffset);
 }
 
 // Габариты короба ящика (дно/боковины/задняя стенка) — чуть меньше фасада (10мм с каждой

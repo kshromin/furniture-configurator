@@ -18,3 +18,12 @@ export const BASKET_DEPTHS_BY_WIDTH = { 300: [400], 400: [400, 450, 500, 550, 60
 export const DOOR_OVERLAP = 30;
 export const DOOR_MIN_W = 500;
 export const DOOR_MAX_W = 1100;
+
+// Смещающий элемент ящика (задание «ящики-двери 19,07», второй раунд) — заглушка той же высоты,
+// что и фасад ящика, ставится слева либо справа; сам ящик становится уже секции на её ширину и
+// сдвигается к противоположному краю. MIN_OFFSET_WIDTH — минимальная ширина самой заглушки (нет
+// смысла в декоративной планке уже этого), MIN_DRAWER_REMAINING_WIDTH — минимальная ширина, до
+// которой можно сузить сам ящик (короб+направляющие всё ещё должны на что-то влезть).
+export const MIN_DRAWER_OFFSET_WIDTH = 30;
+export const MIN_DRAWER_REMAINING_WIDTH = 150;
+export const DEFAULT_DRAWER_OFFSET_WIDTH = 100;

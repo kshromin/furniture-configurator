@@ -2,7 +2,7 @@ import { state, materials, PANEL_THICKNESS } from '../core/state.js';
 import { korpusBoxAreaM2 } from '../core/pricing.js';
 import {
   buildWardrobeBox, getDoorCount, effectiveDoorSpan, drawerBoxSize, basketFits, sectionMissingSideSupport,
-  sectionBackWallSegments,
+  sectionBackWallSegments, clampDrawerOffsetWidth,
   DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_RAIL_HEIGHT, BOTTOM_RAIL_HEIGHT, STIFFENER_HEIGHT, SWING_GAP,
 } from './_wardrobe-shared.js';
 
@@ -154,24 +154,36 @@ export default {
       const sw = sec.width;
       // Без опоры по бокам (см. sectionMissingSideSupport) ящики не ставятся — только в той
       // крайней секции, где реально сняли стойку, не во всех сразу — см. buildWardrobeBox.
-      const drawerCount = sectionMissingSideSupport(sections, s) ? 0 : countOf(sec, 'drawer');
-      if (drawerCount > 0) {
-        // Фасад ящика — в площадь фасадов; короб (дно+2 боковины+задняя стенка) — в наполнение/ЛДСП.
-        fasadM2 += (drawerCount * sw * sec.drawerHeight) / 1e6;
-        const { boxW, boxH, boxDepth } = drawerBoxSize(sw, sec.drawerHeight, sec.drawerDepth, depth);
-        const boxM2 = boxW * boxDepth + 2 * boxH * boxDepth + boxW * boxH;
-        fillM2 += (drawerCount * boxM2) / 1e6;
-        // Кромка ящика: фасад целиком по периметру; у короба — дно без кромки (скрыто в стыке),
-        // боковины оклеены с трёх сторон (верх+перед+зад — не оклеен только низ, в стыке с
-        // дном), задняя стенка — только верхний торец (левый/правый/нижний скрыты в стыках с
-        // боковинами и дном).
-        const facadeEdge = 2 * (sw + sec.drawerHeight);
-        const sideWallsEdge = 2 * (boxDepth + 2 * boxH);
-        const backWallEdge = boxW;
-        edgeLengthMm += drawerCount * (facadeEdge + sideWallsEdge + backWallEdge);
-        // Длина направляющей — по реальной (уже клампнутой под глубину короба) физической
-        // глубине ящика, не по «желаемому» sec.drawerDepth — то же значение, что режет короб.
-        drawerSlidePrice += drawerCount * drawerSlideUnitPrice(sec.drawerSlideType, boxDepth);
+      // Поштучно (не агрегатом по count×sw), т.к. смещающий элемент (задание «ящики-двери 19,07»)
+      // делает конкретный ящик уже секции — у каждого экземпляра теперь своя ширина короба.
+      if (!sectionMissingSideSupport(sections, s)) {
+        sec.items.filter(it => it.type === 'drawer').forEach(it => {
+          const offW = it.offsetSide ? clampDrawerOffsetWidth(sw, it.offsetWidth) : 0;
+          const drawerW = sw - offW;
+          // Фасад ящика — в площадь фасадов; короб (дно+2 боковины+задняя стенка) — в наполнение/ЛДСП.
+          fasadM2 += (drawerW * sec.drawerHeight) / 1e6;
+          const { boxW, boxH, boxDepth } = drawerBoxSize(drawerW, sec.drawerHeight, sec.drawerDepth, depth);
+          const boxM2 = boxW * boxDepth + 2 * boxH * boxDepth + boxW * boxH;
+          fillM2 += boxM2 / 1e6;
+          // Кромка ящика: фасад целиком по периметру; у короба — дно без кромки (скрыто в стыке),
+          // боковины оклеены с трёх сторон (верх+перед+зад — не оклеен только низ, в стыке с
+          // дном), задняя стенка — только верхний торец (левый/правый/нижний скрыты в стыках с
+          // боковинами и дном).
+          const facadeEdge = 2 * (drawerW + sec.drawerHeight);
+          const sideWallsEdge = 2 * (boxDepth + 2 * boxH);
+          const backWallEdge = boxW;
+          edgeLengthMm += facadeEdge + sideWallsEdge + backWallEdge;
+          // Длина направляющей — по реальной (уже клампнутой под глубину короба) физической
+          // глубине ящика, не по «желаемому» sec.drawerDepth — то же значение, что режет короб.
+          drawerSlidePrice += drawerSlideUnitPrice(sec.drawerSlideType, boxDepth);
+          if (offW > 0) {
+            // Заглушка — тот же фасадный материал/толщина, что и фасад ящика (см. addOffsetFiller
+            // в wardrobe-geometry.js), без короба/направляющих — отдельная панель со своей кромкой
+            // по периметру (два новых внутренних торца, которых не было бы у цельного фасада).
+            fasadM2 += (offW * sec.drawerHeight) / 1e6;
+            edgeLengthMm += 2 * (offW + sec.drawerHeight);
+          }
+        });
       }
       // Сетчатые полки — цена за погонный метр (ширина секции), а не за м², зависит от
       // выбранной глубины и цвета (см. materials.json meshShelf).

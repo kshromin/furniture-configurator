@@ -6,7 +6,7 @@ import { DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_SHELF_GAP, MESH_DEPTHS, VALET_LENGTH
 import {
   effectiveDoorSpan, rebalanceSections, getDoorCount, SWING_GAP,
   maxDrawerDepth, availableMeshDepths, availableValetLengths, backWallClearance, valetBackClearance,
-  drawerBoxSize, basketFits, availableBasketDepths, sectionMissingSideSupport,
+  drawerBoxSize, basketFits, availableBasketDepths, sectionMissingSideSupport, clampDrawerOffsetWidth,
 } from './wardrobe-sizing.js';
 import {
   sectionVerticalBounds, sectionVerticalBoundsPhysical, clampItemPositions, resolveValetAnchorY,
@@ -500,6 +500,13 @@ export function buildWardrobeBox() {
   // Ящик = фасад (лицевая панель, цвет фасада, вровень с перегородкой) + короб позади него
   // (дно/боковины/задняя стенка, цвет наполнения/ЛДСП, чуть уже фасада). Глубина короба
   // ограничена, чтобы не вылезти за заднюю стенку короба шкафа.
+  // Заглушка смещающего элемента (задание «ящики-двери 19,07») — та же фасадная панель, что и
+  // передняя стенка ящика (тот же материал/толщина/Z), просто без короба и направляющих за ней.
+  function addOffsetFiller(cx, y, w, h) {
+    const facadeZ = frontZ - t / 2;
+    return addPanel(w, h, t, fColor, [cx, y0 + y, facadeZ], 0.9);
+  }
+
   function addDrawer(cx, y, sw, sec) {
     const dh = sec.drawerHeight;
     const facadeZ = frontZ - t / 2;
@@ -795,7 +802,18 @@ export function buildWardrobeBox() {
             // крайней секции, перегородка у остальных) — блокируем только крайнюю секцию со
             // стороны снятой стойки, см. sectionMissingSideSupport.
             if (sectionMissingSideSupport(zoneSections, s)) break;
-            const meshes = addDrawer(cx, item.y, sw, sec);
+            // Смещающий элемент (задание «ящики-двери 19,07») — заглушка той же высоты слева
+            // либо справа, сам ящик уже секции на её ширину и сдвинут к противоположному краю.
+            let drawerCx = cx, drawerW = sw;
+            if (item.offsetSide) {
+              const offW = clampDrawerOffsetWidth(sw, item.offsetWidth);
+              drawerW = sw - offW;
+              const shift = offW / 2;
+              drawerCx = item.offsetSide === 'left' ? cx + shift : cx - shift;
+              const fillerCx = item.offsetSide === 'left' ? cx - sw / 2 + offW / 2 : cx + sw / 2 - offW / 2;
+              tag(addOffsetFiller(fillerCx, item.y, offW, sec.drawerHeight), item, { offsetFiller: true });
+            }
+            const meshes = addDrawer(drawerCx, item.y, drawerW, sec);
             meshes.forEach(m => tag(m, item));
             totalDrawers += 1;
             break;
