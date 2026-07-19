@@ -155,6 +155,33 @@ export function nearestSupportSurfaceY(sec, rodItem, fillBottomPhysical) {
   return best;
 }
 
+// Горизонтальные перемычки от вертикальной трубы-стойки к боковым стойкам (item.horizontalSupportLeft/
+// Right, задание «трубы вертикально плюс») — ЛЕВАЯ и ПРАВАЯ полностью независимы (свой краб,
+// своя высота стыка с вертикальной трубой — item.horizontalSupportLeftY/RightY, мышкой двигается
+// пользователем от низа (опоры) до верха (штанги), с минимальным зазором с обеих сторон).
+export const HORIZONTAL_SUPPORT_MARGIN = 30;
+
+// Диапазон одинаковый для обеих сторон (обе крепятся к одной и той же вертикальной трубе) —
+// но САМИ высоты (поле field — 'horizontalSupportLeftY' или 'horizontalSupportRightY') хранятся
+// и двигаются раздельно.
+export function horizontalSupportYRange(sec, rodItem, fillBottomPhysical) {
+  const surfaceY = nearestSupportSurfaceY(sec, rodItem, fillBottomPhysical);
+  return { lo: surfaceY + HORIZONTAL_SUPPORT_MARGIN, hi: rodItem.y - HORIZONTAL_SUPPORT_MARGIN };
+}
+
+// Подгоняет сохранённую высоту перемычки (поле field) под текущий диапазон (полка могла
+// подвинуться/пропасть — см. nearestSupportSurfaceY) — назначает середину при первом включении,
+// иначе клампит без изменения, если уже была выставлена мышкой.
+export function clampHorizontalSupportY(sec, rodItem, fillBottomPhysical, field) {
+  const { lo, hi } = horizontalSupportYRange(sec, rodItem, fillBottomPhysical);
+  const mid = (lo + hi) / 2;
+  if (rodItem[field] === undefined || hi < lo) {
+    rodItem[field] = mid;
+  } else {
+    rodItem[field] = Math.min(Math.max(rodItem[field], lo), hi);
+  }
+}
+
 // Пересекается ли кандидатная позиция (Y центра) элемента типа type с каким-либо другим
 // элементом секции (кроме excludeId — самого себя при перетаскивании), с вешалом (если есть),
 // или с границами секции (пол/потолок наполнения). Используется и во время драга (подсветка

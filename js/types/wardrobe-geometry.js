@@ -10,7 +10,7 @@ import {
 } from './wardrobe-sizing.js';
 import {
   sectionVerticalBounds, sectionVerticalBoundsPhysical, clampItemPositions, resolveValetAnchorY,
-  sectionBackWallSegments, nearestSupportSurfaceY,
+  sectionBackWallSegments, nearestSupportSurfaceY, clampHorizontalSupportY,
 } from './wardrobe-items.js';
 
 // Геометрия/рендер: собственно построение 3D-модели шкафа-купе (buildWardrobeBox) — короб,
@@ -165,11 +165,16 @@ export let lastBuildValetMeshes = new Map();
 export let lastBuildSectionCenters = [];
 export let lastBuildY0 = 0;
 
-function tagItemMesh(mesh, sectionIndex, item) {
+// extra — доп. userData поверх обычных полей (см. горизонтальную перемычку штанги ниже):
+// hSupportSide — 'left'/'right', меш входит в перемычку этой стороны (весь целиком — краб+труба+
+// фланец — кликабелен и тащится как одно целое, независимо от другой стороны и от самой штанги),
+// см. pickDraggable в itemDrag.js.
+function tagItemMesh(mesh, sectionIndex, item, extra) {
   if (!mesh) return;
   mesh.userData.sectionIndex = sectionIndex;
   mesh.userData.itemId = item.id;
   mesh.userData.itemType = item.type;
+  if (extra) Object.assign(mesh.userData, extra);
   const key = sectionIndex + '|' + item.id;
   if (!lastBuildItemMeshes.has(key)) lastBuildItemMeshes.set(key, []);
   lastBuildItemMeshes.get(key).push(mesh);
@@ -364,7 +369,7 @@ export function buildWardrobeBox() {
   // Граница дверной зоны — та же, что и у полок/перегородки (innerZ ± innerDepth/2): ящики
   // должны быть с ней вровень, а не торчать вперёд к самим дверям.
   const frontZ = depth / 2 - DOOR_DEPTH_ZONE;
-  let totalShelves = 0, totalDrawers = 0, totalRod = 0, totalRodSupports = 0, totalMeshShelves = 0, totalValet = 0, totalBaskets = 0;
+  let totalShelves = 0, totalDrawers = 0, totalRod = 0, totalRodSupports = 0, totalHorizontalSupports = 0, totalMeshShelves = 0, totalValet = 0, totalBaskets = 0;
 
   function addRod(cx, y, sw) {
     const rodGeo = new THREE.CylinderGeometry(ROD_RADIUS, ROD_RADIUS, sw, 24);
@@ -411,6 +416,19 @@ export function buildWardrobeBox() {
     const mat = new THREE.MeshStandardMaterial({ color: ROD_COLOR, metalness: 0.9, roughness: 0.2 });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(x, y0 + y, z);
+    furnitureGroup.add(mesh);
+    return mesh;
+  }
+
+  // Горизонтальная перемычка от вертикальной трубы-стойки к боковой стойке (item.horizontalSupportLeft/
+  // Right, задание «трубы вертикально плюс») — тот же диаметр/материал, что у остальных труб узла.
+  function addHorizontalSupport(x1, x2, y, z) {
+    const length = Math.abs(x2 - x1);
+    const geo = new THREE.CylinderGeometry(ROD_RADIUS, ROD_RADIUS, length, 24);
+    const mat = new THREE.MeshStandardMaterial({ color: ROD_COLOR, metalness: 0.9, roughness: 0.15 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.z = Math.PI / 2;
+    mesh.position.set((x1 + x2) / 2, y0 + y, z);
     furnitureGroup.add(mesh);
     return mesh;
   }
@@ -733,11 +751,51 @@ export function buildWardrobeBox() {
           tagItemMesh(addFlange(cx + sw / 2, item.y, innerZ, 'x'), s, item);
           if (item.verticalSupport) {
             const surfaceY = nearestSupportSurfaceY(sec, item, fillBottomPhysical);
-            const supportMesh = addRodSupport(cx, surfaceY, item.y);
-            tagItemMesh(supportMesh, s, item);
+            // Левая и правая перемычки полностью независимы — свой краб, своя высота стыка с
+            // вертикальной трубой (item.horizontalSupportLeftY/RightY, см. задание «трубы
+            // вертикально плюс»). Труба-стойка физически ПРЕРЫВАЕТСЯ в каждой точке стыка — крабы
+            // сидят в разрывах, а не поверх сплошной трубы (иначе клик обычно попадает в трубу, а
+            // не в маленький краб внутри неё).
+            const halfCrab = T_CRAB_SIZE / 2;
+            const cuts = [];
+            if (item.horizontalSupportLeft) {
+              clampHorizontalSupportY(sec, item, fillBottomPhysical, 'horizontalSupportLeftY');
+              cuts.push(item.horizontalSupportLeftY);
+            }
+            if (item.horizontalSupportRight) {
+              clampHorizontalSupportY(sec, item, fillBottomPhysical, 'horizontalSupportRightY');
+              cuts.push(item.horizontalSupportRightY);
+            }
+            let cursor = surfaceY;
+            cuts.slice().sort((a, b) => a - b).forEach(cutY => {
+              const segHi = cutY - halfCrab;
+              if (segHi > cursor) tagItemMesh(addRodSupport(cx, cursor, segHi), s, item);
+              cursor = Math.max(cursor, cutY + halfCrab);
+            });
+            if (item.y > cursor) tagItemMesh(addRodSupport(cx, cursor, item.y), s, item);
+
             tagItemMesh(addFlange(cx, surfaceY, innerZ, 'y'), s, item); // фланец снизу, на полке/дне
             tagItemMesh(addTCrab(cx, item.y, innerZ), s, item);         // узел стыка со штангой
             totalRodSupports += 1;
+
+            // Пикается/тащится ВСЯ перемычка целиком (краб + труба + фланец у стойки) — не только
+            // краб, см. pickDraggable в itemDrag.js (hSupportSide на каждом меше группы).
+            if (item.horizontalSupportLeft) {
+              const leftX = cx - sw / 2;
+              const ly = item.horizontalSupportLeftY;
+              tagItemMesh(addTCrab(cx, ly, innerZ), s, item, { hSupportSide: 'left' });
+              tagItemMesh(addHorizontalSupport(leftX, cx, ly, innerZ), s, item, { hSupportSide: 'left' });
+              tagItemMesh(addFlange(leftX, ly, innerZ, 'x'), s, item, { hSupportSide: 'left' });
+              totalHorizontalSupports += 1;
+            }
+            if (item.horizontalSupportRight) {
+              const rightX = cx + sw / 2;
+              const ry = item.horizontalSupportRightY;
+              tagItemMesh(addTCrab(cx, ry, innerZ), s, item, { hSupportSide: 'right' });
+              tagItemMesh(addHorizontalSupport(cx, rightX, ry, innerZ), s, item, { hSupportSide: 'right' });
+              tagItemMesh(addFlange(rightX, ry, innerZ, 'x'), s, item, { hSupportSide: 'right' });
+              totalHorizontalSupports += 1;
+            }
           }
           break;
         }
@@ -766,9 +824,11 @@ export function buildWardrobeBox() {
     swingDoor: state.fasadDoorType === 'swing' ? doorCount : 0,
     drawer: totalDrawers, shelf: totalShelves, rod: totalRod, item: 1,
     // Фланцы — крепление трубы к стойкам: 2 на каждую штангу (оба конца) + 1 на каждую
-    // вертикальную стойку (низ, на полке/дне). Т-краб — только на вертикальных стойках, узел
-    // соединения с горизонтальной штангой (см. addRodSupport/nearestSupportSurfaceY выше).
-    rodFlange: totalRod * 2 + totalRodSupports, rodTCrab: totalRodSupports,
+    // вертикальную стойку (низ, на полке/дне) + 1 на каждую горизонтальную перемычку (у боковой
+    // стойки). Т-краб — по одному на вертикальную стойку и на каждую горизонтальную перемычку
+    // (узлы соединения труб, см. addRodSupport/addHorizontalSupport выше).
+    rodFlange: totalRod * 2 + totalRodSupports + totalHorizontalSupports,
+    rodTCrab: totalRodSupports + totalHorizontalSupports,
     meshShelf: totalMeshShelves, valet: totalValet,
     basket: totalBaskets,
   };

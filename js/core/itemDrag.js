@@ -6,6 +6,7 @@ import {
   lastBuildItemMeshes, lastBuildValetMeshes, lastBuildSectionCenters, lastBuildY0,
   checkOverlap, sectionVerticalBounds, sectionVerticalBoundsPhysical, valetAnchorCandidates, resolveValetAnchorY,
   itemPhysicalBands, itemPhysicalHeight, resolveLockedMove, absorbIntoLockedGap,
+  nearestSupportSurfaceY, horizontalSupportYRange,
 } from '../types/_wardrobe-shared.js';
 import { projectToOverlay, updateArrow, hideArrow } from './dimensions.js';
 import { renderSectionsList } from './tabs.js';
@@ -51,8 +52,11 @@ function updatePointerNDC(e) {
 }
 
 // Рейкастим только настоящие меши (у edge-контуров addPanel — LineSegments — нет userData,
-// они и так не .isMesh, но фильтруем явно для надёжности), первый хит с itemId — обычный
-// перетаскиваемый элемент, первый хит с itemType 'valet' — вешало (снап-ветка).
+// они и так не .isMesh, но фильтруем явно для надёжности). hSupportSide проверяется ПЕРВЫМ —
+// это меш горизонтальной перемычки штанги, левой или правой (см. wardrobe-geometry.js), у него
+// тоже есть itemId (входит в общую подсветку штанги), но клик по НЕЙ (по любой её части — краб,
+// труба или фланец) должен тащить именно эту перемычку, а не штангу целиком. Дальше — обычный
+// itemId (перетаскиваемый элемент секции), затем 'valet' (вешало).
 function pickDraggable(e) {
   updatePointerNDC(e);
   raycaster.setFromCamera(pointerNDC, camera);
@@ -60,6 +64,7 @@ function pickDraggable(e) {
   for (const hit of hits) {
     const obj = hit.object;
     if (!obj.isMesh || !obj.userData) continue;
+    if (obj.userData.hSupportSide) return { mesh: obj, kind: 'hsupport', side: obj.userData.hSupportSide };
     if (obj.userData.itemId) return { mesh: obj, kind: 'item' };
     if (obj.userData.itemType === 'valet') return { mesh: obj, kind: 'valet' };
   }
@@ -90,6 +95,16 @@ function buildDragPlane(worldAnchor) {
 const COLOR_LABELS = { silver: 'серебро/хром', white: 'белый', black: 'чёрный' };
 const DRAWER_SLIDE_LABELS = { ball: 'шариковые', soft: 'скрытые, доводчик', push: 'скрытые, push', blum: 'скрытые BLUM' };
 
+// Общий рефреш после тумблера в инфопанели (толщина полки, вертикальная/горизонтальная стойка
+// штанги — все меняют state и просят пересборку): пересобирает 3D (старые меши уничтожены),
+// переподсвечивает элемент на новых, перерисовывает саму панель с обновлёнными подписями/кнопками.
+function refreshActive() {
+  buildFurniture();
+  active.meshes = lastBuildItemMeshes.get(active.sectionIndex + '|' + active.item.id) || [];
+  setHighlight(active.meshes, SELECT_EMISSIVE);
+  showInfoPanel();
+}
+
 function describeActive() {
   const { kind, sec, item, itemType } = active;
   if (kind === 'valet') return { title: 'Торцевое вешало', lines: [`Длина: ${sec.valetLength} мм`] };
@@ -102,15 +117,10 @@ function describeActive() {
           `Толщина: ${item.thick32 ? 32 : 16} мм`,
         ],
         // Тумблер толщины прямо в инфопанели — «по выделению», как просил пользователь.
-        actionLabel: item.thick32 ? 'Сделать 16 мм' : 'Сделать 32 мм',
-        action: () => {
-          item.thick32 = !item.thick32;
-          buildFurniture();
-          // пересборка пересоздала меши — переподсветим выбранную полку на новых
-          active.meshes = lastBuildItemMeshes.get(active.sectionIndex + '|' + item.id) || [];
-          setHighlight(active.meshes, SELECT_EMISSIVE);
-          showInfoPanel();
-        },
+        actions: [{
+          label: item.thick32 ? 'Сделать 16 мм' : 'Сделать 32 мм',
+          onClick: () => { item.thick32 = !item.thick32; refreshActive(); },
+        }],
       };
     case 'rod':
       return {
@@ -118,18 +128,35 @@ function describeActive() {
         lines: [
           'Хром, ⌀25 мм',
           ...(item.verticalSupport ? ['+ вертикальная стойка до полки/дна'] : []),
+          ...(item.verticalSupport && item.horizontalSupportLeft ? ['+ перемычка влево'] : []),
+          ...(item.verticalSupport && item.horizontalSupportRight ? ['+ перемычка вправо'] : []),
         ],
-        // Тумблер вертикальной стойки прямо в инфопанели — «по выделению», тот же приём, что и
-        // толщина полки. Опора — ближайшая ЛДСП-поверхность снизу (полка секции или пол), см.
-        // nearestSupportSurfaceY/addRodSupport в wardrobe-geometry.js.
-        actionLabel: item.verticalSupport ? 'Убрать вертикальную стойку' : 'Добавить вертикальную стойку',
-        action: () => {
-          item.verticalSupport = !item.verticalSupport;
-          buildFurniture();
-          active.meshes = lastBuildItemMeshes.get(active.sectionIndex + '|' + item.id) || [];
-          setHighlight(active.meshes, SELECT_EMISSIVE);
-          showInfoPanel();
-        },
+        // Тумблеры прямо в инфопанели — «по выделению», тот же приём, что и толщина полки. Опора
+        // вертикальной стойки — ближайшая ЛДСП-поверхность снизу (полка секции или пол), см.
+        // nearestSupportSurfaceY/addRodSupport в wardrobe-geometry.js. Влево/вправо — независимые
+        // перемычки к боковой стойке, доступны только когда вертикальная стойка уже есть (см.
+        // задание «трубы вертикально плюс»); высота стыка с трубой — мышкой (см. addHorizontalSupport,
+        // pickDraggable/onPointerDown ниже — kind:'hsupport').
+        actions: [
+          {
+            label: item.verticalSupport ? 'Убрать вертикальную стойку' : 'Добавить вертикальную стойку',
+            onClick: () => {
+              item.verticalSupport = !item.verticalSupport;
+              if (!item.verticalSupport) { item.horizontalSupportLeft = false; item.horizontalSupportRight = false; }
+              refreshActive();
+            },
+          },
+          ...(item.verticalSupport ? [
+            {
+              label: item.horizontalSupportLeft ? 'Убрать перемычку влево' : 'Перемычка к левой стойке',
+              onClick: () => { item.horizontalSupportLeft = !item.horizontalSupportLeft; refreshActive(); },
+            },
+            {
+              label: item.horizontalSupportRight ? 'Убрать перемычку вправо' : 'Перемычка к правой стойке',
+              onClick: () => { item.horizontalSupportRight = !item.horizontalSupportRight; refreshActive(); },
+            },
+          ] : []),
+        ],
       };
     case 'drawer':
       return {
@@ -149,16 +176,16 @@ function describeActive() {
 }
 
 function showInfoPanel() {
-  const { title, lines, actionLabel, action } = describeActive();
+  const { title, lines, actions } = describeActive();
   infoPanel.innerHTML = `<div class="drag-info-panel-title">${title}</div>${lines.map(l => `<div>${l}</div>`).join('')}`;
-  if (actionLabel && action) {
+  (actions || []).forEach(({ label, onClick }) => {
     const btn = document.createElement('button');
     btn.className = 'opt-btn';
     btn.style.cssText = 'margin-top:6px;width:100%';
-    btn.textContent = actionLabel;
-    btn.addEventListener('click', e => { e.stopPropagation(); action(); });
+    btn.textContent = label;
+    btn.addEventListener('click', e => { e.stopPropagation(); onClick(); });
     infoPanel.appendChild(btn);
-  }
+  });
   infoPanel.classList.add('visible');
 }
 
@@ -166,12 +193,13 @@ function hideInfoPanel() {
   infoPanel.classList.remove('visible');
 }
 
-// ---------- редактируемые поля точного размера просвета (только kind:'item') ----------
+// ---------- редактируемые поля точного размера просвета (kind:'item' и 'hsupport') ----------
 
-// Текущая Y элемента: во время живого драга — кандидатная позиция под курсором, иначе — уже
-// зафиксированная в state (после отпускания мышки, но пока элемент ещё выбран).
+// Текущая Y элемента/ручки: во время живого драга — кандидатная позиция под курсором, иначе —
+// уже зафиксированная в state (после отпускания мышки, но пока элемент ещё выбран).
 function currentItemY() {
-  return (dragState && dragState.kind === 'item' && dragState.item === active.item) ? dragState.candidateY : active.item.y;
+  if (dragState && dragState.item === active.item && dragState.kind === active.kind) return dragState.candidateY;
+  return active.kind === 'hsupport' ? active.item[active.yField] : active.item.y;
 }
 
 // Соседние границы ищутся по ФИЗИЧЕСКИМ краям (как и статичные размерные линии) — поля при
@@ -185,14 +213,45 @@ function neighborGaps(sec, itemId, lo, hi, fillBottom, fillTop) {
   return { belowHi, aboveLo };
 }
 
+// Поля просвета ручки перемычки (kind:'hsupport') — те же belowInput/aboveInput, но «соседи»
+// тут не другие элементы секции, а фиксированные концы отрезка трубы: опора снизу (полка/пол) и
+// сама штанга сверху (см. задание «трубы вертикально плюс», HORIZONTAL_SUPPORT_MARGIN).
+function updateHSupportInputs() {
+  const { sec, item, sectionIndex } = active;
+  const { fillBottom: fillBottomPhysical } = sectionVerticalBoundsPhysical();
+  const surfaceY = nearestSupportSurfaceY(sec, item, fillBottomPhysical);
+  const rodY = item.y;
+  const y = currentItemY();
+  active.hSurfaceY = surfaceY;
+  active.hRodY = rodY;
+
+  const cx = lastBuildSectionCenters[sectionIndex];
+  if (cx === undefined) return;
+
+  const belowPos = projectToOverlay(cx, lastBuildY0 + (y + surfaceY) / 2, 0);
+  belowInput.style.left = belowPos.x + 'px';
+  belowInput.style.top = belowPos.y + 'px';
+  belowInput.style.display = belowPos.behind ? 'none' : '';
+  if (document.activeElement !== belowInput) belowInput.value = Math.round(y - surfaceY);
+  updateArrow('drag-below', cx, lastBuildY0 + surfaceY, lastBuildY0 + y);
+
+  const abovePos = projectToOverlay(cx, lastBuildY0 + (y + rodY) / 2, 0);
+  aboveInput.style.left = abovePos.x + 'px';
+  aboveInput.style.top = abovePos.y + 'px';
+  aboveInput.style.display = abovePos.behind ? 'none' : '';
+  if (document.activeElement !== aboveInput) aboveInput.value = Math.round(rodY - y);
+  updateArrow('drag-above', cx, lastBuildY0 + y, lastBuildY0 + rodY);
+}
+
 function updateEditInputs() {
-  if (!active || active.kind !== 'item') {
+  if (!active || (active.kind !== 'item' && active.kind !== 'hsupport')) {
     belowInput.style.display = 'none';
     aboveInput.style.display = 'none';
     hideArrow('drag-below');
     hideArrow('drag-above');
     return;
   }
+  if (active.kind === 'hsupport') { updateHSupportInputs(); return; }
   const { sec, item, itemType, sectionIndex } = active;
   // Физические границы (поверхность дна/низ крыши) — те же, что у статичных размерных линий.
   const { fillBottom, fillTop } = sectionVerticalBoundsPhysical();
@@ -222,8 +281,27 @@ function updateEditInputs() {
   updateArrow('drag-above', cx, lastBuildY0 + hi, lastBuildY0 + aboveLo);
 }
 
+// Коммит числа для ручки перемычки — просто клампит в допустимый диапазон (никаких соседей/
+// каскада/фиксации просветов, это точка на отрезке трубы фиксированной длины).
+function commitHSupportEdit(fromBelow) {
+  const inp = fromBelow ? belowInput : aboveInput;
+  const val = Number(inp.value);
+  if (!Number.isFinite(val) || val < 0) { updateEditInputs(); return; }
+  const { sec, item, side, yField } = active;
+  const { fillBottom: fillBottomPhysical } = sectionVerticalBoundsPhysical();
+  const { lo, hi } = horizontalSupportYRange(sec, item, fillBottomPhysical);
+  const raw = fromBelow ? active.hSurfaceY + val : active.hRodY - val;
+  item[yField] = Math.min(Math.max(raw, lo), hi);
+  buildFurniture();
+  active.meshes = (lastBuildItemMeshes.get(active.sectionIndex + '|' + item.id) || []).filter(m => m.userData.hSupportSide === side);
+  setHighlight(active.meshes, SELECT_EMISSIVE);
+  updateEditInputs();
+}
+
 function commitGapEdit(fromBelow) {
-  if (!active || active.kind !== 'item') return;
+  if (!active) return;
+  if (active.kind === 'hsupport') { commitHSupportEdit(fromBelow); return; }
+  if (active.kind !== 'item') return;
   const inp = fromBelow ? belowInput : aboveInput;
   const val = Number(inp.value);
   if (!Number.isFinite(val) || val < 0) { updateEditInputs(); return; }
@@ -327,6 +405,31 @@ function onPointerDown(e) {
     setHighlight(meshes, SELECT_EMISSIVE);
     showInfoPanel();
     updateEditInputs();
+  } else if (picked.kind === 'hsupport') {
+    // Перемычка штанги, левая или правая — независимо (см. задание «трубы вертикально плюс»):
+    // тащим ВСЮ группу мешей ЭТОЙ стороны (краб+труба+фланец, см. hSupportSide в
+    // wardrobe-geometry.js), клик по любой их части работает одинаково. Диапазон — между опорой
+    // снизу и штангой сверху, с отступом (см. horizontalSupportYRange) — общий для обеих сторон,
+    // но своё поле-высота (yField) у каждой.
+    const { itemId } = picked.mesh.userData;
+    const item = sec.items.find(it => it.id === itemId);
+    if (!item) return;
+    const side = picked.side;
+    const yField = side === 'left' ? 'horizontalSupportLeftY' : 'horizontalSupportRightY';
+    const meshes = (lastBuildItemMeshes.get(sectionIndex + '|' + itemId) || []).filter(m => m.userData.hSupportSide === side);
+    if (!meshes.length) return;
+    const { fillBottom: fillBottomPhysical } = sectionVerticalBoundsPhysical();
+    const { lo, hi } = horizontalSupportYRange(sec, item, fillBottomPhysical);
+    active = { kind: 'hsupport', sectionIndex, sec, item, itemType: 'rod', meshes, side, yField };
+    dragState = {
+      kind: 'hsupport', sec, item, meshes, side, yField,
+      originalY: meshes.map(m => m.position.y),
+      startPointerY: startHit.y, startValueY: item[yField], candidateY: item[yField],
+      lo, hi,
+    };
+    setHighlight(meshes, SELECT_EMISSIVE);
+    showInfoPanel();
+    updateEditInputs();
   } else {
     const meshes = lastBuildValetMeshes.get(sectionIndex) || [];
     if (!meshes.length) return;
@@ -369,6 +472,16 @@ function onPointerMove(e) {
       dragState.overlapping = overlapping;
     }
     updateEditInputs();
+  } else if (dragState.kind === 'hsupport') {
+    // Перемычка двигается строго между опорой и штангой (dragState.lo/hi, с отступом 30мм с
+    // каждой стороны) — тут, в отличие от обычных элементов, клампинг в реальном времени уместен:
+    // это не позиция среди свободно расставляемых соседей, а точка на отрезке трубы фиксированной
+    // длины, дальше границ ей в принципе некуда деться.
+    const rawY = dragState.startValueY + deltaY;
+    const clampedY = Math.min(Math.max(rawY, dragState.lo), dragState.hi);
+    dragState.candidateY = clampedY;
+    dragState.meshes.forEach((m, i) => { m.position.y = dragState.originalY[i] + (clampedY - dragState.startValueY); });
+    updateEditInputs();
   } else {
     // Вешало — не следует за мышью непрерывно, а прыгает к ближайшему кандидату (полке) —
     // пересчитываем позицию мешей только когда "ближайший" реально сменился.
@@ -394,8 +507,8 @@ function onPointerUp() {
   window.removeEventListener('pointermove', onPointerMove);
   window.removeEventListener('pointerup', onPointerUp);
 
-  const wasItem = dragState.kind === 'item';
-  if (wasItem) {
+  const dragKind = dragState.kind;
+  if (dragKind === 'item') {
     // dragState.candidateY — сырая позиция под курсором (см. onPointerMove, live-драг ничего не
     // клампит). Здесь, один раз на отпускании, считаем каскад/клампинг по месту упора и по
     // зафиксированным просветам (sec.lockedGaps) — buildFurniture() ниже перерисует всё разом,
@@ -409,6 +522,8 @@ function onPointerUp() {
     // размеров»), фиксируем и новую нижнюю половину — иначе исходный промежуток держится жёстким
     // только сверху.
     absorbIntoLockedGap(dragState.sec, dragState.item.id);
+  } else if (dragKind === 'hsupport') {
+    dragState.item[dragState.yField] = dragState.candidateY;
   } else {
     dragState.sec.valetAnchorId = dragState.currentAnchorId;
   }
@@ -416,14 +531,19 @@ function onPointerUp() {
   buildFurniture();
 
   // Элемент остаётся "выбранным" после отпускания — переподсвечиваем на свежих мешах (старые
-  // уничтожены пересборкой) и для kind:'item' держим редактируемые поля точного размера
-  // открытыми, чтобы можно было допечатать число с клавиатуры без повторной мышиной точности.
+  // уничтожены пересборкой) и для kind:'item'/'hsupport' держим редактируемые поля точного
+  // размера открытыми, чтобы можно было допечатать число с клавиатуры без повторной мышиной
+  // точности.
   if (active) {
-    active.meshes = wasItem
-      ? (lastBuildItemMeshes.get(active.sectionIndex + '|' + active.item.id) || [])
-      : (lastBuildValetMeshes.get(active.sectionIndex) || []);
+    if (dragKind === 'hsupport') {
+      active.meshes = (lastBuildItemMeshes.get(active.sectionIndex + '|' + active.item.id) || []).filter(m => m.userData.hSupportSide === active.side);
+    } else if (dragKind === 'item') {
+      active.meshes = lastBuildItemMeshes.get(active.sectionIndex + '|' + active.item.id) || [];
+    } else {
+      active.meshes = lastBuildValetMeshes.get(active.sectionIndex) || [];
+    }
     setHighlight(active.meshes, SELECT_EMISSIVE);
-    if (wasItem) updateEditInputs();
+    if (dragKind === 'item' || dragKind === 'hsupport') updateEditInputs();
   }
 }
 
