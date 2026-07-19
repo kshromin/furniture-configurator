@@ -765,7 +765,9 @@ export function buildWardrobeBox() {
         });
       }
 
-      if (sec.valet) {
+      // Верхняя часть не поддерживает вешало (задание «антресоли 19,07») — секции там этого поля
+      // не имеют вовсе, но подстрахуемся и тут на случай прямого вызова build().
+      if (sec.valet && zone !== 'mezzanine') {
         const anchorY = resolveValetAnchorY(sec);
         const valetMeshes = addValet(cx, y0 + anchorY, sec.valetLength);
         tagValetMeshes(valetMeshes, s, zone);

@@ -106,7 +106,7 @@ export function secForZone(zone, sectionIndex) {
 // формула, что раньше задавала ПОСТОЯННУЮ фиксированную верхнюю полку (TOP_SHELF_GAP от верхней
 // границы, со страховкой MIN_ZONE_GAP для низких секций) — теперь это только стартовое положение
 // обычного перетаскиваемого item, дальше пользователь может утащить её куда угодно.
-function defaultPinnedShelfY(fillBottom, fillTop) {
+export function defaultPinnedShelfY(fillBottom, fillTop) {
   let y = fillTop - TOP_SHELF_GAP;
   if (y < fillBottom + MIN_ZONE_GAP) y = fillBottom + MIN_ZONE_GAP;
   return y;

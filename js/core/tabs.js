@@ -11,7 +11,7 @@ import {
   sectionVerticalBounds, findFreeSlot, defaultItemsForSection, isSectionWidthLocked, sectionMissingSideSupport, absorbIntoLockedGap,
   sectionBackWallSegments, doorCountOptions, getDoorCount, effectiveDoorSpan, DOOR_MIN_W, DOOR_OVERLAP,
   swingDoorCountOptions, SWING_GAP, SWING_DOOR_MIN_W, SWING_DOOR_MAX_W,
-  mezzanineVerticalBounds, MESH_DEPTHS, VALET_LENGTHS, clampItemPositions,
+  mezzanineVerticalBounds, MESH_DEPTHS, clampItemPositions, defaultPinnedShelfY,
 } from '../types/_wardrobe-shared.js';
 
 // Общий список допустимых проёмов под корзины (не привязан к конкретной выбранной ширине) —
@@ -862,9 +862,8 @@ function renderMezzanineList() {
   container.innerHTML = '';
 
   // Клампинг под текущую глубину короба (тот же принцип, что и clampSectionSizes у основных
-  // секций) — тут только сетка/вешало, ящиков/корзин у антресолей не бывает.
+  // секций) — тут только сетка, ящиков/корзин/вешала у верхней части не бывает.
   const meshDepths = availableMeshDepths(state.depth);
-  const valetLengths = availableValetLengths(state.depth);
   const { fillBottom: mezzFillBottom, fillTop: mezzFillTop } = mezzanineVerticalBounds();
   state.mezzanineSections.forEach(sec => {
     if (meshDepths.length) {
@@ -873,13 +872,6 @@ function renderMezzanineList() {
       sec.meshDepth = MESH_DEPTHS[0];
       sec.items = sec.items.filter(it => it.type !== 'mesh');
     }
-    if (valetLengths.length) {
-      if (!valetLengths.includes(sec.valetLength)) sec.valetLength = valetLengths[valetLengths.length - 1];
-    } else {
-      sec.valetLength = VALET_LENGTHS[0];
-      sec.valet = 0;
-    }
-    if (sec.valetAnchorId && !sec.items.some(it => it.id === sec.valetAnchorId)) sec.valetAnchorId = null;
     clampItemPositions(sec, mezzFillBottom, mezzFillTop);
   });
 
@@ -901,7 +893,7 @@ function renderMezzanineList() {
         <button class="section-collapse-btn ${collapsed ? 'collapsed' : ''}" data-idx="${i}" title="${collapsed ? 'Развернуть секцию' : 'Свернуть секцию'}">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
         </button>
-        <span class="section-card-title">Антресоль ${i + 1}</span>
+        <span class="section-card-title">Секция ${i + 1}</span>
         <div class="section-card-width">
           <input type="number" class="dim-input section-width-input" data-idx="${i}" value="${Math.round(sec.width)}" min="${MIN_SECTION_WIDTH}">
           <span class="section-card-unit">мм</span>
@@ -937,13 +929,6 @@ function renderMezzanineList() {
             <option value="white" ${sec.meshColor === 'white' ? 'selected' : ''}>Белая</option>
           </select>
         </div>
-        <div class="el-row" title="Торцевое вешало — крепится к полке, мышкой прыгает между полками (не двигается свободно)">
-          <span class="el-row-label">Вешало</span>
-          <label class="el-row-check" title="Есть/нет"><input type="checkbox" class="section-valet-input" data-idx="${i}" ${sec.valet ? 'checked' : ''}></label>
-          <select class="mini-select section-valet-length-input" data-idx="${i}" title="Размер, мм">
-            ${valetLengths.map(v => `<option value="${v}" ${sec.valetLength === v ? 'selected' : ''}>${v}</option>`).join('')}
-          </select>
-        </div>
       </div>
     `;
     bindCardSelection(card, sec);
@@ -974,7 +959,7 @@ function renderMezzanineList() {
       const { fillBottom, fillTop } = mezzanineVerticalBounds();
       const y = findFreeSlot(sec, type, fillBottom, fillTop);
       if (y === null) {
-        showToast('Нет места для нового элемента в этой секции антресолей.');
+        showToast('Нет места для нового элемента в этой секции верхней части.');
         return;
       }
       const newId = newItemId();
@@ -1003,18 +988,6 @@ function renderMezzanineList() {
   container.querySelectorAll('.section-mesh-color-input').forEach(sel => {
     sel.addEventListener('change', e => {
       state.mezzanineSections[Number(e.target.dataset.idx)].meshColor = e.target.value;
-      buildFurniture();
-    });
-  });
-  container.querySelectorAll('.section-valet-input').forEach(inp => {
-    inp.addEventListener('change', e => {
-      state.mezzanineSections[Number(e.target.dataset.idx)].valet = e.target.checked ? 1 : 0;
-      buildFurniture();
-    });
-  });
-  container.querySelectorAll('.section-valet-length-input').forEach(sel => {
-    sel.addEventListener('change', e => {
-      state.mezzanineSections[Number(e.target.dataset.idx)].valetLength = Number(e.target.value);
       buildFurniture();
     });
   });
@@ -1090,7 +1063,7 @@ export function bindSectionsControls() {
   // (антресоли обычно мельче) и без полей ящика/корзины вовсе.
   document.getElementById('addMezzanineSectionBtn').addEventListener('click', () => {
     if (!canAddSection(state.mezzanineSections)) {
-      showToast('Не удаётся добавить секцию антресолей — все секции зафиксированы и заняли всю ширину. Снимите фиксацию у одной из секций или уменьшите её ширину.');
+      showToast('Не удаётся добавить секцию в верхней части — все секции зафиксированы и заняли всю ширину. Снимите фиксацию у одной из секций или уменьшите её ширину.');
       return;
     }
     state.mezzanineSections.push(newMezzanineSection());
@@ -1100,15 +1073,16 @@ export function bindSectionsControls() {
   });
 }
 
-// Дефолтный набор полей для новой секции антресолей (задание «антресоли 19,07») — та же форма
-// записи, что и у обычной секции (state.sections), но заведомо без ящиков/корзин: соответствующих
+// Дефолтный набор полей для новой секции верхней части (задание «антресоли 19,07») — та же форма
+// записи, что и у обычной секции (state.sections), но без ящиков/корзин/вешала: соответствующих
 // полей нет вовсе (не нужны — UI их не использует, а geometry/sizing-хелперы, которые их читают,
-// на антресоли не вызываются).
+// на верхнюю часть не вызываются). items — намеренно пустой массив: пользователь сам наполняет
+// секцию с нуля, никакой полки/штанги по умолчанию не ставим.
 function newMezzanineSection() {
   return {
     width: MIN_SECTION_WIDTH,
-    items: defaultItemsForSection({ shelves: 1, bounds: mezzanineVerticalBounds() }),
-    meshDepth: 400, meshColor: 'silver', valet: 0, valetAnchorId: null, valetLength: 400,
+    items: [],
+    meshDepth: 400, meshColor: 'silver',
     widthLocked: false,
     lockedGaps: [],
   };
@@ -1259,8 +1233,24 @@ export function bindVariantControls() {
   mezzCb.addEventListener('change', () => {
     state.mezzanineEnabled = mezzCb.checked;
     mezzHeightFld.style.display = state.mezzanineEnabled ? 'block' : 'none';
-    if (state.mezzanineEnabled && state.mezzanineSections.length === 0) {
-      state.mezzanineSections.push(newMezzanineSection());
+    if (state.mezzanineEnabled) {
+      // Неубираемая (pinned) полка каждой секции становится ОДНОЙ сплошной полкой на весь короб
+      // (см. buildWardrobeBox) — свои отдельные копии в секциях больше не нужны, убираем их.
+      state.sections.forEach(sec => {
+        sec.items = sec.items.filter(it => !(it.type === 'shelf' && it.pinned));
+      });
+      if (state.mezzanineSections.length === 0) {
+        state.mezzanineSections.push(newMezzanineSection());
+      }
+    } else {
+      // Возвращаем структурную полку туда, где её больше нет — без верхней части у секции снова
+      // должна быть своя опорная (неубираемая) полка, как до включения.
+      const { fillBottom, fillTop } = sectionVerticalBounds();
+      state.sections.forEach(sec => {
+        if (!sec.items.some(it => it.type === 'shelf' && it.pinned)) {
+          sec.items.push({ id: newItemId(), type: 'shelf', y: defaultPinnedShelfY(fillBottom, fillTop), pinned: true });
+        }
+      });
     }
     buildFurniture();
     renderSectionsList();
