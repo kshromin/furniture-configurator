@@ -285,6 +285,35 @@ export function clampItemPositions(sec, fillBottom, fillTop) {
   });
 }
 
+// Полоса коллизии некоторых типов зависит от параметра, ОБЩЕГО на всю секцию, не индивидуального
+// у item (sec.drawerHeight — высота фасада всех ящиков секции, sec.basketHeight — высота всех
+// корзин): пользователь меняет его в панели (или толщину полки — 32мм по выделению в 3D) уже
+// ПОСЛЕ того, как элементы расставлены — их y (центр) при этом не двигается, а полоса вокруг него
+// вырастает на месте и может наехать на соседа. clampItemPositions такое не ловит (только пол/
+// потолок секции, не соседей) — вызывается следом за ним при каждой сборке, раздвигает элементы
+// снизу вверх на минимально необходимое, чтобы устранить пересечения. Один проход снизу-вверх +
+// (если у потолка не хватило места) проход сверху-вниз — не идеальная упаковка, но для типичного
+// «зазор чуть подрос» этого достаточно и результат предсказуем (ближайшие просто раздвигаются).
+export function resolveBandOverlaps(sec, fillBottom, fillTop) {
+  const order = sec.items.slice().sort((a, b) => a.y - b.y);
+  let prevHi = fillBottom;
+  order.forEach(item => {
+    const h = itemBandHeight(item.type, sec, item);
+    let lo = item.y - h / 2;
+    if (lo < prevHi) item.y += prevHi - lo;
+    prevHi = item.y + h / 2;
+  });
+  if (prevHi > fillTop) {
+    let nextLo = fillTop;
+    order.slice().reverse().forEach(item => {
+      const h = itemBandHeight(item.type, sec, item);
+      let hi = item.y + h / 2;
+      if (hi > nextLo) item.y -= hi - nextLo;
+      nextLo = item.y - h / 2;
+    });
+  }
+}
+
 // Дефолтный набор items для новой/пресетной секции — сперва структурная (pinned) верхняя полка
 // (есть всегда, первая, защищена от удаления в UI — см. tabs.js), затем остальные полки/ящики по
 // очереди в первое свободное место снизу вверх (findFreeSlot), штанга — отдельно (см. ниже).

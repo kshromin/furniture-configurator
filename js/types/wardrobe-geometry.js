@@ -9,7 +9,7 @@ import {
   drawerBoxSize, basketFits, availableBasketDepths, sectionMissingSideSupport, clampDrawerOffsetWidth,
 } from './wardrobe-sizing.js';
 import {
-  sectionVerticalBounds, sectionVerticalBoundsPhysical, clampItemPositions, resolveValetAnchorY,
+  sectionVerticalBounds, sectionVerticalBoundsPhysical, clampItemPositions, resolveBandOverlaps, resolveValetAnchorY,
   sectionBackWallSegments, nearestSupportSurfaceY, clampHorizontalSupportY,
   mezzanineShelfY, mezzanineVerticalBounds, mezzanineVerticalBoundsPhysical,
 } from './wardrobe-items.js';
@@ -760,6 +760,10 @@ export function buildWardrobeBox() {
       // в обход clampSectionSizes (renderSectionsList вызывает его сама, buildFurniture — тоже, но
       // геометрия должна быть защищена независимо от порядка вызовов).
       clampItemPositions(sec, zFillBottom, zFillTop);
+      // Общий на секцию параметр (высота ящиков/корзин, толщина полки по выделению) мог измениться
+      // ПОСЛЕ расстановки — полоса коллизии элемента выросла на месте и могла наехать на соседа,
+      // clampItemPositions такое не ловит (см. resolveBandOverlaps в wardrobe-items.js).
+      resolveBandOverlaps(sec, zFillBottom, zFillTop);
 
       // Посегментная задняя стенка (см. state.js sec.backWallSegments) — альтернатива общей
       // state.backWall на весь шкаф, действует только когда та выключена ('none'). У антресольных
