@@ -12,6 +12,7 @@ import {
   sectionBackWallSegments, doorCountOptions, getDoorCount, effectiveDoorSpan, DOOR_MIN_W, DOOR_OVERLAP,
   swingDoorCountOptions, SWING_GAP, SWING_DOOR_MIN_W, SWING_DOOR_MAX_W,
   mezzanineVerticalBounds, MESH_DEPTHS, clampItemPositions, defaultPinnedShelfY,
+  slidingDoorsCanClear, lastBuildSectionCenters,
 } from '../types/_wardrobe-shared.js';
 
 // Общий список допустимых проёмов под корзины (не привязан к конкретной выбранной ширине) —
@@ -701,6 +702,17 @@ export function renderSectionsList() {
       if (y === null) {
         showToast('Нет места для нового элемента в этой секции.');
         return;
+      }
+      // Купе-двери не распашные — если секция физически не открывается ни при какой расстановке
+      // дверей (см. slidingDoorsCanClear, задание «ящики-двери 19,07»), ящик не выдвинуть. Не
+      // блокируем — предупреждаем и даём поставить осознанно (confirm — единственный доступный
+      // в проекте способ спросить да/нет, не блокируя дальнейшую работу).
+      if (type === 'drawer') {
+        const cx = lastBuildSectionCenters[i];
+        if (cx !== undefined && !slidingDoorsCanClear(cx - sec.width / 2, cx + sec.width / 2)) {
+          const ok = confirm('Эта секция не откроется целиком ни при какой расстановке раздвижных дверей — ящик не выдвинуть. Всё равно поставить?');
+          if (!ok) return;
+        }
       }
       const newId = newItemId();
       sec.items.push({ id: newId, type, y });

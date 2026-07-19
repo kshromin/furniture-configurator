@@ -98,6 +98,49 @@ export function effectiveDoorSpan() {
   };
 }
 
+// ---------- проверка доступности ящика за раздвижными (купе) дверями (задание «ящики-двери 19,07») ----------
+// Купе-двери не распашные — открыть конкретный участок ширины можно, только если И передняя, И
+// задняя рельса (двери чередуются по рельсам, см. buildWardrobeBox: чётные — перед, нечётные —
+// зад) в этом месте свободны ОДНОВРЕМЕННО. Двери одной рельсы не могут "перепрыгнуть" друг через
+// друга (сохраняют порядок по индексу), но каждая двигается независимо — поэтому для проверки
+// "можно ли вообще открыть участок [gx1,gx2]" достаточно перебрать точку разреза рельсы: часть
+// дверей (по индексу) уезжает вплотную к левому краю рельсы, остальные — вплотную к правому;
+// если для какого-то разбиения обе группы не заезжают на участок — он открываем. Если такое
+// разбиение находится для ОБЕИХ рельс (не обязательно одной и той же расстановкой одновременно
+// с других ящиков — двери двигает пользователь руками, когда нужен конкретный ящик) — участок
+// открывается полностью хоть при какой-то расстановке. Это точный (не приблизительный) расчёт.
+const DRAWER_ACCESS_MARGIN = 5; // мм — запас с каждой стороны сверх теоретического минимума
+
+function railCanClear(doorsOnRail, doorW, railMinX, railMaxX, gx1, gx2) {
+  for (let m = 0; m <= doorsOnRail; m++) {
+    const leftClusterRightEdge = railMinX + m * doorW;
+    const rightClusterLeftEdge = railMaxX - (doorsOnRail - m) * doorW;
+    if (leftClusterRightEdge <= gx1 && rightClusterLeftEdge >= gx2) return true;
+  }
+  return false;
+}
+
+// gx1/gx2 — мировые X-границы проверяемого участка (например, секции с ящиком). true, если
+// раздвижные двери вообще не используются (нет проблемы) либо существует расстановка дверей,
+// полностью открывающая участок; false — участок недостижим ни при какой расстановке.
+export function slidingDoorsCanClear(gx1, gx2) {
+  if (!state.showDoors || state.fasadDoorType !== 'sliding') return true;
+  const { spanW, leftOff } = effectiveDoorSpan();
+  const spanCenterX = -state.width / 2 + leftOff + spanW / 2;
+  const railMinX = spanCenterX - spanW / 2;
+  const railMaxX = spanCenterX + spanW / 2;
+  const doorCount = getDoorCount(spanW);
+  const doorW = (spanW + (doorCount - 1) * DOOR_OVERLAP) / doorCount;
+  const frontCount = Math.ceil(doorCount / 2); // чётные индексы (0,2,4...) — см. buildWardrobeBox
+  const backCount = doorCount - frontCount;
+  // Клампим к границам самой рельсы — если граница участка совпадает с краем дверного пролёта,
+  // запас не должен "вылезать" за пределы, где дверь физически вообще может быть (иначе разбиение
+  // с 0 дверей слева/справа ложно не проходит проверку — там нечему мешать, участок и так открыт).
+  const x1 = Math.max(gx1 - DRAWER_ACCESS_MARGIN, railMinX), x2 = Math.min(gx2 + DRAWER_ACCESS_MARGIN, railMaxX);
+  return railCanClear(frontCount, doorW, railMinX, railMaxX, x1, x2)
+      && railCanClear(backCount, doorW, railMinX, railMaxX, x1, x2);
+}
+
 // Секции наполнения имеют произвольную ширину, но сумма их ширин + перегородки между ними
 // обязана совпадать с реальной внутренней шириной короба (effectiveDoorSpan().innerSpanW —
 // доходит до стены независимо от планки/короба, в отличие от дверного пролёта spanW). Эта
