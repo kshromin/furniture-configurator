@@ -12,7 +12,7 @@ import {
   sectionBackWallSegments, doorCountOptions, getDoorCount, effectiveDoorSpan, DOOR_MIN_W, DOOR_OVERLAP,
   swingDoorCountOptions, SWING_GAP, SWING_DOOR_MIN_W, SWING_DOOR_MAX_W,
   mezzanineVerticalBounds, MESH_DEPTHS, clampItemPositions, defaultPinnedShelfY,
-  slidingDoorsCanClear, lastBuildSectionCenters, findMinDrawerOffset,
+  slidingDoorsCanClear, lastBuildSectionCenters, findMinDrawerOffset, clampDrawerOffsetWidth,
 } from '../types/_wardrobe-shared.js';
 
 // Общий список допустимых проёмов под корзины (не привязан к конкретной выбранной ширине) —
@@ -56,6 +56,80 @@ export function selectSectionFromScene(sec) {
   selectedSection = sec;
   renderSectionsList();
   setSelectedSection(sec);
+}
+
+// ---------- открываемость ящиков/корзин после смены ширины секции (задание «ящики-двери 19,07», третий раунд) ----------
+
+// Мировой X-диапазон ящика/корзины с учётом смещающего элемента (та же формула, что и в
+// section-add-btn ниже и в wardrobe-geometry.js/wardrobe.js) — вынесена сюда отдельно, чтобы не
+// дублировать в снимке "было"/проверке "стало".
+function itemDoorSpan(sec, cx, item) {
+  let gx1 = cx - sec.width / 2, gx2 = cx + sec.width / 2;
+  if (item.type === 'drawer' && item.offsetSide) {
+    const offW = clampDrawerOffsetWidth(sec.width, item.offsetWidth);
+    if (item.offsetSide === 'left') gx1 += offW; else gx2 -= offW;
+  }
+  return [gx1, gx2];
+}
+
+// Снимок "открывается ли сейчас" для каждого ящика/корзины во всех секциях — вызывается ДО
+// операции, что меняет ширину секции (прямая правка, добавление/удаление другой секции — та
+// перебалансирует соседей). Сверяется с тем же снимком, снятым ПОСЛЕ (см. warnAboutNewlyBrokenClearance)
+// — предупреждаем только про то, что реально СЛОМАЛОСЬ (было открываемо, стало нет), не трогаем
+// то, что пользователь уже осознанно поставил с «Проигнорировать» — те и раньше были false.
+function snapshotDrawerClearance() {
+  const map = new Map();
+  state.sections.forEach((sec, i) => {
+    const cx = lastBuildSectionCenters[i];
+    if (cx === undefined) return;
+    sec.items.forEach(it => {
+      if (it.type !== 'drawer' && it.type !== 'basket') return;
+      map.set(it.id, slidingDoorsCanClear(...itemDoorSpan(sec, cx, it)));
+    });
+  });
+  return map;
+}
+
+// Сверяет снимок "было" с текущим состоянием (после buildFurniture — lastBuildSectionCenters уже
+// актуальны) — то, что перестало открываться, предлагает сузить смещающим элементом (для ящиков;
+// корзину сузить нечем, только предупреждение). Тот же диалог/подход, что и при добавлении нового
+// ящика (см. section-add-btn), просто задним числом и сразу на нескольких элементах за раз.
+async function warnAboutNewlyBrokenClearance(before) {
+  const broken = [];
+  state.sections.forEach((sec, i) => {
+    const cx = lastBuildSectionCenters[i];
+    if (cx === undefined) return;
+    sec.items.forEach(it => {
+      if (it.type !== 'drawer' && it.type !== 'basket') return;
+      if (before.get(it.id) !== true) return; // не открывался и раньше — уже не наша забота
+      if (!slidingDoorsCanClear(...itemDoorSpan(sec, cx, it))) broken.push({ sec, item: it, cx });
+    });
+  });
+  if (!broken.length) return;
+
+  const drawers = broken.filter(b => b.item.type === 'drawer');
+  const hasBaskets = broken.some(b => b.item.type === 'basket');
+
+  if (!drawers.length) {
+    showToast('После изменения ширины секции корзина (или несколько) больше не откроется целиком ни при какой расстановке дверей — сузить нечем, поправьте вручную.');
+    return;
+  }
+  const choice = await showChoiceDialog(
+    'После изменения ширины секции ящик (или несколько) перестал открываться целиком ни при какой расстановке дверей.' +
+    (hasBaskets ? ' Задета и корзина — её сузить нечем, поправьте вручную.' : ''),
+    [
+      { label: 'Оставить как есть', value: 'keep' },
+      { label: 'Сузить смещающим элементом', value: 'narrow', primary: true },
+    ],
+  );
+  if (choice !== 'narrow') return;
+  let anyApplied = false;
+  drawers.forEach(({ sec, item, cx }) => {
+    const fit = findMinDrawerOffset(sec.width, cx);
+    if (fit) { item.offsetSide = fit.side; item.offsetWidth = fit.width; anyApplied = true; }
+  });
+  if (anyApplied) { renderSectionsList(); buildFurniture(); }
+  else showToast('Автоматическое сужение не помогло ни одному — придётся поправить вручную.');
 }
 
 function activeType() { return TYPES[state.type] || TYPES['wardrobe']; }
@@ -673,7 +747,7 @@ export function renderSectionsList() {
   });
 
   container.querySelectorAll('.section-width-input').forEach(inp => {
-    inp.addEventListener('change', e => {
+    inp.addEventListener('change', async e => {
       const i = Number(e.target.dataset.idx);
       const sec = state.sections[i];
       // Если у ВСЕХ остальных секций ширина зафиксирована (замочком или корзиной), менять эту
@@ -687,10 +761,15 @@ export function renderSectionsList() {
         e.target.value = Math.round(sec.width);
         return;
       }
+      // Ширина секции меняет её положение относительно раздвижных дверей (задание «ящики-двери
+      // 19,07», третий раунд) — уже стоящий ящик/корзина, который раньше открывался, мог
+      // перестать. Снимок делаем ДО изменения (см. snapshotDrawerClearance ниже).
+      const before = snapshotDrawerClearance();
       sec.width = Math.max(MIN_SECTION_WIDTH, Number(e.target.value));
       rebalanceSections(i);
       renderSectionsList();
       buildFurniture();
+      await warnAboutNewlyBrokenClearance(before);
     });
   });
   // "+" — добавляет один экземпляр типа в первое свободное место секции по высоте
@@ -880,16 +959,20 @@ export function renderSectionsList() {
     });
   });
   container.querySelectorAll('.section-remove-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const idx = Number(btn.dataset.idx);
       if (!canRemoveSection(idx)) {
         showToast('Нельзя удалить секцию — все остальные секции зафиксированы (корзиной или галочкой), освободившееся место некому занять.');
         return;
       }
+      // Удаление секции перебалансирует соседние — та же проверка, что и при прямой правке
+      // ширины (задание «ящики-двери 19,07», третий раунд).
+      const before = snapshotDrawerClearance();
       state.sections.splice(idx, 1);
       rebalanceSections();
       renderSectionsList();
       buildFurniture();
+      await warnAboutNewlyBrokenClearance(before);
     });
   });
 
@@ -1077,7 +1160,7 @@ function renderMezzanineList() {
 }
 
 export function bindSectionsControls() {
-  document.getElementById('addSectionBtn').addEventListener('click', () => {
+  document.getElementById('addSectionBtn').addEventListener('click', async () => {
     // Зафиксированные секции (корзина или ручная галочка) не сжимаются при добавлении новой —
     // см. rebalanceSections/canAddSection в _wardrobe-shared.js. Если свободных секций не
     // хватает на ещё одну минимальную ширину, добавить некуда.
@@ -1085,6 +1168,9 @@ export function bindSectionsControls() {
       showToast('Не удаётся добавить секцию — все секции зафиксированы (корзиной или галочкой) и заняли всю ширину. Снимите фиксацию у одной из секций или уменьшите её ширину.');
       return;
     }
+    // Новая секция тоже перебалансирует соседние — та же проверка, что и при прямой правке
+    // ширины (задание «ящики-двери 19,07», третий раунд).
+    const before = snapshotDrawerClearance();
     state.sections.push({
       width: MIN_SECTION_WIDTH,
       items: defaultItemsForSection({ shelves: 1, drawers: 0, rod: 1, drawerHeight: 150 }),
@@ -1098,6 +1184,7 @@ export function bindSectionsControls() {
     rebalanceSections();
     renderSectionsList();
     buildFurniture();
+    await warnAboutNewlyBrokenClearance(before);
   });
 
   // Размерные линии наполнения — HTML-оверлей поверх 3D-вида (js/core/dimensions.js), а не
