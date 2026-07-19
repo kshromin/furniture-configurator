@@ -270,6 +270,17 @@
             <input type="range" id="alignerTopH" min="10" max="150" step="1" value="50">
           </div>
         </div>
+
+        <div class="field-group">
+          <div class="field-group-title">Антресоли</div>
+          <div class="field checkbox-field">
+            <label><input type="checkbox" id="mezzanineEnabled"> Верхняя секция без стоек (антресоли)</label>
+          </div>
+          <div class="field" id="mezzanineHeightField" style="display:none">
+            <div class="dim-label-row"><label>Высота зоны</label><input type="number" class="dim-input" id="mezzanineHeightVal" min="200" step="10" value="400"></div>
+            <input type="range" id="mezzanineHeight" min="200" max="1000" step="10" value="400">
+          </div>
+        </div>
       </details>
 
       <div class="field-group">
@@ -301,6 +312,16 @@
         <div id="sectionsListItems"></div>
         <button id="addSectionBtn" class="add-item-btn" type="button">+ Добавить секцию</button>
       </div>
+
+      <!-- Антресоли (задание «антресоли 19,07») — верхняя зона без стоек, отдельный ряд секций
+           над общей полкой (state.mezzanineSections); показывается только когда включено в
+           Опциях (см. #mezzanineEnabled) — управляется из js/core/tabs.js. -->
+      <div id="mezzanineListBlock" data-fill-ctx="list" style="display:none">
+        <div class="field-group-title" style="margin-top:14px">Антресоли</div>
+        <div id="mezzanineListItems"></div>
+        <button id="addMezzanineSectionBtn" class="add-item-btn" type="button">+ Добавить секцию антресолей</button>
+      </div>
+
       <div id="fillColorGroup" class="field-group">
         <div class="field-group-title">Цвет наполнения</div>
         <div class="field">

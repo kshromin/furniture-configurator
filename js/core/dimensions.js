@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { camera, controls } from './scene.js';
-import { state } from './state.js';
+import { state, PANEL_THICKNESS } from './state.js';
 import { TYPES } from '../types/registry.js';
 import {
   sectionVerticalBoundsPhysical, sectionGapsKeyed, lastBuildSectionCenters, lastBuildY0,
+  lastBuildMezzanineSectionCenters, mezzanineShelfY, mezzanineVerticalBoundsPhysical,
 } from '../types/_wardrobe-shared.js';
 
 // Размерные линии наполнения — HTML/SVG-оверлей поверх канваса (не 3D-геометрия), см. #dimOverlay
@@ -30,18 +31,34 @@ export function setSelectedSection(sec) {
   repositionSectionHighlight();
 }
 
+// Антресоли (задание «антресоли 19,07») — selectedSection может быть картой из ОБОИХ рядов
+// (state.sections или state.mezzanineSections, см. bindCardSelection в tabs.js), поэтому ищем
+// в обоих, и для найденной зоны берём свой массив X-центров и свою вертикальную протяжённость
+// (основные секции — от пола до низа общей полки, антресоли — от верха полки до крыши; без
+// антресолей — как раньше, от пола до самой крыши).
 export function repositionSectionHighlight() {
-  const idx = selectedSection ? state.sections.indexOf(selectedSection) : -1;
-  const cx = lastBuildSectionCenters[idx];
+  let idx = selectedSection ? state.sections.indexOf(selectedSection) : -1;
+  let zone = 'main';
+  if (idx === -1 && selectedSection && state.mezzanineEnabled) {
+    idx = state.mezzanineSections.indexOf(selectedSection);
+    zone = 'mezzanine';
+  }
+  const cx = zone === 'mezzanine' ? lastBuildMezzanineSectionCenters[idx] : lastBuildSectionCenters[idx];
   if (idx === -1 || cx === undefined) { highlightEl.style.display = 'none'; return; }
-  const sec = state.sections[idx];
+  const sec = zone === 'mezzanine' ? state.mezzanineSections[idx] : state.sections[idx];
   const halfW = sec.width / 2;
   const z = widthLineZ();
+  let yLo = lastBuildY0, yHi = state.height;
+  if (state.mezzanineEnabled) {
+    const shelfBotWorldY = lastBuildY0 + mezzanineShelfY() - PANEL_THICKNESS / 2;
+    const shelfTopWorldY = lastBuildY0 + mezzanineShelfY() + PANEL_THICKNESS / 2;
+    if (zone === 'mezzanine') yLo = shelfTopWorldY; else yHi = shelfBotWorldY;
+  }
   const corners = [
-    [cx - halfW, lastBuildY0, z],
-    [cx + halfW, lastBuildY0, z],
-    [cx - halfW, state.height, z],
-    [cx + halfW, state.height, z],
+    [cx - halfW, yLo, z],
+    [cx + halfW, yLo, z],
+    [cx - halfW, yHi, z],
+    [cx + halfW, yHi, z],
   ].map(([x, y, zz]) => projectToOverlay(x, y, zz));
   if (corners.some(c => c.behind)) { highlightEl.style.display = 'none'; return; }
   const xs = corners.map(c => c.x), ys = corners.map(c => c.y);
@@ -166,6 +183,7 @@ function pushEntry(text, key, p1, p2, lockInfo) {
 // стрелка от левой границы секции до правой + число посередине. Управляется той же галочкой
 // (общей и по-секционной), что и просветы по высоте — отдельного переключателя нет.
 const WIDTH_LINE_Y = -60;
+const MEZZ_WIDTH_LINE_Y = -95; // ниже основной строки ширин — своя раскладка, чтобы подписи не слипались
 function widthLineZ() { return state.depth / 2 + 15; }
 
 export function renderStaticDimensions() {
@@ -192,6 +210,32 @@ export function renderStaticDimensions() {
     const halfW = sec.width / 2;
     pushEntry(Math.round(sec.width) + ' мм', `static-w-${s}`, [cx - halfW, WIDTH_LINE_Y, z], [cx + halfW, WIDTH_LINE_Y, z]);
   });
+
+  // Антресоли (задание «антресоли 19,07») — тот же принцип, своя вертикальная зона (от верха
+  // общей полки до крыши, см. mezzanineVerticalBoundsPhysical) и свой ряд X-центров.
+  if (state.mezzanineEnabled) {
+    const mezz = mezzanineVerticalBoundsPhysical();
+    state.mezzanineSections.forEach((sec, s) => {
+      if (sec.showDimensions === false) return;
+      const cx = lastBuildMezzanineSectionCenters[s];
+      if (cx === undefined) return;
+      sectionGaps(sec, mezz.fillBottom, mezz.fillTop).forEach((g, gi) => {
+        const lockInfo = g.lockable ? {
+          checked: (sec.lockedGaps || []).includes(g.key),
+          onToggle: checked => {
+            if (!sec.lockedGaps) sec.lockedGaps = [];
+            const i = sec.lockedGaps.indexOf(g.key);
+            if (checked && i === -1) sec.lockedGaps.push(g.key);
+            if (!checked && i !== -1) sec.lockedGaps.splice(i, 1);
+          },
+        } : null;
+        pushEntry(g.mm + ' мм', `static-mezz-${s}-${gi}`, [cx, lastBuildY0 + g.lo, 0], [cx, lastBuildY0 + g.hi, 0], lockInfo);
+      });
+      const halfW = sec.width / 2;
+      pushEntry(Math.round(sec.width) + ' мм', `static-mezz-w-${s}`, [cx - halfW, MEZZ_WIDTH_LINE_Y, z], [cx + halfW, MEZZ_WIDTH_LINE_Y, z]);
+    });
+  }
+
   repositionStaticDimensions();
   repositionSectionHighlight();
 }

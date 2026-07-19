@@ -11,6 +11,7 @@ import {
   sectionVerticalBounds, findFreeSlot, defaultItemsForSection, isSectionWidthLocked, sectionMissingSideSupport, absorbIntoLockedGap,
   sectionBackWallSegments, doorCountOptions, getDoorCount, effectiveDoorSpan, DOOR_MIN_W, DOOR_OVERLAP,
   swingDoorCountOptions, SWING_GAP, SWING_DOOR_MIN_W, SWING_DOOR_MAX_W,
+  mezzanineVerticalBounds, MESH_DEPTHS, VALET_LENGTHS, clampItemPositions,
 } from '../types/_wardrobe-shared.js';
 
 // Общий список допустимых проёмов под корзины (не привязан к конкретной выбранной ширине) —
@@ -26,8 +27,23 @@ const collapsedSections = new WeakSet();
 
 // Выбранная карточка секции — клик по карточке подсвечивает её в 3D (см. dimensions.js). Ссылка
 // на объект секции, не индекс (тот же приём, что и у collapsedSections). Одна секция за раз —
-// повторный клик по уже выбранной снимает выделение.
+// повторный клик по уже выбранной снимает выделение. Общая для основных секций и антресолей
+// (задание «антресоли 19,07») — выбор в одном списке снимает выделение в другом.
 let selectedSection = null;
+
+// Клик по карточке (не по вложенным полям/кнопкам) выделяет секцию — подсвечивается рамкой в
+// панели и полупрозрачным прямоугольником на передней грани в 3D (см. dimensions.js), задание
+// «интерфейс 19,07». document.querySelectorAll (не container.querySelectorAll) — снимает
+// выделение и в ДРУГОМ списке карточек (основные/антресоли), не только в текущем.
+function bindCardSelection(card, sec) {
+  card.addEventListener('click', e => {
+    if (e.target.closest('input, select, button, label')) return;
+    selectedSection = selectedSection === sec ? null : sec;
+    document.querySelectorAll('.section-card.selected').forEach(c => { if (c !== card) c.classList.remove('selected'); });
+    card.classList.toggle('selected', selectedSection === sec);
+    setSelectedSection(selectedSection);
+  });
+}
 
 function activeType() { return TYPES[state.type] || TYPES['wardrobe']; }
 
@@ -126,7 +142,8 @@ export function bindSlider(id, key, suffix) {
     buildFurniture();
     // build() клампит state.sections[i].drawerDepth под новую глубину короба — перерисовываем
     // карточки секций, чтобы поле ввода показывало актуальное (уже урезанное) значение и max.
-    if (key === 'depth') renderSectionsList();
+    // mezzanineHeight — по той же причине: меняет фактическую границу основной/антресольной зоны.
+    if (key === 'depth' || key === 'mezzanineHeight') renderSectionsList();
   }
 
   range.addEventListener('input', () => apply(Number(range.value)));
@@ -145,6 +162,10 @@ export function syncUIFromState() {
   document.getElementById('plinthEnabled').checked = state.plinthEnabled;
   document.getElementById('plinthHeightField').style.display = state.plinthEnabled ? 'block' : 'none';
   setSlider('plinthHeight', state.plinthHeight);
+
+  document.getElementById('mezzanineEnabled').checked = state.mezzanineEnabled;
+  document.getElementById('mezzanineHeightField').style.display = state.mezzanineEnabled ? 'block' : 'none';
+  setSlider('mezzanineHeight', state.mezzanineHeight);
 
   ['noSideLeft', 'noSideRight', 'noCeiling', 'noBottom', 'alignerLeft', 'alignerRight', 'alignerTop'].forEach(key => {
     const el = document.getElementById(key);
@@ -634,16 +655,7 @@ export function renderSectionsList() {
         ${state.backWall === 'none' ? renderBackWallSegmentsRow(sec, i) : ''}
       </div>
     `;
-    // Клик по карточке (не по вложенным полям/кнопкам) выделяет секцию — подсвечивается рамкой
-    // в панели и полупрозрачным прямоугольником на передней грани в 3D (см. dimensions.js),
-    // задание «интерфейс 19,07»: проще увидеть, какую секцию сейчас правишь.
-    card.addEventListener('click', e => {
-      if (e.target.closest('input, select, button, label')) return;
-      selectedSection = selectedSection === sec ? null : sec;
-      card.parentElement?.querySelectorAll('.section-card.selected').forEach(c => { if (c !== card) c.classList.remove('selected'); });
-      card.classList.toggle('selected', selectedSection === sec);
-      setSelectedSection(selectedSection);
-    });
+    bindCardSelection(card, sec);
     container.appendChild(card);
   });
 
@@ -829,6 +841,215 @@ export function renderSectionsList() {
       buildFurniture();
     });
   });
+
+  // Антресоли (задание «антресоли 19,07») — отдельный список карточек, но зовём отсюда же, чтобы
+  // все существующие вызовы renderSectionsList() (тут же, itemDrag.js, presets.js, order.js)
+  // автоматически обновляли и его — не нужно помнить про второй вызов в каждом месте.
+  renderMezzanineList();
+}
+
+// Ряд антресолей — верхняя зона шкафа без стоек (задание «антресоли 19,07»): своя ширинная
+// раскладка секций (state.mezzanineSections), но БЕЗ ящиков/корзин (нет нужной опоры по бокам,
+// да и не нужны там) — карточка урезана до полок/штанги/сетки/вешала. Секции живут выше общей
+// сплошной полки (не item ни одной секции — рисуется один раз в buildWardrobeBox), поэтому у них
+// нет backWallSegments/drawer*/basket* полей вовсе.
+function renderMezzanineList() {
+  const container = document.getElementById('mezzanineListItems');
+  const block = document.getElementById('mezzanineListBlock');
+  if (!container || !block) return;
+  block.style.display = state.mezzanineEnabled ? '' : 'none';
+  if (!state.mezzanineEnabled) return;
+  container.innerHTML = '';
+
+  // Клампинг под текущую глубину короба (тот же принцип, что и clampSectionSizes у основных
+  // секций) — тут только сетка/вешало, ящиков/корзин у антресолей не бывает.
+  const meshDepths = availableMeshDepths(state.depth);
+  const valetLengths = availableValetLengths(state.depth);
+  const { fillBottom: mezzFillBottom, fillTop: mezzFillTop } = mezzanineVerticalBounds();
+  state.mezzanineSections.forEach(sec => {
+    if (meshDepths.length) {
+      if (!meshDepths.includes(sec.meshDepth)) sec.meshDepth = meshDepths[meshDepths.length - 1];
+    } else {
+      sec.meshDepth = MESH_DEPTHS[0];
+      sec.items = sec.items.filter(it => it.type !== 'mesh');
+    }
+    if (valetLengths.length) {
+      if (!valetLengths.includes(sec.valetLength)) sec.valetLength = valetLengths[valetLengths.length - 1];
+    } else {
+      sec.valetLength = VALET_LENGTHS[0];
+      sec.valet = 0;
+    }
+    if (sec.valetAnchorId && !sec.items.some(it => it.id === sec.valetAnchorId)) sec.valetAnchorId = null;
+    clampItemPositions(sec, mezzFillBottom, mezzFillTop);
+  });
+
+  const byType = (sec, type) => sec.items.filter(it => it.type === type);
+
+  state.mezzanineSections.forEach((sec, i) => {
+    const card = document.createElement('div');
+    card.className = 'section-card' + (selectedSection === sec ? ' selected' : '');
+    const removable = state.mezzanineSections.length > 1 && canRemoveSection(i, state.mezzanineSections);
+    const removeBtn = state.mezzanineSections.length > 1
+      ? `<button class="section-remove-btn" data-idx="${i}" ${removable ? '' : 'disabled'}
+           title="${removable ? 'Удалить секцию' : 'Нельзя удалить — все остальные секции зафиксированы, освободившееся место некому занять'}">
+           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z"/></svg>
+         </button>`
+      : '';
+    const collapsed = collapsedSections.has(sec);
+    card.innerHTML = `
+      <div class="section-card-header">
+        <button class="section-collapse-btn ${collapsed ? 'collapsed' : ''}" data-idx="${i}" title="${collapsed ? 'Развернуть секцию' : 'Свернуть секцию'}">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <span class="section-card-title">Антресоль ${i + 1}</span>
+        <div class="section-card-width">
+          <input type="number" class="dim-input section-width-input" data-idx="${i}" value="${Math.round(sec.width)}" min="${MIN_SECTION_WIDTH}">
+          <span class="section-card-unit">мм</span>
+          <button class="section-lock-btn ${sec.widthLocked ? 'active' : ''}" data-idx="${i}" title="Зафиксировать ширину секции — не изменится при добавлении/удалении других секций">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          </button>
+          ${removeBtn}
+        </div>
+      </div>
+      <div class="section-rows" style="${collapsed ? 'display:none' : ''}">
+        <div class="el-row" title="Полки ЛДСП — таскаются мышкой в 3D-виде">
+          <span class="el-row-label">Полки</span>
+          <span class="el-row-count">${byType(sec, 'shelf').length}</span>
+          ${byType(sec, 'shelf').filter(it => !it.pinned).map(it => `<button class="item-chip-remove" data-item-id="${it.id}" data-idx="${i}" title="Удалить полку">×</button>`).join('')}
+          <button class="section-add-btn" data-idx="${i}" data-type="shelf" title="Добавить полку">+</button>
+        </div>
+        <div class="el-row" title="Штанга для одежды — таскается мышкой в 3D-виде">
+          <span class="el-row-label">Штанга</span>
+          <span class="el-row-count">${byType(sec, 'rod').length}</span>
+          ${byType(sec, 'rod').map(it => `<button class="item-chip-remove" data-item-id="${it.id}" data-idx="${i}" title="Удалить штангу">×</button>`).join('')}
+          <button class="section-add-btn" data-idx="${i}" data-type="rod" title="Добавить штангу">+</button>
+        </div>
+        <div class="el-row" title="Сетчатая полка — таскается мышкой в 3D-виде">
+          <span class="el-row-label">Сетка</span>
+          <span class="el-row-count">${byType(sec, 'mesh').length}</span>
+          ${byType(sec, 'mesh').map(it => `<button class="item-chip-remove" data-item-id="${it.id}" data-idx="${i}" title="Удалить сетчатую полку">×</button>`).join('')}
+          <button class="section-add-btn" data-idx="${i}" data-type="mesh" title="Добавить сетчатую полку">+</button>
+          <select class="mini-select section-mesh-depth-input" data-idx="${i}" title="Глубина">
+            ${meshDepths.map(d => `<option value="${d}" ${sec.meshDepth === d ? 'selected' : ''}>${d}</option>`).join('')}
+          </select>
+          <select class="mini-select section-mesh-color-input" data-idx="${i}" title="Цвет">
+            <option value="silver" ${sec.meshColor === 'silver' ? 'selected' : ''}>Хром</option>
+            <option value="white" ${sec.meshColor === 'white' ? 'selected' : ''}>Белая</option>
+          </select>
+        </div>
+        <div class="el-row" title="Торцевое вешало — крепится к полке, мышкой прыгает между полками (не двигается свободно)">
+          <span class="el-row-label">Вешало</span>
+          <label class="el-row-check" title="Есть/нет"><input type="checkbox" class="section-valet-input" data-idx="${i}" ${sec.valet ? 'checked' : ''}></label>
+          <select class="mini-select section-valet-length-input" data-idx="${i}" title="Размер, мм">
+            ${valetLengths.map(v => `<option value="${v}" ${sec.valetLength === v ? 'selected' : ''}>${v}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    `;
+    bindCardSelection(card, sec);
+    container.appendChild(card);
+  });
+
+  container.querySelectorAll('.section-width-input').forEach(inp => {
+    inp.addEventListener('change', e => {
+      const i = Number(e.target.dataset.idx);
+      const sec = state.mezzanineSections[i];
+      const others = state.mezzanineSections.filter((s, idx) => idx !== i);
+      if (others.length && others.every(isSectionWidthLocked)) {
+        showToast('Нельзя изменить ширину — все остальные секции зафиксированы замочком.');
+        e.target.value = Math.round(sec.width);
+        return;
+      }
+      sec.width = Math.max(MIN_SECTION_WIDTH, Number(e.target.value));
+      rebalanceSections(i, state.mezzanineSections);
+      renderMezzanineList();
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-add-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = Number(btn.dataset.idx);
+      const type = btn.dataset.type;
+      const sec = state.mezzanineSections[i];
+      const { fillBottom, fillTop } = mezzanineVerticalBounds();
+      const y = findFreeSlot(sec, type, fillBottom, fillTop);
+      if (y === null) {
+        showToast('Нет места для нового элемента в этой секции антресолей.');
+        return;
+      }
+      const newId = newItemId();
+      sec.items.push({ id: newId, type, y });
+      absorbIntoLockedGap(sec, newId);
+      renderMezzanineList();
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.item-chip-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sec = state.mezzanineSections[Number(btn.dataset.idx)];
+      const target = sec.items.find(it => it.id === btn.dataset.itemId);
+      if (target && target.pinned) return;
+      sec.items = sec.items.filter(it => it.id !== btn.dataset.itemId);
+      renderMezzanineList();
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-mesh-depth-input').forEach(sel => {
+    sel.addEventListener('change', e => {
+      state.mezzanineSections[Number(e.target.dataset.idx)].meshDepth = Number(e.target.value);
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-mesh-color-input').forEach(sel => {
+    sel.addEventListener('change', e => {
+      state.mezzanineSections[Number(e.target.dataset.idx)].meshColor = e.target.value;
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-valet-input').forEach(inp => {
+    inp.addEventListener('change', e => {
+      state.mezzanineSections[Number(e.target.dataset.idx)].valet = e.target.checked ? 1 : 0;
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-valet-length-input').forEach(sel => {
+    sel.addEventListener('change', e => {
+      state.mezzanineSections[Number(e.target.dataset.idx)].valetLength = Number(e.target.value);
+      buildFurniture();
+    });
+  });
+  container.querySelectorAll('.section-collapse-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sec = state.mezzanineSections[Number(btn.dataset.idx)];
+      const card = btn.closest('.section-card');
+      const rows = card.querySelector('.section-rows');
+      const nowCollapsed = !collapsedSections.has(sec);
+      if (nowCollapsed) collapsedSections.add(sec); else collapsedSections.delete(sec);
+      rows.style.display = nowCollapsed ? 'none' : '';
+      btn.classList.toggle('collapsed', nowCollapsed);
+      btn.title = nowCollapsed ? 'Развернуть секцию' : 'Свернуть секцию';
+    });
+  });
+  container.querySelectorAll('.section-lock-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sec = state.mezzanineSections[Number(btn.dataset.idx)];
+      sec.widthLocked = !sec.widthLocked;
+      btn.classList.toggle('active', sec.widthLocked);
+    });
+  });
+  container.querySelectorAll('.section-remove-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.dataset.idx);
+      if (!canRemoveSection(idx, state.mezzanineSections)) {
+        showToast('Нельзя удалить секцию — все остальные секции зафиксированы (корзиной или галочкой), освободившееся место некому занять.');
+        return;
+      }
+      state.mezzanineSections.splice(idx, 1);
+      rebalanceSections(null, state.mezzanineSections);
+      renderMezzanineList();
+      buildFurniture();
+    });
+  });
 }
 
 export function bindSectionsControls() {
@@ -862,6 +1083,35 @@ export function bindSectionsControls() {
     state.showDimensions = e.target.checked;
     renderStaticDimensions();
   });
+
+  // Антресоли (задание «антресоли 19,07») — та же логика добавления секции, что и у основных
+  // (canAddSection/rebalanceSections теперь принимают массив, см. wardrobe-sizing.js), просто без
+  // ящиков/корзин: та же логика добавления, что и у основной "+", но без ящика/штанги по умолчанию
+  // (антресоли обычно мельче) и без полей ящика/корзины вовсе.
+  document.getElementById('addMezzanineSectionBtn').addEventListener('click', () => {
+    if (!canAddSection(state.mezzanineSections)) {
+      showToast('Не удаётся добавить секцию антресолей — все секции зафиксированы и заняли всю ширину. Снимите фиксацию у одной из секций или уменьшите её ширину.');
+      return;
+    }
+    state.mezzanineSections.push(newMezzanineSection());
+    rebalanceSections(null, state.mezzanineSections);
+    renderSectionsList();
+    buildFurniture();
+  });
+}
+
+// Дефолтный набор полей для новой секции антресолей (задание «антресоли 19,07») — та же форма
+// записи, что и у обычной секции (state.sections), но заведомо без ящиков/корзин: соответствующих
+// полей нет вовсе (не нужны — UI их не использует, а geometry/sizing-хелперы, которые их читают,
+// на антресоли не вызываются).
+function newMezzanineSection() {
+  return {
+    width: MIN_SECTION_WIDTH,
+    items: defaultItemsForSection({ shelves: 1, bounds: mezzanineVerticalBounds() }),
+    meshDepth: 400, meshColor: 'silver', valet: 0, valetAnchorId: null, valetLength: 400,
+    widthLocked: false,
+    lockedGaps: [],
+  };
 }
 
 // ---------- вкладка «Внешнее» — доп. опции ----------
@@ -1000,6 +1250,22 @@ export function bindVariantControls() {
   });
 
   bindSlider('plinthHeight', 'plinthHeight', ' мм');
+
+  // Антресоли (задание «антресоли 19,07») — верхняя зона без стоек, см. state.js. Включение
+  // сеет одну дефолтную секцию антресолей, если список ещё пуст (первое включение) — ничего не
+  // теряем при повторном вкл/выкл, т.к. mezzanineSections не очищается при выключении.
+  const mezzCb = document.getElementById('mezzanineEnabled');
+  const mezzHeightFld = document.getElementById('mezzanineHeightField');
+  mezzCb.addEventListener('change', () => {
+    state.mezzanineEnabled = mezzCb.checked;
+    mezzHeightFld.style.display = state.mezzanineEnabled ? 'block' : 'none';
+    if (state.mezzanineEnabled && state.mezzanineSections.length === 0) {
+      state.mezzanineSections.push(newMezzanineSection());
+    }
+    buildFurniture();
+    renderSectionsList();
+  });
+  bindSlider('mezzanineHeight', 'mezzanineHeight', ' мм');
 }
 
 // ---------- переключение вкладок сайдбара ----------

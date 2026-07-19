@@ -114,8 +114,10 @@ export function effectiveDoorSpan() {
 export const MIN_SECTION_WIDTH = 150;
 export function isSectionWidthLocked(sec) { return sec.items.some(it => it.type === 'basket') || sec.widthLocked; }
 
-export function rebalanceSections(editedIndex = null) {
-  const sections = state.sections;
+// sections — опциональный параметр (по умолчанию state.sections): передаётся state.mezzanineSections,
+// чтобы независимо балансировать ширины антресольного ряда на той же горизонтали (см. задание
+// «антресоли 19,07», js/core/tabs.js).
+export function rebalanceSections(editedIndex = null, sections = state.sections) {
   const n = sections.length;
   if (n === 0) return;
   const t = detailT('dividers'); // перегородки могут быть помечены как 32мм
@@ -167,8 +169,7 @@ export function rebalanceSections(editedIndex = null) {
 // галочка) ширина не меняется (см. выше), поэтому под новую секцию должно хватить места
 // ТОЛЬКО за счёт "свободных" секций — каждой из них (и старым, и новой) нужно хотя бы
 // MIN_SECTION_WIDTH.
-export function canAddSection() {
-  const sections = state.sections;
+export function canAddSection(sections = state.sections) {
   const t = detailT('dividers');
   const { innerSpanW } = effectiveDoorSpan();
   const newN = sections.length + 1;
@@ -182,8 +183,7 @@ export function canAddSection() {
 // НЕзафиксированная секция среди оставшихся (rebalanceSections умеет двигать только их — см.
 // otherIdx.length === 0 там же). Если после удаления все оставшиеся секции окажутся
 // зафиксированы (корзиной или галочкой), место останется "дырой" — так что удалять нельзя.
-export function canRemoveSection(idx) {
-  const sections = state.sections;
+export function canRemoveSection(idx, sections = state.sections) {
   if (sections.length <= 1) return false;
   return sections.some((sec, i) => i !== idx && !isSectionWidthLocked(sec));
 }

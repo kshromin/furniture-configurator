@@ -3,8 +3,8 @@ import { camera, renderer, controls, furnitureGroup, isFrontView, showPerspectiv
 import { state } from './state.js';
 import { buildFurniture } from './build.js';
 import {
-  lastBuildItemMeshes, lastBuildValetMeshes, lastBuildSectionCenters, lastBuildY0,
-  checkOverlap, sectionVerticalBounds, sectionVerticalBoundsPhysical, valetAnchorCandidates, resolveValetAnchorY,
+  lastBuildItemMeshes, lastBuildValetMeshes, lastBuildSectionCenters, lastBuildMezzanineSectionCenters, lastBuildY0,
+  checkOverlap, boundsForZone, boundsForZonePhysical, secForZone, valetAnchorCandidates, resolveValetAnchorY,
   itemPhysicalBands, itemPhysicalHeight, resolveLockedMove, absorbIntoLockedGap,
   nearestSupportSurfaceY, horizontalSupportYRange,
 } from '../types/_wardrobe-shared.js';
@@ -45,6 +45,12 @@ const aboveInput = document.createElement('input');
   overlay.appendChild(inp);
 });
 
+// Антресоли (задание «антресоли 19,07») — свой ряд секций (state.mezzanineSections), независимая
+// от основного нумерация sectionIndex с нуля, поэтому центр по X ищем в своём массиве координат.
+function centerForZone(zone, sectionIndex) {
+  return zone === 'mezzanine' ? lastBuildMezzanineSectionCenters[sectionIndex] : lastBuildSectionCenters[sectionIndex];
+}
+
 function updatePointerNDC(e) {
   const rect = renderer.domElement.getBoundingClientRect();
   pointerNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -64,9 +70,12 @@ function pickDraggable(e) {
   for (const hit of hits) {
     const obj = hit.object;
     if (!obj.isMesh || !obj.userData) continue;
-    if (obj.userData.hSupportSide) return { mesh: obj, kind: 'hsupport', side: obj.userData.hSupportSide };
-    if (obj.userData.itemId) return { mesh: obj, kind: 'item' };
-    if (obj.userData.itemType === 'valet') return { mesh: obj, kind: 'valet' };
+    // zone — 'main'|'mezzanine' (задание «антресоли 19,07», см. tagItemMesh в wardrobe-geometry.js);
+    // на всякий случай подстрахуемся дефолтом 'main' для мешей без явной метки.
+    const zone = obj.userData.zone || 'main';
+    if (obj.userData.hSupportSide) return { mesh: obj, kind: 'hsupport', side: obj.userData.hSupportSide, zone };
+    if (obj.userData.itemId) return { mesh: obj, kind: 'item', zone };
+    if (obj.userData.itemType === 'valet') return { mesh: obj, kind: 'valet', zone };
   }
   return null;
 }
@@ -217,15 +226,15 @@ function neighborGaps(sec, itemId, lo, hi, fillBottom, fillTop) {
 // тут не другие элементы секции, а фиксированные концы отрезка трубы: опора снизу (полка/пол) и
 // сама штанга сверху (см. задание «трубы вертикально плюс», HORIZONTAL_SUPPORT_MARGIN).
 function updateHSupportInputs() {
-  const { sec, item, sectionIndex } = active;
-  const { fillBottom: fillBottomPhysical } = sectionVerticalBoundsPhysical();
+  const { sec, item, sectionIndex, zone } = active;
+  const { fillBottom: fillBottomPhysical } = boundsForZonePhysical(zone);
   const surfaceY = nearestSupportSurfaceY(sec, item, fillBottomPhysical);
   const rodY = item.y;
   const y = currentItemY();
   active.hSurfaceY = surfaceY;
   active.hRodY = rodY;
 
-  const cx = lastBuildSectionCenters[sectionIndex];
+  const cx = centerForZone(zone, sectionIndex);
   if (cx === undefined) return;
 
   const belowPos = projectToOverlay(cx, lastBuildY0 + (y + surfaceY) / 2, 0);
@@ -252,9 +261,9 @@ function updateEditInputs() {
     return;
   }
   if (active.kind === 'hsupport') { updateHSupportInputs(); return; }
-  const { sec, item, itemType, sectionIndex } = active;
+  const { sec, item, itemType, sectionIndex, zone } = active;
   // Физические границы (поверхность дна/низ крыши) — те же, что у статичных размерных линий.
-  const { fillBottom, fillTop } = sectionVerticalBoundsPhysical();
+  const { fillBottom, fillTop } = boundsForZonePhysical(zone);
   const h = itemPhysicalHeight(itemType, sec, item); // физические края — согласовано с neighborGaps
   const y = currentItemY();
   const lo = y - h / 2, hi = y + h / 2;
@@ -263,7 +272,7 @@ function updateEditInputs() {
   active.aboveLo = aboveLo;
   active.h = h;
 
-  const cx = lastBuildSectionCenters[sectionIndex];
+  const cx = centerForZone(zone, sectionIndex);
   if (cx === undefined) return;
 
   const belowPos = projectToOverlay(cx, lastBuildY0 + (lo + belowHi) / 2, 0);
@@ -287,8 +296,8 @@ function commitHSupportEdit(fromBelow) {
   const inp = fromBelow ? belowInput : aboveInput;
   const val = Number(inp.value);
   if (!Number.isFinite(val) || val < 0) { updateEditInputs(); return; }
-  const { sec, item, side, yField } = active;
-  const { fillBottom: fillBottomPhysical } = sectionVerticalBoundsPhysical();
+  const { sec, item, side, yField, zone } = active;
+  const { fillBottom: fillBottomPhysical } = boundsForZonePhysical(zone);
   const { lo, hi } = horizontalSupportYRange(sec, item, fillBottomPhysical);
   const raw = fromBelow ? active.hSurfaceY + val : active.hRodY - val;
   item[yField] = Math.min(Math.max(raw, lo), hi);
@@ -305,8 +314,8 @@ function commitGapEdit(fromBelow) {
   const inp = fromBelow ? belowInput : aboveInput;
   const val = Number(inp.value);
   if (!Number.isFinite(val) || val < 0) { updateEditInputs(); return; }
-  const { sec, item } = active;
-  const { fillBottom, fillTop } = sectionVerticalBounds();
+  const { sec, item, zone } = active;
+  const { fillBottom, fillTop } = boundsForZone(zone);
   const h = active.h;
   const newY = fromBelow ? active.belowHi + val + h / 2 : active.aboveLo - val - h / 2;
   // Зафиксированные просветы дальше по цепочке (sec.lockedGaps) двигают следующий свободный
@@ -381,8 +390,9 @@ function onPointerDown(e) {
   renderer.domElement.style.cursor = 'grabbing';
 
   const { sectionIndex } = picked.mesh.userData;
-  const sec = state.sections[sectionIndex];
-  const { fillBottom, fillTop } = sectionVerticalBounds();
+  const zone = picked.zone;
+  const sec = secForZone(zone, sectionIndex);
+  const { fillBottom, fillTop } = boundsForZone(zone);
 
   const worldAnchor = picked.mesh.getWorldPosition(new THREE.Vector3());
   buildDragPlane(worldAnchor);
@@ -395,7 +405,7 @@ function onPointerDown(e) {
     const item = sec.items.find(it => it.id === itemId);
     if (!item) return;
     const meshes = lastBuildItemMeshes.get(sectionIndex + '|' + itemId) || [picked.mesh];
-    active = { kind: 'item', sectionIndex, sec, item, itemType, meshes };
+    active = { kind: 'item', sectionIndex, zone, sec, item, itemType, meshes };
     dragState = {
       kind: 'item', sec, item, itemType, meshes,
       originalY: meshes.map(m => m.position.y),
@@ -418,9 +428,9 @@ function onPointerDown(e) {
     const yField = side === 'left' ? 'horizontalSupportLeftY' : 'horizontalSupportRightY';
     const meshes = (lastBuildItemMeshes.get(sectionIndex + '|' + itemId) || []).filter(m => m.userData.hSupportSide === side);
     if (!meshes.length) return;
-    const { fillBottom: fillBottomPhysical } = sectionVerticalBoundsPhysical();
+    const { fillBottom: fillBottomPhysical } = boundsForZonePhysical(zone);
     const { lo, hi } = horizontalSupportYRange(sec, item, fillBottomPhysical);
-    active = { kind: 'hsupport', sectionIndex, sec, item, itemType: 'rod', meshes, side, yField };
+    active = { kind: 'hsupport', sectionIndex, zone, sec, item, itemType: 'rod', meshes, side, yField };
     dragState = {
       kind: 'hsupport', sec, item, meshes, side, yField,
       originalY: meshes.map(m => m.position.y),
@@ -431,11 +441,11 @@ function onPointerDown(e) {
     showInfoPanel();
     updateEditInputs();
   } else {
-    const meshes = lastBuildValetMeshes.get(sectionIndex) || [];
+    const meshes = lastBuildValetMeshes.get(zone + '|' + sectionIndex) || [];
     if (!meshes.length) return;
     const startAnchorY = resolveValetAnchorY(sec);
     const candidates = valetAnchorCandidates(sec);
-    active = { kind: 'valet', sectionIndex, sec, meshes };
+    active = { kind: 'valet', sectionIndex, zone, sec, meshes };
     dragState = {
       kind: 'valet', sec, meshes,
       originalY: meshes.map(m => m.position.y),
@@ -540,7 +550,7 @@ function onPointerUp() {
     } else if (dragKind === 'item') {
       active.meshes = lastBuildItemMeshes.get(active.sectionIndex + '|' + active.item.id) || [];
     } else {
-      active.meshes = lastBuildValetMeshes.get(active.sectionIndex) || [];
+      active.meshes = lastBuildValetMeshes.get(active.zone + '|' + active.sectionIndex) || [];
     }
     setHighlight(active.meshes, SELECT_EMISSIVE);
     if (dragKind === 'item' || dragKind === 'hsupport') updateEditInputs();

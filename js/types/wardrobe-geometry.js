@@ -11,6 +11,7 @@ import {
 import {
   sectionVerticalBounds, sectionVerticalBoundsPhysical, clampItemPositions, resolveValetAnchorY,
   sectionBackWallSegments, nearestSupportSurfaceY, clampHorizontalSupportY,
+  mezzanineShelfY, mezzanineVerticalBounds, mezzanineVerticalBoundsPhysical,
 } from './wardrobe-items.js';
 
 // Геометрия/рендер: собственно построение 3D-модели шкафа-купе (buildWardrobeBox) — короб,
@@ -163,30 +164,42 @@ function buildSlidingDoor(x, y, z, w, h, fillColor) {
 export let lastBuildItemMeshes = new Map();
 export let lastBuildValetMeshes = new Map();
 export let lastBuildSectionCenters = [];
+// Мировые X-центры антресольного ряда секций (задание «антресоли 19,07») — своя раскладка ширин,
+// независимая от lastBuildSectionCenters основных секций, но та же горизонталь (innerSpanW).
+export let lastBuildMezzanineSectionCenters = [];
 export let lastBuildY0 = 0;
 
+// zone — 'main' | 'mezzanine' (задание «антресоли 19,07»): в какой ряд секций входит меш —
+// нужно js/core/itemDrag.js/dimensions.js, чтобы выбрать правильный массив state.sections/
+// state.mezzanineSections и границы sectionVerticalBounds/mezzanineVerticalBounds по sectionIndex
+// (индексы в обоих рядах независимо с нуля, сами по себе неоднозначны без zone).
 // extra — доп. userData поверх обычных полей (см. горизонтальную перемычку штанги ниже):
 // hSupportSide — 'left'/'right', меш входит в перемычку этой стороны (весь целиком — краб+труба+
 // фланец — кликабелен и тащится как одно целое, независимо от другой стороны и от самой штанги),
 // см. pickDraggable в itemDrag.js.
-function tagItemMesh(mesh, sectionIndex, item, extra) {
+function tagItemMesh(mesh, sectionIndex, item, zone, extra) {
   if (!mesh) return;
   mesh.userData.sectionIndex = sectionIndex;
   mesh.userData.itemId = item.id;
   mesh.userData.itemType = item.type;
+  mesh.userData.zone = zone;
   if (extra) Object.assign(mesh.userData, extra);
   const key = sectionIndex + '|' + item.id;
   if (!lastBuildItemMeshes.has(key)) lastBuildItemMeshes.set(key, []);
   lastBuildItemMeshes.get(key).push(mesh);
 }
 
-function tagValetMeshes(meshes, sectionIndex) {
+// Ключ — "zone|sectionIndex" (не просто sectionIndex): у вешала нет itemId, а индексы основного и
+// антресольного рядов независимо с нуля — без zone в ключе секция 0 антресолей затёрла бы вешало
+// секции 0 основного ряда (или наоборот).
+function tagValetMeshes(meshes, sectionIndex, zone) {
   meshes.forEach(mesh => {
     if (!mesh) return;
     mesh.userData.sectionIndex = sectionIndex;
     mesh.userData.itemType = 'valet';
+    mesh.userData.zone = zone;
   });
-  lastBuildValetMeshes.set(sectionIndex, meshes.filter(Boolean));
+  lastBuildValetMeshes.set(zone + '|' + sectionIndex, meshes.filter(Boolean));
 }
 
 // Общий короб для шкафа-купе / распашного / открытого — сегодня они выглядят одинаково
@@ -197,6 +210,7 @@ export function buildWardrobeBox() {
   lastBuildItemMeshes = new Map();
   lastBuildValetMeshes = new Map();
   lastBuildSectionCenters = [];
+  lastBuildMezzanineSectionCenters = [];
   const kColor = getColor('korpus').color;
   const fColor = getColor('fasad').color;
   const nColor = getColor('fill').color;
@@ -271,6 +285,32 @@ export function buildWardrobeBox() {
     if (Math.abs(sum - available) > 0.5) rebalanceSections();
   }
   clampSectionSizes(sections, depth);
+
+  // Антресоли (задание «антресоли 19,07») — общая полка на весь короб (НЕ item ни одной секции)
+  // делит перегородки на два независимых яруса: перегородки основных секций теперь идут не до
+  // самой крыши, а только до низа этой полки, выше — свой, независимый ряд перегородок антресолей
+  // (от верха полки до крыши). Вне режима антресолей mainDividerH/mainDividerCenterY совпадают со
+  // stojkaH/stojkaCenterY — поведение как раньше, без единой лишней миллиметровой разницы.
+  const mezzanineOn = state.mezzanineEnabled;
+  let mainDividerH = stojkaH, mainDividerCenterY = stojkaCenterY;
+  let mezzDividerH = 0, mezzDividerCenterY = 0;
+  if (mezzanineOn) {
+    const shelfCenterLocalY = mezzanineShelfY();
+    const shelfBotWorldY = y0 + shelfCenterLocalY - t / 2;
+    const shelfTopWorldY = y0 + shelfCenterLocalY + t / 2;
+    const dividerBottomWorldY = y0 + stojkaBottomOff;
+    const dividerTopWorldY = y0 + height - stojkaTopOff;
+    mainDividerH = shelfBotWorldY - dividerBottomWorldY;
+    mainDividerCenterY = (dividerBottomWorldY + shelfBotWorldY) / 2;
+    mezzDividerH = dividerTopWorldY - shelfTopWorldY;
+    mezzDividerCenterY = (shelfTopWorldY + dividerTopWorldY) / 2;
+    // Сама полка — во всю innerSpanW (не по отдельным секциям); X-центр — середина между реальными
+    // внутренними гранями стоек (тот же приём, что и у центрирования задней стенки при асимметричных
+    // выравнивателях — bwCenterX ниже).
+    const shelfCenterX = (stojkaLeftOff - stojkaRightOff) / 2;
+    addPanel(innerSpanW, t, innerDepth, nColor, [shelfCenterX, shelfBotWorldY + t / 2, innerZ]);
+  }
+
   const sectionCenters = [];
   {
     let cursorX = -width / 2 + stojkaLeftOff;
@@ -278,12 +318,36 @@ export function buildWardrobeBox() {
       sectionCenters.push(cursorX + sec.width / 2);
       cursorX += sec.width;
       if (i < sections.length - 1) {
-        addPanel(tDiv, stojkaH, innerDepth, nColor, [cursorX + tDiv / 2, stojkaCenterY, innerZ]);
+        addPanel(tDiv, mainDividerH, innerDepth, nColor, [cursorX + tDiv / 2, mainDividerCenterY, innerZ]);
         cursorX += tDiv;
       }
     });
   }
   lastBuildSectionCenters = sectionCenters;
+
+  // Ряд антресолей — та же горизонталь (cursorX стартует с той же точки), но своя ширинная
+  // раскладка и свои перегородки (см. mezzDividerH/mezzDividerCenterY выше).
+  const mezzSections = mezzanineOn ? state.mezzanineSections : [];
+  if (mezzSections.length) {
+    const available = innerSpanW - (mezzSections.length - 1) * tDiv;
+    const sum = mezzSections.reduce((s, sec) => s + sec.width, 0);
+    if (Math.abs(sum - available) > 0.5) rebalanceSections(null, mezzSections);
+    const mezzBounds = mezzanineVerticalBounds();
+    mezzSections.forEach(sec => clampItemPositions(sec, mezzBounds.fillBottom, mezzBounds.fillTop));
+  }
+  const mezzSectionCenters = [];
+  if (mezzanineOn) {
+    let cursorX = -width / 2 + stojkaLeftOff;
+    mezzSections.forEach((sec, i) => {
+      mezzSectionCenters.push(cursorX + sec.width / 2);
+      cursorX += sec.width;
+      if (i < mezzSections.length - 1) {
+        addPanel(tDiv, mezzDividerH, innerDepth, nColor, [cursorX + tDiv / 2, mezzDividerCenterY, innerZ]);
+        cursorX += tDiv;
+      }
+    });
+  }
+  lastBuildMezzanineSectionCenters = mezzSectionCenters;
 
   // Визуализация планок и коробов (глубина = дверная зона, внутри габарита изделия)
   const elemZ = depth / 2 - DOOR_DEPTH_ZONE / 2;
@@ -672,149 +736,168 @@ export function buildWardrobeBox() {
     return m;
   }
 
-  sections.forEach((sec, s) => {
-    const cx = sectionCenters[s];
-    // Без зазора — полки/жёсткость/штанга/ящики примыкают к стойкам/перегородке вплотную.
-    const sw = sec.width;
+  // Вынесено в функцию (задание «антресоли 19,07») — тело один в один как раньше, только границы/
+  // массив секций/zone параметризованы, чтобы вызвать дважды: один раз для основных секций (как и
+  // было), второй раз для ряда антресолей, если они включены (state.mezzanineEnabled). zone пишется
+  // в userData каждого меша (см. tagItemMesh/tagValetMeshes выше) — js/core/itemDrag.js по нему
+  // выбирает нужный state.sections/state.mezzanineSections и нужные границы по sectionIndex (индексы
+  // в обоих рядах свои, с нуля, сами по себе неоднозначны без zone).
+  function drawSectionsContent(zoneSections, zoneCenters, zFillBottom, zFillTop, zFillBottomPhysical, zone) {
+    zoneSections.forEach((sec, s) => {
+      const cx = zoneCenters[s];
+      // Без зазора — полки/жёсткость/штанга/ящики примыкают к стойкам/перегородке вплотную.
+      const sw = sec.width;
+      const tag = (mesh, item, extra) => tagItemMesh(mesh, s, item, zone, extra);
 
-    // Страховка: подрезаем позиции под текущие границы секции на случай прямого вызова build()
-    // в обход clampSectionSizes (renderSectionsList вызывает его сама, buildFurniture — тоже, но
-    // геометрия должна быть защищена независимо от порядка вызовов).
-    clampItemPositions(sec, fillBottom, fillTop);
+      // Страховка: подрезаем позиции под текущие границы секции на случай прямого вызова build()
+      // в обход clampSectionSizes (renderSectionsList вызывает его сама, buildFurniture — тоже, но
+      // геометрия должна быть защищена независимо от порядка вызовов).
+      clampItemPositions(sec, zFillBottom, zFillTop);
 
-    // Посегментная задняя стенка (см. state.js sec.backWallSegments) — альтернатива общей
-    // state.backWall на весь шкаф, действует только когда та выключена ('none'). Всегда ЛДСП
-    // (толщина t), в отличие от общей стенки без выбора ХДФ — по просьбе пользователя.
-    if (state.backWall === 'none' && sec.backWallSegments?.length) {
-      const segBackZ = -depth / 2 + t / 2;
-      sectionBackWallSegments(sec, s).forEach(seg => {
-        if (!seg.eligible || !sec.backWallSegments.includes(seg.key)) return;
-        addPanel(sw, seg.hiY - seg.loY, t, nColor, [cx, y0 + (seg.loY + seg.hiY) / 2, segBackZ]);
-      });
-    }
+      // Посегментная задняя стенка (см. state.js sec.backWallSegments) — альтернатива общей
+      // state.backWall на весь шкаф, действует только когда та выключена ('none'). У антресольных
+      // секций этого поля нет вовсе (см. tabs.js) — sec.backWallSegments?.length сам пропустит блок.
+      if (state.backWall === 'none' && sec.backWallSegments?.length) {
+        const segBackZ = -depth / 2 + t / 2;
+        sectionBackWallSegments(sec, s).forEach(seg => {
+          if (!seg.eligible || !sec.backWallSegments.includes(seg.key)) return;
+          addPanel(sw, seg.hiY - seg.loY, t, nColor, [cx, y0 + (seg.loY + seg.hiY) / 2, segBackZ]);
+        });
+      }
 
-    if (sec.valet) {
-      const anchorY = resolveValetAnchorY(sec);
-      const valetMeshes = addValet(cx, y0 + anchorY, sec.valetLength);
-      tagValetMeshes(valetMeshes, s);
-      totalValet += 1;
-    }
+      if (sec.valet) {
+        const anchorY = resolveValetAnchorY(sec);
+        const valetMeshes = addValet(cx, y0 + anchorY, sec.valetLength);
+        tagValetMeshes(valetMeshes, s, zone);
+        totalValet += 1;
+      }
 
-    // Свободно перетаскиваемое мышкой наполнение — каждый элемент рисуется по своей сохранённой
-    // Y-позиции (item.y — центр полосы коллизии), без какого-либо алгоритмического распределения.
-    sec.items.forEach(item => {
-      switch (item.type) {
-        case 'shelf': {
-          // Полка может быть индивидуально помечена 32мм (item.thick32 — тумблер в инфопанели
-          // при выделении полки в 3D); при общем режиме 32 t и так 32.
-          const shelfT = item.thick32 ? 32 : t;
-          const mesh = addPanel(sw, shelfT, innerDepth, nColor, [cx, y0 + item.y, innerZ]);
-          tagItemMesh(mesh, s, item);
-          totalShelves += 1;
-          break;
-        }
-        case 'drawer': {
-          // Направляющие ящика крепятся к тому, что стоит по бокам секции (стойка короба у
-          // крайней секции, перегородка у остальных) — блокируем только крайнюю секцию со
-          // стороны снятой стойки, см. sectionMissingSideSupport.
-          if (sectionMissingSideSupport(sections, s)) break;
-          const meshes = addDrawer(cx, item.y, sw, sec);
-          meshes.forEach(m => tagItemMesh(m, s, item));
-          totalDrawers += 1;
-          break;
-        }
-        case 'mesh': {
-          const meshes = addMeshShelf(cx, y0 + item.y, sw, sec.meshDepth, sec.meshColor);
-          meshes.forEach(m => tagItemMesh(m, s, item));
-          totalMeshShelves += 1;
-          break;
-        }
-        case 'basket': {
-          // Как и ящик — нужна опора по бокам (см. sectionMissingSideSupport выше); плюс ширина
-          // секции строго равна обязательному проёму (basketFits) — clampSectionSizes уже убрал
-          // корзины из items, если не совпало, но проверяем ещё раз на случай прямого вызова
-          // build() в обход клампа.
-          if (sectionMissingSideSupport(sections, s) || !basketFits(sec)) break;
-          const yBottom = item.y - sec.basketHeight / 2; // item.y — центр, addBasket ждёт низ
-          const meshes = addBasket(cx, y0 + yBottom, sw, sec.basketWidth, sec.basketDepth, sec.basketHeight, sec.basketColor);
-          meshes.forEach(m => tagItemMesh(m, s, item));
-          totalBaskets += 1;
-          break;
-        }
-        case 'rod': {
-          const mesh = addRod(cx, item.y, sw);
-          tagItemMesh(mesh, s, item);
-          totalRod += 1;
-          // Торцевые фланцы — на концах штанги, впритык к боковым стойкам/перегородкам (тот же
-          // размах sw, что и у самой трубы).
-          tagItemMesh(addFlange(cx - sw / 2, item.y, innerZ, 'x'), s, item);
-          tagItemMesh(addFlange(cx + sw / 2, item.y, innerZ, 'x'), s, item);
-          if (item.verticalSupport) {
-            const surfaceY = nearestSupportSurfaceY(sec, item, fillBottomPhysical);
-            // Левая и правая перемычки полностью независимы — свой краб, своя высота стыка с
-            // вертикальной трубой (item.horizontalSupportLeftY/RightY, см. задание «трубы
-            // вертикально плюс»). Труба-стойка физически ПРЕРЫВАЕТСЯ в каждой точке стыка — крабы
-            // сидят в разрывах, а не поверх сплошной трубы (иначе клик обычно попадает в трубу, а
-            // не в маленький краб внутри неё).
-            const halfCrab = T_CRAB_SIZE / 2;
-            const cuts = [];
-            if (item.horizontalSupportLeft) {
-              clampHorizontalSupportY(sec, item, fillBottomPhysical, 'horizontalSupportLeftY');
-              cuts.push(item.horizontalSupportLeftY);
-            }
-            if (item.horizontalSupportRight) {
-              clampHorizontalSupportY(sec, item, fillBottomPhysical, 'horizontalSupportRightY');
-              cuts.push(item.horizontalSupportRightY);
-            }
-            let cursor = surfaceY;
-            cuts.slice().sort((a, b) => a - b).forEach(cutY => {
-              const segHi = cutY - halfCrab;
-              if (segHi > cursor) tagItemMesh(addRodSupport(cx, cursor, segHi), s, item);
-              cursor = Math.max(cursor, cutY + halfCrab);
-            });
-            if (item.y > cursor) tagItemMesh(addRodSupport(cx, cursor, item.y), s, item);
-
-            tagItemMesh(addFlange(cx, surfaceY, innerZ, 'y'), s, item); // фланец снизу, на полке/дне
-            tagItemMesh(addTCrab(cx, item.y, innerZ), s, item);         // узел стыка со штангой
-            totalRodSupports += 1;
-
-            // Пикается/тащится ВСЯ перемычка целиком (краб + труба + фланец у стойки) — не только
-            // краб, см. pickDraggable в itemDrag.js (hSupportSide на каждом меше группы).
-            if (item.horizontalSupportLeft) {
-              const leftX = cx - sw / 2;
-              const ly = item.horizontalSupportLeftY;
-              tagItemMesh(addTCrab(cx, ly, innerZ), s, item, { hSupportSide: 'left' });
-              tagItemMesh(addHorizontalSupport(leftX, cx, ly, innerZ), s, item, { hSupportSide: 'left' });
-              tagItemMesh(addFlange(leftX, ly, innerZ, 'x'), s, item, { hSupportSide: 'left' });
-              totalHorizontalSupports += 1;
-            }
-            if (item.horizontalSupportRight) {
-              const rightX = cx + sw / 2;
-              const ry = item.horizontalSupportRightY;
-              tagItemMesh(addTCrab(cx, ry, innerZ), s, item, { hSupportSide: 'right' });
-              tagItemMesh(addHorizontalSupport(cx, rightX, ry, innerZ), s, item, { hSupportSide: 'right' });
-              tagItemMesh(addFlange(rightX, ry, innerZ, 'x'), s, item, { hSupportSide: 'right' });
-              totalHorizontalSupports += 1;
-            }
+      // Свободно перетаскиваемое мышкой наполнение — каждый элемент рисуется по своей сохранённой
+      // Y-позиции (item.y — центр полосы коллизии), без какого-либо алгоритмического распределения.
+      sec.items.forEach(item => {
+        // Антресоли не поддерживают ящики/корзины (см. задание «антресоли 19,07») — UI туда их не
+        // предлагает добавлять, подстрахуемся и тут на случай прямого вызова build().
+        if (zone === 'mezzanine' && (item.type === 'drawer' || item.type === 'basket')) return;
+        switch (item.type) {
+          case 'shelf': {
+            // Полка может быть индивидуально помечена 32мм (item.thick32 — тумблер в инфопанели
+            // при выделении полки в 3D); при общем режиме 32 t и так 32.
+            const shelfT = item.thick32 ? 32 : t;
+            const mesh = addPanel(sw, shelfT, innerDepth, nColor, [cx, y0 + item.y, innerZ]);
+            tag(mesh, item);
+            totalShelves += 1;
+            break;
           }
-          break;
+          case 'drawer': {
+            // Направляющие ящика крепятся к тому, что стоит по бокам секции (стойка короба у
+            // крайней секции, перегородка у остальных) — блокируем только крайнюю секцию со
+            // стороны снятой стойки, см. sectionMissingSideSupport.
+            if (sectionMissingSideSupport(zoneSections, s)) break;
+            const meshes = addDrawer(cx, item.y, sw, sec);
+            meshes.forEach(m => tag(m, item));
+            totalDrawers += 1;
+            break;
+          }
+          case 'mesh': {
+            const meshes = addMeshShelf(cx, y0 + item.y, sw, sec.meshDepth, sec.meshColor);
+            meshes.forEach(m => tag(m, item));
+            totalMeshShelves += 1;
+            break;
+          }
+          case 'basket': {
+            // Как и ящик — нужна опора по бокам (см. sectionMissingSideSupport выше); плюс ширина
+            // секции строго равна обязательному проёму (basketFits) — clampSectionSizes уже убрал
+            // корзины из items, если не совпало, но проверяем ещё раз на случай прямого вызова
+            // build() в обход клампа.
+            if (sectionMissingSideSupport(zoneSections, s) || !basketFits(sec)) break;
+            const yBottom = item.y - sec.basketHeight / 2; // item.y — центр, addBasket ждёт низ
+            const meshes = addBasket(cx, y0 + yBottom, sw, sec.basketWidth, sec.basketDepth, sec.basketHeight, sec.basketColor);
+            meshes.forEach(m => tag(m, item));
+            totalBaskets += 1;
+            break;
+          }
+          case 'rod': {
+            const mesh = addRod(cx, item.y, sw);
+            tag(mesh, item);
+            totalRod += 1;
+            // Торцевые фланцы — на концах штанги, впритык к боковым стойкам/перегородкам (тот же
+            // размах sw, что и у самой трубы).
+            tag(addFlange(cx - sw / 2, item.y, innerZ, 'x'), item);
+            tag(addFlange(cx + sw / 2, item.y, innerZ, 'x'), item);
+            if (item.verticalSupport) {
+              const surfaceY = nearestSupportSurfaceY(sec, item, zFillBottomPhysical);
+              // Левая и правая перемычки полностью независимы — свой краб, своя высота стыка с
+              // вертикальной трубой (item.horizontalSupportLeftY/RightY, см. задание «трубы
+              // вертикально плюс»). Труба-стойка физически ПРЕРЫВАЕТСЯ в каждой точке стыка — крабы
+              // сидят в разрывах, а не поверх сплошной трубы (иначе клик обычно попадает в трубу, а
+              // не в маленький краб внутри неё).
+              const halfCrab = T_CRAB_SIZE / 2;
+              const cuts = [];
+              if (item.horizontalSupportLeft) {
+                clampHorizontalSupportY(sec, item, zFillBottomPhysical, 'horizontalSupportLeftY');
+                cuts.push(item.horizontalSupportLeftY);
+              }
+              if (item.horizontalSupportRight) {
+                clampHorizontalSupportY(sec, item, zFillBottomPhysical, 'horizontalSupportRightY');
+                cuts.push(item.horizontalSupportRightY);
+              }
+              let cursor = surfaceY;
+              cuts.slice().sort((a, b) => a - b).forEach(cutY => {
+                const segHi = cutY - halfCrab;
+                if (segHi > cursor) tag(addRodSupport(cx, cursor, segHi), item);
+                cursor = Math.max(cursor, cutY + halfCrab);
+              });
+              if (item.y > cursor) tag(addRodSupport(cx, cursor, item.y), item);
+
+              tag(addFlange(cx, surfaceY, innerZ, 'y'), item); // фланец снизу, на полке/дне
+              tag(addTCrab(cx, item.y, innerZ), item);         // узел стыка со штангой
+              totalRodSupports += 1;
+
+              // Пикается/тащится ВСЯ перемычка целиком (краб + труба + фланец у стойки) — не только
+              // краб, см. pickDraggable в itemDrag.js (hSupportSide на каждом меше группы).
+              if (item.horizontalSupportLeft) {
+                const leftX = cx - sw / 2;
+                const ly = item.horizontalSupportLeftY;
+                tag(addTCrab(cx, ly, innerZ), item, { hSupportSide: 'left' });
+                tag(addHorizontalSupport(leftX, cx, ly, innerZ), item, { hSupportSide: 'left' });
+                tag(addFlange(leftX, ly, innerZ, 'x'), item, { hSupportSide: 'left' });
+                totalHorizontalSupports += 1;
+              }
+              if (item.horizontalSupportRight) {
+                const rightX = cx + sw / 2;
+                const ry = item.horizontalSupportRightY;
+                tag(addTCrab(cx, ry, innerZ), item, { hSupportSide: 'right' });
+                tag(addHorizontalSupport(cx, rightX, ry, innerZ), item, { hSupportSide: 'right' });
+                tag(addFlange(rightX, ry, innerZ, 'x'), item, { hSupportSide: 'right' });
+                totalHorizontalSupports += 1;
+              }
+            }
+            break;
+          }
         }
+      });
+
+      // Планка жёсткости под верхней (структурной, pinned) полкой — не нужна, если задняя стенка
+      // сама держит форму (ЛДСП). Вертикальная пластина (перпендикулярно полке, свисает вниз от
+      // неё), стоит в плоскости задней стенки. Полка теперь перетаскиваемая — жёсткость висит от
+      // её ТЕКУЩЕЙ (возможно, перетащенной) позиции, а не от фиксированной константы.
+      if (state.backWall !== 'ldsp') {
+        const pinnedItem = sec.items.find(it => it.type === 'shelf' && it.pinned);
+        const pinnedY = pinnedItem ? pinnedItem.y : zFillTop - TOP_SHELF_GAP;
+        const stiffenerZ = -depth / 2 + STIFFENER_THICKNESS / 2;
+        const stiffenerY = pinnedY - t / 2 - STIFFENER_HEIGHT / 2;
+        const stiffenerMesh = addPanel(sw, STIFFENER_HEIGHT, STIFFENER_THICKNESS, nColor, [cx, y0 + stiffenerY, stiffenerZ]);
+        if (pinnedItem) tag(stiffenerMesh, pinnedItem);
       }
     });
+  }
 
-    // Планка жёсткости под верхней (структурной, pinned) полкой — не нужна, если задняя стенка
-    // сама держит форму (ЛДСП). Вертикальная пластина (перпендикулярно полке, свисает вниз от
-    // неё), стоит в плоскости задней стенки. Полка теперь перетаскиваемая — жёсткость висит от
-    // её ТЕКУЩЕЙ (возможно, перетащенной) позиции, а не от фиксированной константы.
-    if (state.backWall !== 'ldsp') {
-      const pinnedItem = sec.items.find(it => it.type === 'shelf' && it.pinned);
-      const pinnedY = pinnedItem ? pinnedItem.y : fillTop - TOP_SHELF_GAP;
-      const stiffenerZ = -depth / 2 + STIFFENER_THICKNESS / 2;
-      const stiffenerY = pinnedY - t / 2 - STIFFENER_HEIGHT / 2;
-      const stiffenerMesh = addPanel(sw, STIFFENER_HEIGHT, STIFFENER_THICKNESS, nColor, [cx, y0 + stiffenerY, stiffenerZ]);
-      if (pinnedItem) tagItemMesh(stiffenerMesh, s, pinnedItem);
-    }
-  });
+  drawSectionsContent(sections, sectionCenters, fillBottom, fillTop, fillBottomPhysical, 'main');
+  if (mezzanineOn) {
+    const mezzBounds = mezzanineVerticalBounds();
+    const mezzBoundsPhysical = mezzanineVerticalBoundsPhysical();
+    drawSectionsContent(mezzSections, mezzSectionCenters, mezzBounds.fillBottom, mezzBounds.fillTop, mezzBoundsPhysical.fillBottom, 'mezzanine');
+  }
 
   return {
     // «Без дверей» — дверной фурнитуры (рельсы и пр.) в смете тоже нет.

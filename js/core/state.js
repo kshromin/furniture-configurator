@@ -133,6 +133,17 @@ export const state = {
     },
   ],
   drawers: 0, // плоское значение для типов без секций (комод и т.п.)
+  // Антресоли (задание «антресоли 19,07») — верхняя зона шкафа без стоек, отделённая от основных
+  // секций одной сплошной полкой (не входит ни в чьи items — общая на весь короб, см.
+  // mezzanineShelfY в wardrobe-items.js). Включение "съедает" mezzanineHeight мм с верху общего
+  // наполнения (sectionVerticalBounds в wardrobe-items.js становится mezzanine-aware — фактическая
+  // высота зажимается между MEZZANINE_MIN_HEIGHT и (общая высота - MEZZANINE_MIN_MAIN_ZONE), см.
+  // там же). mezzanineSections — та же форма записи, что и sections, но без drawer/basket в items
+  // (UI не предлагает эти типы для антресолей, см. tabs.js) — своя независимая ширинная раскладка
+  // на той же горизонтали (innerSpanW), свои перегородки от полки до крыши.
+  mezzanineEnabled: false,
+  mezzanineHeight: 400,
+  mezzanineSections: [],
   // Размерные линии наполнения (просвет между соседними элементами секции) — HTML-оверлей
   // поверх 3D-вида, см. js/core/dimensions.js. Глобальный чекбокс + по-секционный (sec.
   // showDimensions, undefined трактуется как true — не пишем в дефолтные секции, чтобы не
