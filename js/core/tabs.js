@@ -46,6 +46,18 @@ function bindCardSelection(card, sec) {
   });
 }
 
+// Обратное направление (задание «выделение секции 19,07»): клик по элементу в 3D-виде (см.
+// js/core/itemDrag.js) выделяет секцию, в которую попали, — та же подсветка карточки и
+// прямоугольника в 3D, что и при клике по карточке, просто с другой стороны. Вкладку сайдбара
+// НЕ переключаем (по заданию — «перескок по разделам не нужно»), только обновляем состояние и
+// DOM карточек, чтобы подсветка была готова, когда пользователь сам откроет «Внутреннее».
+export function selectSectionFromScene(sec) {
+  if (selectedSection === sec) return;
+  selectedSection = sec;
+  renderSectionsList();
+  setSelectedSection(sec);
+}
+
 function activeType() { return TYPES[state.type] || TYPES['wardrobe']; }
 
 // ---------- type bar (полоса с названием текущего типа) ----------

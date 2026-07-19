@@ -10,7 +10,7 @@ import {
   clampDrawerOffsetWidth, MIN_DRAWER_OFFSET_WIDTH, MIN_DRAWER_REMAINING_WIDTH, DEFAULT_DRAWER_OFFSET_WIDTH,
 } from '../types/_wardrobe-shared.js';
 import { projectToOverlay, updateArrow, hideArrow } from './dimensions.js';
-import { renderSectionsList } from './tabs.js';
+import { renderSectionsList, selectSectionFromScene } from './tabs.js';
 
 // Свободное перетаскивание мышкой наполнения секции (полки/ящики/сетка/корзины/штанга) — во
 // время драга элемент может визуально проходить сквозь другие (двигаем меши напрямую, без
@@ -442,7 +442,7 @@ function onPointerDown(e) {
   }
   const picked = pickDraggable(e);
   closeActive();
-  if (!picked) return;
+  if (!picked) { selectSectionFromScene(null); return; }
   e.preventDefault();
   controls.enabled = false;
   renderer.domElement.style.cursor = 'grabbing';
@@ -450,6 +450,9 @@ function onPointerDown(e) {
   const { sectionIndex } = picked.mesh.userData;
   const zone = picked.zone;
   const sec = secForZone(zone, sectionIndex);
+  // Обратное направление клика по карточке (задание «выделение секции 19,07») — секция, в
+  // которую попали в 3D, подсвечивается и в панели, без переключения вкладки сайдбара.
+  selectSectionFromScene(sec);
   const { fillBottom, fillTop } = boundsForZone(zone);
 
   const worldAnchor = picked.mesh.getWorldPosition(new THREE.Vector3());
