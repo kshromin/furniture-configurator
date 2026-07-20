@@ -616,16 +616,22 @@ html, body {
   margin-bottom: 6px;
 }
 
+.order-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
 .order-card-num {
   font-size: 11px;
   font-weight: 700;
   color: #aaa;
-  flex-shrink: 0;
-  margin-top: 1px;
 }
 
 .order-card-name {
-  flex: 1;
+  overflow-wrap: break-word;
   font-size: 13px;
   font-weight: 600;
   color: #222;
@@ -791,6 +797,8 @@ html, body {
 .orders-compact .order-card-price { font-size: 12px; margin: 4px 0; }
 .orders-compact .order-card-edit { padding: 5px; font-size: 11px; }
 .orders-compact .status-pill { font-size: 10px; }
+/* узкий сайдбар — превью на всю ширину при aspect-ratio 4/3 выходило непропорционально высоким */
+.orders-compact .order-card-thumb { height: 60px; aspect-ratio: auto; margin-bottom: 6px; }
 
 /* ── Профиль дверей купе ── */
 .profile-grid {
@@ -1316,8 +1324,8 @@ html, body {
   min-height: 0;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
   align-content: start;
 }
 .projects-modal-grid .order-card { margin-bottom: 0; }

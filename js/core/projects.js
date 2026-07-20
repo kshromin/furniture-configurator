@@ -97,8 +97,10 @@ function renderCard(p, cfg, container) {
   card.innerHTML = `
     ${thumb}
     <div class="order-card-header">
-      <span class="order-card-num">${p.project_code ? `${p.project_code} · ` : ''}${created}</span>
-      <span class="order-card-name">${p.title ? `<b>${p.title}</b><br>` : ''}${client}<br>Прорисовок: ${n}</span>
+      <div class="order-card-info">
+        <span class="order-card-num">${p.project_code ? `${p.project_code} · ` : ''}${created}</span>
+        <span class="order-card-name">${p.title ? `<b>${p.title}</b><br>` : ''}${client}<br>Прорисовок: ${n}</span>
+      </div>
       <button class="order-card-remove" title="Удалить">×</button>
     </div>
     <div class="order-card-price">${fmt(p.total)}</div>
