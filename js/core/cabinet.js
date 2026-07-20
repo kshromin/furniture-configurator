@@ -5,6 +5,7 @@ import { buildFurniture } from './build.js';
 import { supabase } from './supabaseClient.js';
 import { auth, signOut } from './auth.js';
 import { showToast } from './toast.js';
+import { renderOrders } from './projects.js';
 
 // Список сохранённых комплектов переехал во вкладку «Проекты» (js/core/projects.js, таблица
 // projects); заказы новой модели — там же (kind='order'). Старый блок «Мои заказы» (таблица
@@ -92,7 +93,27 @@ async function saveCurrentConfig() {
   markStateSafe();
 }
 
+// Большое окно «Заказы» (сессия 38) — то же решение, что и у «Проекты» (js/core/projects.js):
+// вместо узкой вкладки в сайдбаре, модал поверх текущей вкладки, тот же .projects-modal-* CSS.
+// Список заказов и «Мои сохранённые конфигурации» — те же элементы (id совпадают с прежней
+// .tab-pane), просто теперь внутри модала.
+export function openCabinetModal() {
+  document.getElementById('cabinetModalOverlay').classList.add('visible');
+  renderCabinet();
+  renderOrders();
+}
+export function closeCabinetModal() {
+  document.getElementById('cabinetModalOverlay').classList.remove('visible');
+}
+
 export function bindCabinetControls() {
   document.getElementById('saveConfigBtn').addEventListener('click', saveCurrentConfig);
   document.getElementById('logoutBtn').addEventListener('click', () => signOut());
+
+  const overlay = document.getElementById('cabinetModalOverlay');
+  document.getElementById('cabinetModalClose').addEventListener('click', closeCabinetModal);
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeCabinetModal(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && overlay.classList.contains('visible')) closeCabinetModal();
+  });
 }

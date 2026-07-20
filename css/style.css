@@ -790,15 +790,6 @@ html, body {
 .date-range span { color: #999; }
 .date-range .opt-btn { flex: 0 0 auto; padding: 5px 9px; }
 
-/* Компактные карточки заказов */
-.orders-compact .order-card { padding: 8px 10px; margin-bottom: 6px; }
-.orders-compact .order-card-num { font-size: 10px; }
-.orders-compact .order-card-name { font-size: 11px; line-height: 1.35; }
-.orders-compact .order-card-price { font-size: 12px; margin: 4px 0; }
-.orders-compact .order-card-edit { padding: 5px; font-size: 11px; }
-.orders-compact .status-pill { font-size: 10px; }
-/* узкий сайдбар — превью на всю ширину при aspect-ratio 4/3 выходило непропорционально высоким */
-.orders-compact .order-card-thumb { height: 60px; aspect-ratio: auto; margin-bottom: 6px; }
 
 /* ── Профиль дверей купе ── */
 .profile-grid {
@@ -1329,6 +1320,11 @@ html, body {
   align-content: start;
 }
 .projects-modal-grid .order-card { margin-bottom: 0; }
+
+/* «Заказы» переиспользует .projects-modal-box (flex-column): список заказов — flex:1 растяжимая
+   сетка со своим скроллом (как у «Проекты»), а этот блок ниже — фиксированной высоты (min-height:
+   auto по умолчанию защищает его от сжатия), поэтому «Мои конфигурации»/«Выйти» всегда видны. */
+.cabinet-modal-footer { flex-shrink: 0; }
 
 .order-card-thumb {
   display: block;

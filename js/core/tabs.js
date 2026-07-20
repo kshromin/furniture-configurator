@@ -1408,15 +1408,15 @@ export function bindVariantControls() {
 export function bindTabSwitching() {
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      // «Проекты» — большое модальное окно поверх текущей вкладки (сессия 37), не обычное
-      // переключение: нет своей .tab-pane больше, открытие модала — отдельный слушатель в
-      // main.js (openProjectsModal). Сайдбар/typeBar остаются как были.
-      if (btn.dataset.tab === 'projects') return;
+      // «Проекты» и «Заказы» — большие модальные окна поверх текущей вкладки (сессия 37/38), не
+      // обычное переключение: своих .tab-pane больше нет, открытие модалов — отдельные слушатели
+      // в main.js (openProjectsModal/openCabinetModal). Сайдбар/typeBar остаются как были.
+      if (btn.dataset.tab === 'projects' || btn.dataset.tab === 'cabinet') return;
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-      const hideBar = ['type', 'presets', 'cabinet', 'admin', 'extras', 'projects'].includes(btn.dataset.tab);
+      const hideBar = ['type', 'presets', 'admin', 'extras'].includes(btn.dataset.tab);
       document.getElementById('typeBar').style.display = hideBar ? 'none' : 'block';
     });
   });
