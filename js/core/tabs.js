@@ -1,4 +1,4 @@
-import { state, newItemId, hasUnsavedChanges, markStateSafe } from './state.js';
+import { state, materials, newItemId, hasUnsavedChanges, markStateSafe } from './state.js';
 import { resetHistory } from './history.js';
 import { TYPES } from '../types/registry.js';
 import { renderProducerSelect, renderSwatches } from './materials.js';
@@ -291,7 +291,35 @@ export function syncUIFromState() {
     }
   });
 
+  syncFasadUI();
+
   updateAllContexts();
+}
+
+// Синхронизация вкладки «Фасад» с state (загрузка пресета/прорисовки/откат истории): активные
+// кнопки типа дверей/профиля/наполнения, видимость блоков, свотчи цвета профиля, цена спеццвета.
+// Заодно миграция старых сохранённых значений (задание «двери-начали 20,07»): прежние виды
+// профиля (standard/slim/anod/black — slim совпадает с новым «узким» и остаётся) → closed,
+// убранное стекло → ЛДСП.
+function syncFasadUI() {
+  const validProfiles = ['open', 'closed', 'slim', 'slimbox', 'widebox'];
+  if (!validProfiles.includes(state.profile)) state.profile = 'closed';
+  if (!['ldsp', 'mirror', 'special'].includes(state.doorFill)) state.doorFill = 'ldsp';
+  if (!(materials.slidingDoor?.colors || []).some(c => c.id === state.profileColor)) state.profileColor = 'silver';
+
+  document.querySelectorAll('.fasad-type-btn').forEach(b => b.classList.toggle('active', b.dataset.fasad === state.fasadDoorType));
+  document.getElementById('fasadSlidingBlock').style.display = state.fasadDoorType === 'sliding' ? 'block' : 'none';
+  document.getElementById('fasadSwingBlock').style.display   = state.fasadDoorType === 'swing'   ? 'block' : 'none';
+
+  document.querySelectorAll('.profile-btn').forEach(b => b.classList.toggle('active', b.dataset.profile === state.profile));
+  renderProfileColors();
+  document.querySelectorAll('.door-fill-btn').forEach(b => b.classList.toggle('active', b.dataset.fill === state.doorFill));
+  ['ldsp', 'mirror', 'special'].forEach(f => {
+    const el = document.getElementById('fill' + f.charAt(0).toUpperCase() + f.slice(1));
+    if (el) el.style.display = f === state.doorFill ? 'block' : 'none';
+  });
+  const specialInput = document.getElementById('specialFillPriceVal');
+  if (specialInput) specialInput.value = state.specialFillPrice;
 }
 
 // Откат истории (см. js/core/history.js) подменяет весь state целиком и сам вызывает
@@ -467,20 +495,28 @@ export function bindFasadTab() {
     });
   });
 
+  // Профиль дверей купе (задание «двери-начали 20,07») — вид и цвет общие на все двери,
+  // влияют на 3D (рамка) и цену (пог. м профиля, см. wardrobe.js areas()).
   document.querySelectorAll('.profile-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.profile-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.profile = btn.dataset.profile;
+      buildFurniture();
     });
   });
 
+  renderProfileColors();
+
   function showDoorFill(fill) {
-    ['ldsp', 'mirror', 'glass'].forEach(f => {
+    ['ldsp', 'mirror', 'special'].forEach(f => {
       const el = document.getElementById('fill' + f.charAt(0).toUpperCase() + f.slice(1));
       if (el) el.style.display = f === fill ? 'block' : 'none';
     });
   }
+
+  const mirrorNote = document.getElementById('mirrorPriceNote');
+  if (mirrorNote) mirrorNote.textContent = `${materials.slidingDoor?.fills?.mirror?.pricePerM2 ?? '—'} ₽/м²`;
 
   document.querySelectorAll('.door-fill-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -492,23 +528,46 @@ export function bindFasadTab() {
     });
   });
 
-  document.querySelectorAll('.door-fill-btn2').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.door-fill-btn2').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.doorFill2 = btn.dataset.fill2;
-    });
+  // «Цвет специальный» — цена за м² вводится пользователем вручную (окошко появляется при
+  // выборе спеццвета), сохраняется в state и участвует в цене наполнения дверей (pricing.js).
+  const specialPriceInput = document.getElementById('specialFillPriceVal');
+  specialPriceInput.value = state.specialFillPrice;
+  specialPriceInput.addEventListener('change', () => {
+    const v = Math.max(0, Number(specialPriceInput.value) || 0);
+    specialPriceInput.value = v;
+    state.specialFillPrice = v;
+    buildFurniture();
   });
-
-  const comboCb = document.getElementById('doorCombo');
-  comboCb.addEventListener('change', () => {
-    document.getElementById('doorComboBlock').style.display = comboCb.checked ? 'block' : 'none';
-    state.doorFill2 = comboCb.checked ? 'mirror' : null;
-  });
-
-  document.getElementById('glassType').addEventListener('change', e => { state.glassType = e.target.value; });
 
   renderProducerSelect('fasad', 'fasadProducer', 'fasadSwatches');
+}
+
+// Цвета профиля дверей купе — круглые свотчи из каталога (data/materials.json →
+// slidingDoor.colors), тот же принцип, что и свотчи ЛДСП, но каталог плоский (без
+// производителей). Цена цвета — пока множитель priceMul к пог. м профиля (заглушка).
+function renderProfileColors() {
+  const wrap = document.getElementById('profileColors');
+  const nameEl = document.getElementById('profileColorName');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const colors = materials.slidingDoor?.colors || [];
+  colors.forEach(c => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'profile-color-btn' + (state.profileColor === c.id ? ' active' : '');
+    btn.style.background = c.hex;
+    btn.title = c.name;
+    btn.addEventListener('click', () => {
+      state.profileColor = c.id;
+      wrap.querySelectorAll('.profile-color-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (nameEl) nameEl.textContent = c.name;
+      buildFurniture();
+    });
+    wrap.appendChild(btn);
+  });
+  const current = colors.find(c => c.id === state.profileColor);
+  if (nameEl) nameEl.textContent = current ? current.name : '';
 }
 
 // ---------- кнопки «Задняя стенка» ----------

@@ -167,8 +167,12 @@ export const state = {
   alignerTop: false,   alignerTopH: 50,
   fasadDoorType: 'sliding',  // sliding | swing | none
   doorCount: null,           // null = авто; число — выбор пользователя (если допустим для пролёта)
-  profile: 'standard',       // standard | slim | anod | black
-  doorFill: 'ldsp',          // ldsp | mirror | glass
-  doorFill2: null,           // null | ldsp | mirror | glass (комбо)
-  glassType: 'clear',
+  // Двери купе (задание «двери-начали 20,07»): профиль и его цвет — ОБЩИЕ на все двери шкафа
+  // (меняются синхронно, в т.ч. из окна комбинированной двери), каталог видов/цветов/цен —
+  // data/materials.json → slidingDoor. Наполнение по умолчанию — тоже общее; индивидуальные
+  // перемычки/наполнение секций конкретной двери появятся в окне «Комбинированная дверь».
+  profile: 'closed',         // open | closed | slim | slimbox | widebox
+  profileColor: 'silver',    // silver | black | white | gold | bronze
+  doorFill: 'ldsp',          // ldsp | mirror | special
+  specialFillPrice: 3000,    // ₽/м² «цвета специального» — пользователь вводит сам
 };

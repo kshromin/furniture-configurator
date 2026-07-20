@@ -367,40 +367,46 @@
 
       <!-- Блок купе -->
       <div id="fasadSlidingBlock">
-        <!-- Выбор профиля — в разработке (не влияет на 3D/цену): виден, но заблокирован,
-             чтобы раздел был на глазах; при реализации убрать disabled и пометку -->
+        <!-- Профиль дверей купе (задание «двери-начали 20,07»): 5 видов × 5 цветов, общие на
+             все двери шкафа (синхронно, в т.ч. из окна комбинированной двери). Каталог и
+             цены-заглушки — data/materials.json → slidingDoor. -->
         <div class="field-group">
-          <div class="field-group-title">Профиль <span class="wip-label">в разработке</span></div>
+          <div class="field-group-title">Профиль</div>
           <div class="profile-grid" id="profileGrid">
-            <button class="profile-btn active" disabled data-profile="standard">
+            <button class="profile-btn" data-profile="open" title="Открытый профиль">
+              <svg viewBox="0 0 20 50"><rect x="7" y="0" width="6" height="50" rx="1" fill="currentColor" opacity="0.15"/><rect x="8" y="0" width="1.5" height="50" fill="currentColor"/></svg>
+              <span>Открытый</span>
+            </button>
+            <button class="profile-btn active" data-profile="closed" title="Закрытый профиль">
               <svg viewBox="0 0 20 50"><rect x="6" y="0" width="8" height="50" rx="1" fill="currentColor" opacity="0.15"/><rect x="7" y="0" width="2" height="50" fill="currentColor"/><rect x="11" y="0" width="2" height="50" fill="currentColor"/></svg>
-              <span>Стандарт</span>
+              <span>Закрытый</span>
             </button>
-            <button class="profile-btn" disabled data-profile="slim">
+            <button class="profile-btn" data-profile="slim" title="Узкий профиль">
               <svg viewBox="0 0 20 50"><rect x="8" y="0" width="4" height="50" rx="1" fill="currentColor" opacity="0.15"/><rect x="9" y="0" width="2" height="50" fill="currentColor"/></svg>
-              <span>Slim</span>
+              <span>Узкий</span>
             </button>
-            <button class="profile-btn" disabled data-profile="anod">
-              <svg viewBox="0 0 20 50"><rect x="6" y="0" width="8" height="50" rx="1" fill="currentColor" opacity="0.3"/><rect x="7" y="0" width="2" height="50" fill="currentColor" opacity="0.7"/><rect x="11" y="0" width="2" height="50" fill="currentColor" opacity="0.7"/></svg>
-              <span>Анодир.</span>
+            <button class="profile-btn" data-profile="slimbox" title="Узкий BOX">
+              <svg viewBox="0 0 20 50"><rect x="7" y="0" width="6" height="50" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="0" width="2" height="50" fill="currentColor" opacity="0.4"/></svg>
+              <span>Узкий BOX</span>
             </button>
-            <button class="profile-btn" disabled data-profile="black">
-              <svg viewBox="0 0 20 50"><rect x="6" y="0" width="8" height="50" rx="1" fill="#222"/><rect x="7" y="0" width="2" height="50" fill="#000"/><rect x="11" y="0" width="2" height="50" fill="#000"/></svg>
-              <span>Чёрный</span>
+            <button class="profile-btn" data-profile="widebox" title="Широкий BOX">
+              <svg viewBox="0 0 20 50"><rect x="4" y="0" width="12" height="50" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="7" y="0" width="6" height="50" fill="currentColor" opacity="0.4"/></svg>
+              <span>Широкий BOX</span>
             </button>
           </div>
+          <div class="profile-colors" id="profileColors"></div>
+          <div class="swatch-name" id="profileColorName"></div>
         </div>
 
 
         <div class="field-group">
-          <div class="field-group-title">Наполнение дверей <span class="wip-label">зеркало/стекло — в разработке</span></div>
-          <!-- Зеркало/стекло — в разработке: видны, но заблокированы, чтобы раздел был на
-               глазах; пока всегда ЛДСП (работает выбор цвета ниже). При реализации убрать
-               disabled и пометку в заголовке -->
+          <div class="field-group-title">Наполнение дверей</div>
+          <!-- ЛДСП / Зеркало (2000₽/м², заглушка) / «Цвет специальный» (розоватый, цена вручную).
+               Стекло убрано по заданию «двери-начали 20,07». -->
           <div class="door-fill-btns">
             <button class="door-fill-btn active" data-fill="ldsp">ЛДСП</button>
-            <button class="door-fill-btn" disabled data-fill="mirror">Зеркало</button>
-            <button class="door-fill-btn" disabled data-fill="glass">Стекло</button>
+            <button class="door-fill-btn" data-fill="mirror">Зеркало</button>
+            <button class="door-fill-btn" data-fill="special">Спец. цвет</button>
           </div>
 
           <!-- ЛДСП -->
@@ -418,34 +424,21 @@
             <div class="mirror-preview">
               <div style="width:100%;height:80px;background:linear-gradient(135deg,#cfe8ec 0%,#e8f4f8 50%,#cfe8ec 100%);border-radius:6px;border:1px solid #b0d4dc;display:flex;align-items:center;justify-content:center;color:#5a9aaa;font-size:13px;font-weight:600;">Зеркало</div>
             </div>
+            <div class="swatch-name" id="mirrorPriceNote"></div>
           </div>
 
-          <!-- Стекло -->
-          <div class="door-fill-detail" id="fillGlass" style="display:none">
-            <div class="field" style="margin-top:10px">
-              <label>Тип стекла</label>
-              <select id="glassType">
-                <option value="clear">Прозрачное</option>
-                <option value="matte">Матовое</option>
-                <option value="tinted">Тонированное</option>
-                <option value="film">С плёнкой Oracal</option>
-              </select>
+          <!-- Цвет специальный: цена за м² вводится пользователем вручную -->
+          <div class="door-fill-detail" id="fillSpecial" style="display:none">
+            <div style="width:100%;height:80px;background:linear-gradient(135deg,#e8b4c8 0%,#f5dbe6 50%,#e8b4c8 100%);border-radius:6px;border:1px solid #d49ab4;display:flex;align-items:center;justify-content:center;color:#a5607e;font-size:13px;font-weight:600;">Цвет специальный</div>
+            <div class="field" style="margin-top:8px">
+              <div class="dim-label-row"><label>Цена, ₽/м²</label><input type="number" autocomplete="off" class="dim-input" id="specialFillPriceVal" min="0" step="100" value="3000"></div>
             </div>
           </div>
 
-          <!-- Комбо — в разработке (не влияет на 3D/цену): видно, но заблокировано -->
+          <!-- Комбинированная дверь: окно редактирования выделенной двери (перемычки, наполнение
+               секций) — следующий блок задания «двери-начали 20,07» -->
           <div class="field-group" style="margin-top:12px">
-            <div class="field checkbox-field">
-              <label><input type="checkbox" id="doorCombo" disabled> Комбинированная дверь (верх + низ) <span class="wip-label">в разработке</span></label>
-            </div>
-            <div id="doorComboBlock" style="display:none;margin-top:8px">
-              <div class="field-group-title">Нижняя секция двери</div>
-              <div class="door-fill-btns">
-                <button class="door-fill-btn2 active" data-fill2="mirror">Зеркало</button>
-                <button class="door-fill-btn2" data-fill2="glass">Стекло</button>
-                <button class="door-fill-btn2" data-fill2="ldsp">ЛДСП</button>
-              </div>
-            </div>
+            <button id="comboDoorBtn" class="add-item-btn" type="button" disabled>Комбинированная дверь <span class="wip-label">в разработке</span></button>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { state, PANEL_THICKNESS, detailT } from '../core/state.js';
+import { state, materials, PANEL_THICKNESS, detailT } from '../core/state.js';
 import { addPanel, furnitureGroup } from '../core/scene.js';
 import { getColor } from '../core/materials.js';
 import { DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_SHELF_GAP, MESH_DEPTHS, VALET_LENGTHS, BASKET_WIDTHS, BASKET_DEPTHS_BY_WIDTH } from './wardrobe-constants.js';
@@ -24,11 +24,17 @@ import {
 // Соседние двери заходят друг на друга внахлёст (DOOR_OVERLAP — wardrobe-constants.js),
 // крайние не вылезают наружу — весь ряд идёт строго от стойки до стойки.
 
-// Рамка двери купе — по умолчанию серебристый алюминиевый профиль; сама дверь на 90мм
-// зоны глубины (ширину/глубину рамки и цвет вынесем в настройки, когда дойдём до этого).
-export const DOOR_FRAME_WIDTH = 40; // видимая ширина профиля по периметру
+// Рамка двери купе (задание «двери-начали 20,07»): вид профиля (state.profile) и цвет
+// (state.profileColor) — общие на все двери, каталог — data/materials.json → slidingDoor.
+// Видимая ширина профиля зависит от вида (схематично: узкий тоньше, широкий BOX толще),
+// DOOR_FRAME_WIDTH остаётся дефолтом для формул цены/геометрии, не зависящих от вида.
+export const DOOR_FRAME_WIDTH = 40; // видимая ширина профиля по периметру (дефолт)
 export const DOOR_FRAME_DEPTH = 40; // толщина рамки (она же — толщина двери по Z)
-const DOOR_FRAME_COLOR = 0xc4c4c8;
+const PROFILE_FRAME_WIDTHS = { open: 30, closed: 40, slim: 20, slimbox: 26, widebox: 60 };
+const DOOR_FRAME_COLOR = 0xc4c4c8; // fallback, если каталог ещё не загружен
+// Наполнение двери: ЛДСП — цвет фасада, зеркало — голубоватое, «цвет специальный» — розоватый.
+const DOOR_FILL_MIRROR_COLOR  = 0xcfe8ec;
+const DOOR_FILL_SPECIAL_COLOR = 0xe8b4c8;
 const RAIL_COLOR = 0xb0b0b4;
 export const TOP_RAIL_HEIGHT = 50;
 export const BOTTOM_RAIL_HEIGHT = 10;
@@ -144,12 +150,18 @@ export function clampSectionSizes(sections, depth) {
 // когда рамка/наполнение станут настраиваться раздельно (разный цвет рамки, разный материал
 // наполнения), менять нужно будет только эту функцию.
 function buildSlidingDoor(x, y, z, w, h, fillColor) {
-  const fw = DOOR_FRAME_WIDTH;
-  addPanel(w, fw, DOOR_FRAME_DEPTH, DOOR_FRAME_COLOR, [x, y + h / 2 - fw / 2, z]); // верхний брусок рамки
-  addPanel(w, fw, DOOR_FRAME_DEPTH, DOOR_FRAME_COLOR, [x, y - h / 2 + fw / 2, z]); // нижний брусок рамки
-  addPanel(fw, h - 2 * fw, DOOR_FRAME_DEPTH, DOOR_FRAME_COLOR, [x - w / 2 + fw / 2, y, z]); // левый брусок
-  addPanel(fw, h - 2 * fw, DOOR_FRAME_DEPTH, DOOR_FRAME_COLOR, [x + w / 2 - fw / 2, y, z]); // правый брусок
-  addPanel(w - 2 * fw, h - 2 * fw, PANEL_THICKNESS, fillColor, [x, y, z], 0.85); // наполнение
+  const fw = PROFILE_FRAME_WIDTHS[state.profile] || DOOR_FRAME_WIDTH;
+  // Цвет профиля — из каталога (hex вида "#c4c4c8" → число для Three.js).
+  const colorEntry = (materials.slidingDoor?.colors || []).find(c => c.id === state.profileColor);
+  const frameColor = colorEntry ? parseInt(colorEntry.hex.slice(1), 16) : DOOR_FRAME_COLOR;
+  // Наполнение по типу (только купе; у распашных всегда ЛДСП — см. wardrobe.js doorFillType).
+  const fill = state.fasadDoorType === 'sliding' ? state.doorFill : 'ldsp';
+  const fc = fill === 'mirror' ? DOOR_FILL_MIRROR_COLOR : fill === 'special' ? DOOR_FILL_SPECIAL_COLOR : fillColor;
+  addPanel(w, fw, DOOR_FRAME_DEPTH, frameColor, [x, y + h / 2 - fw / 2, z]); // верхний брусок рамки
+  addPanel(w, fw, DOOR_FRAME_DEPTH, frameColor, [x, y - h / 2 + fw / 2, z]); // нижний брусок рамки
+  addPanel(fw, h - 2 * fw, DOOR_FRAME_DEPTH, frameColor, [x - w / 2 + fw / 2, y, z]); // левый брусок
+  addPanel(fw, h - 2 * fw, DOOR_FRAME_DEPTH, frameColor, [x + w / 2 - fw / 2, y, z]); // правый брусок
+  addPanel(w - 2 * fw, h - 2 * fw, PANEL_THICKNESS, fc, [x, y, z], 0.85); // наполнение
 }
 
 // Транзиентные реестры "что было построено в последней сборке" — не часть state (не

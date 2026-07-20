@@ -41,7 +41,8 @@ const BACK_WALL_RATE = { ldsp: 2000, hdf: 500 };
 export function updatePrice(counts) {
   const type = TYPES[state.type] || TYPES['wardrobe'];
   const {
-    korpusM2 = 0, fasadM2 = 0, fillM2 = 0, backWallM2 = 0, backWallType = state.backWall,
+    korpusM2 = 0, fasadM2 = 0, doorM2 = 0, doorFillType = 'ldsp', doorHardwarePrice = 0,
+    fillM2 = 0, backWallM2 = 0, backWallType = state.backWall,
     meshPrice = 0, basketPrice = 0, drawerSlidePrice = 0, edgeLengthM = 0, mountPrice = 0,
   } = type.areas(counts);
 
@@ -59,7 +60,14 @@ export function updatePrice(counts) {
   // (fastenerCount/embedCount из wardrobe.js areas()) выйдут строками в будущей спецификации.
   const korpusPrice   = korpusM2   * kMat.pricePerM2 * thickMul + mountPrice;
   // Фасады не умножаются: двери купе — рамочный профиль с наполнением, не плита 32мм.
-  const fasadPrice    = fasadM2    * fMat.pricePerM2;
+  // doorM2 — полотна дверей отдельно от фасадов ящиков (fasadM2): тариф наполнения по типу
+  // (задание «двери-начали 20,07») — ЛДСП по цвету фасада / зеркало по каталогу / «цвет
+  // специальный» по цене, введённой пользователем (state.specialFillPrice).
+  const doorFillRate =
+    doorFillType === 'mirror'  ? (materials.slidingDoor?.fills?.mirror?.pricePerM2 || 0) :
+    doorFillType === 'special' ? (state.specialFillPrice || 0) :
+    fMat.pricePerM2;
+  const fasadPrice    = fasadM2 * fMat.pricePerM2 + doorM2 * doorFillRate;
   // Сетчатые полки считаются за погонный метр (своя цена на комбинацию глубина+цвет), корзины —
   // за штуку по каталогу (комбинация ширина+глубина+высота+цвет) — не за м² по общему тарифу
   // наполнения, просто добавляем уже готовые суммы в ту же строку сметы.
@@ -71,10 +79,13 @@ export function updatePrice(counts) {
   // Направляющие ящика — не в общем цикле по fittings: цена зависит от ДВУХ параметров
   // (тип + длина под глубину короба), а не просто счётчика, см. drawerSlideUnitPrice в
   // wardrobe.js areas(). Итог уже посчитан там, здесь просто добавляем к фурнитуре.
+  // doorHardwarePrice — профиль/ролики/направляющая дверей купе (лумп-сумма из wardrobe.js
+  // areas(), та же схема, что и drawerSlidePrice): вертикальные и горизонтальные профили по
+  // пог. м с учётом вида и цвета, ролики за дверь, направляющая за пог. м ширины проёма.
   const fittingsPrice = (materials.fittings || []).reduce((sum, f) => {
     const n = f.per === 'front' ? counts.door + counts.drawer : (counts[f.per] || 0);
     return sum + f.price * n;
-  }, 0) + drawerSlidePrice;
+  }, 0) + drawerSlidePrice + doorHardwarePrice;
   // Фурнитура распашных дверей — отдельная позиция по счётчику swingDoor (купейные rail/ручка
   // на распашные не начисляются, см. counts в wardrobe-geometry.js). 500₽/дверь — заглушка,
   // реальная цена будет уточнена.

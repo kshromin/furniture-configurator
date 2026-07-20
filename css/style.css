@@ -794,9 +794,26 @@ html, body {
 /* ── Профиль дверей купе ── */
 .profile-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
 }
+
+/* Цвета профиля дверей купе (задание «двери-начали 20,07») — круглые свотчи под сеткой видов */
+.profile-colors {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.profile-color-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #d5d5d5;
+  cursor: pointer;
+  padding: 0;
+}
+.profile-color-btn:hover { border-color: #a8c0f8; }
+.profile-color-btn.active { border-color: #2f6fed; box-shadow: 0 0 0 2px #eef3ff; }
 
 .profile-btn {
   display: flex;

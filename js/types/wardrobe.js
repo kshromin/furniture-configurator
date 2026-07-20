@@ -48,9 +48,35 @@ export default {
       dw = (spanW + (dc - 1) * DOOR_OVERLAP) / dc;
       doorH = height - topOff - bottomOff - TOP_RAIL_HEIGHT - BOTTOM_RAIL_HEIGHT - 2 * gap;
     }
-    // «Без дверей»: конструктив под купе, но двери в стоимость не входят вообще
-    // (дверная фурнитура обнуляется через counts.door в wardrobe-geometry.js).
-    let fasadM2 = state.fasadDoorType === 'none' ? 0 : (dc * dw * doorH) / 1e6;
+    // Площадь полотен дверей — ОТДЕЛЬНО от фасадов ящиков (fasadM2 ниже): наполнение двери
+    // может быть не ЛДСП (зеркало/спеццвет, задание «двери-начали 20,07»), тариф выбирает
+    // pricing.js по doorFillType; фасады ящиков — всегда ЛДСП по цвету фасада.
+    // «Без дверей»: конструктив под купе, но двери в стоимость не входят вообще.
+    const doorM2 = state.fasadDoorType === 'none' ? 0 : (dc * dw * doorH) / 1e6;
+    // У распашных наполнение всегда ЛДСП (профильная система редактируется только у купе).
+    const doorFillType = state.fasadDoorType === 'sliding' ? state.doorFill : 'ldsp';
+    let fasadM2 = 0;
+
+    // Фурнитура/профиль дверей купе (задание «двери-начали 20,07», цены-заглушки — единый
+    // ценовой хвост): вертикальные профили (2 шт/дверь × высота), горизонтальные верхний и
+    // нижний (ширина двери), комплект роликов (шт/дверь), направляющая верх+низ на всю ширину
+    // проёма (пог. м). Вид профиля и цвет — общие на все двери (state.profile/profileColor),
+    // цвет пока заглушкой-множителем priceMul. Горизонтальные перемычки добавятся с окном
+    // «Комбинированная дверь».
+    let doorHardwarePrice = 0;
+    if (state.fasadDoorType === 'sliding') {
+      const cat = materials.slidingDoor || {};
+      const prof = (cat.profiles || []).find(p => p.id === state.profile) || (cat.profiles || [])[0];
+      const colorMul = ((cat.colors || []).find(c => c.id === state.profileColor) || {}).priceMul ?? 1;
+      if (prof) {
+        const vertM = (2 * doorH * dc) / 1000;
+        const horizM = (dw * dc) / 1000;
+        doorHardwarePrice =
+          (vertM * prof.vertPerM + horizM * prof.horizTopPerM + horizM * prof.horizBottomPerM) * colorMul +
+          dc * (cat.rollers?.pricePerSet || 0) +
+          (spanW / 1000) * (cat.track?.pricePerM || 0);
+      }
+    }
 
     // Площадь коробов и планок (материал — корпус)
     const H = state.height;
@@ -266,7 +292,8 @@ export default {
 
     return {
       korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2 + extraKorpusM2,
-      fasadM2, fillM2: fillM2 + extraFillM2, backWallM2, backWallType, meshPrice, basketPrice, drawerSlidePrice,
+      fasadM2, doorM2, doorFillType, doorHardwarePrice,
+      fillM2: fillM2 + extraFillM2, backWallM2, backWallType, meshPrice, basketPrice, drawerSlidePrice,
       edgeLengthM: (edgeLengthMm + extraEdgeMm) / 1000,
       mountPrice, fastenerCount, embedCount, // для будущей спецификации
     };
