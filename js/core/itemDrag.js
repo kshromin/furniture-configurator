@@ -42,6 +42,7 @@ const aboveInput = document.createElement('input');
 [belowInput, aboveInput].forEach(inp => {
   inp.type = 'number';
   inp.className = 'dim-drag-input';
+  inp.autocomplete = 'off'; // иначе браузерный менеджер паролей вешает на поле иконку-ключик и перехватывает клики
   inp.style.display = 'none';
   overlay.appendChild(inp);
 });
@@ -265,6 +266,7 @@ function showInfoPanel() {
     const inp = document.createElement('input');
     inp.type = 'number';
     inp.className = 'dim-input';
+    inp.autocomplete = 'off'; // см. комментарий у belowInput/aboveInput
     inp.style.width = '64px';
     inp.min = numberField.min;
     inp.max = numberField.max;

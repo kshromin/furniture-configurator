@@ -24,10 +24,12 @@ const BASKET_PROYOMS_HINT = `Допустимые проёмы для корзи
 // конфигурацию), поэтому живёт локально в модуле, а не в state.sections[i]. WeakSet по ссылке
 // на сам объект секции — переживает re-render (renderSectionsList вызывается часто), но не
 // требует привязки к индексу, который может съехать при добавлении/удалении секций.
-const collapsedSections = new WeakSet();
+// По умолчанию карточки СВЁРНУТЫ (просьба пользователя, сессия 39) — поэтому в сете лежат
+// РАЗВЁРНУТЫЕ секции, отсутствие в сете = свёрнута.
+const expandedSections = new WeakSet();
 
 // Выбранная карточка секции — клик по карточке подсвечивает её в 3D (см. dimensions.js). Ссылка
-// на объект секции, не индекс (тот же приём, что и у collapsedSections). Одна секция за раз —
+// на объект секции, не индекс (тот же приём, что и у expandedSections). Одна секция за раз —
 // повторный клик по уже выбранной снимает выделение. Общая для основных секций и антресолей
 // (задание «антресоли 19,07») — выбор в одном списке снимает выделение в другом.
 let selectedSection = null;
@@ -250,8 +252,8 @@ export function syncUIFromState() {
   document.getElementById('plinthHeightField').style.display = state.plinthEnabled ? 'block' : 'none';
   setSlider('plinthHeight', state.plinthHeight);
 
-  document.getElementById('mezzanineEnabled').checked = state.mezzanineEnabled;
-  document.getElementById('mezzanineHeightField').style.display = state.mezzanineEnabled ? 'block' : 'none';
+  // Кнопка/поле высоты верхней части синхронизируются внутри renderMezzanineList()
+  // (вызван из renderSectionsList() выше) — отдельного чекбокса больше нет.
   setSlider('mezzanineHeight', state.mezzanineHeight);
 
   ['noSideLeft', 'noSideRight', 'noCeiling', 'noBottom', 'alignerLeft', 'alignerRight', 'alignerTop'].forEach(key => {
@@ -667,7 +669,7 @@ export function renderSectionsList() {
            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z"/></svg>
          </button>`
       : '';
-    const collapsed = collapsedSections.has(sec);
+    const collapsed = !expandedSections.has(sec);
     card.innerHTML = `
       <div class="section-card-header">
         <button class="section-collapse-btn ${collapsed ? 'collapsed' : ''}" data-idx="${i}" title="${collapsed ? 'Развернуть секцию' : 'Свернуть секцию'}">
@@ -675,7 +677,7 @@ export function renderSectionsList() {
         </button>
         <span class="section-card-title">Секция ${i + 1}</span>
         <div class="section-card-width">
-          <input type="number" class="dim-input section-width-input" data-idx="${i}" value="${Math.round(sec.width)}" min="${MIN_SECTION_WIDTH}">
+          <input type="number" class="dim-input section-width-input" data-idx="${i}" value="${Math.round(sec.width)}" min="${MIN_SECTION_WIDTH}" autocomplete="off">
           <span class="section-card-unit">мм</span>
           <button class="section-lock-btn ${sec.widthLocked ? 'active' : ''}" data-idx="${i}" title="Зафиксировать ширину секции — не изменится при добавлении/удалении других секций">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
@@ -717,8 +719,8 @@ export function renderSectionsList() {
           <span class="el-row-count">${byType(sec, 'drawer').length}</span>
           ${byType(sec, 'drawer').map(it => `<button class="item-chip-remove" data-item-id="${it.id}" data-idx="${i}" title="Удалить ящик">×</button>`).join('')}
           <button class="section-add-btn" data-idx="${i}" data-type="drawer" title="Добавить ящик">+</button>
-          <input type="number" class="mini-input mini-input-wide section-drawer-height-input" data-idx="${i}" value="${sec.drawerHeight}" min="50" max="500" step="10" title="Высота фасада, мм">
-          <input type="number" class="mini-input mini-input-wide section-drawer-depth-input" data-idx="${i}" value="${sec.drawerDepth}" min="250" max="${maxDD}" step="50" title="Глубина короба, мм (250-${maxDD})">
+          <input type="number" class="mini-input mini-input-wide section-drawer-height-input" data-idx="${i}" value="${sec.drawerHeight}" min="50" max="500" step="10" title="Высота фасада, мм" autocomplete="off">
+          <input type="number" class="mini-input mini-input-wide section-drawer-depth-input" data-idx="${i}" value="${sec.drawerDepth}" min="250" max="${maxDD}" step="50" title="Глубина короба, мм (250-${maxDD})" autocomplete="off">
           <select class="mini-select section-drawer-slide-input" data-idx="${i}" title="Тип направляющих">
             <option value="ball" ${sec.drawerSlideType === 'ball' ? 'selected' : ''}>Шариковые</option>
             <option value="soft" ${sec.drawerSlideType === 'soft' ? 'selected' : ''}>Скрытые, доводчик</option>
@@ -944,8 +946,8 @@ export function renderSectionsList() {
       const sec = state.sections[Number(btn.dataset.idx)];
       const card = btn.closest('.section-card');
       const rows = card.querySelector('.section-rows');
-      const nowCollapsed = !collapsedSections.has(sec);
-      if (nowCollapsed) collapsedSections.add(sec); else collapsedSections.delete(sec);
+      const nowCollapsed = expandedSections.has(sec);
+      if (nowCollapsed) expandedSections.delete(sec); else expandedSections.add(sec);
       rows.style.display = nowCollapsed ? 'none' : '';
       btn.classList.toggle('collapsed', nowCollapsed);
       btn.title = nowCollapsed ? 'Развернуть секцию' : 'Свернуть секцию';
@@ -999,9 +1001,14 @@ function renderMezzanineList() {
   const container = document.getElementById('mezzanineListItems');
   const block = document.getElementById('mezzanineListBlock');
   if (!container || !block) return;
-  block.style.display = state.mezzanineEnabled ? '' : 'none';
-  if (!state.mezzanineEnabled) return;
+  // Блок виден всегда (у типов с ctx.fill.list): пока верхняя часть выключена — в нём только
+  // кнопка-включатель «Верхняя часть без стоек», после включения та же кнопка становится
+  // «+ Добавить секцию» (см. обработчик в bindSectionsControls).
+  const addBtn = document.getElementById('addMezzanineSectionBtn');
+  addBtn.textContent = state.mezzanineEnabled ? '+ Добавить секцию' : 'Верхняя часть без стоек';
+  document.getElementById('mezzanineHeightField').style.display = state.mezzanineEnabled ? 'block' : 'none';
   container.innerHTML = '';
+  if (!state.mezzanineEnabled) return;
 
   // Клампинг под текущую глубину короба (тот же принцип, что и clampSectionSizes у основных
   // секций) — тут только сетка, ящиков/корзин/вешала у верхней части не бывает.
@@ -1022,14 +1029,15 @@ function renderMezzanineList() {
   state.mezzanineSections.forEach((sec, i) => {
     const card = document.createElement('div');
     card.className = 'section-card' + (selectedSection === sec ? ' selected' : '');
-    const removable = state.mezzanineSections.length > 1 && canRemoveSection(i, state.mezzanineSections);
-    const removeBtn = state.mezzanineSections.length > 1
-      ? `<button class="section-remove-btn" data-idx="${i}" ${removable ? '' : 'disabled'}
-           title="${removable ? 'Удалить секцию' : 'Нельзя удалить — все остальные секции зафиксированы, освободившееся место некому занять'}">
+    // Последнюю секцию удалить МОЖНО (в отличие от основных) — это и есть выключатель верхней
+    // части: без секций зона теряет смысл, mezzanineEnabled сбрасывается (см. обработчик ниже).
+    const last = state.mezzanineSections.length === 1;
+    const removable = last || canRemoveSection(i, state.mezzanineSections);
+    const removeBtn = `<button class="section-remove-btn" data-idx="${i}" ${removable ? '' : 'disabled'}
+           title="${last ? 'Удалить секцию — выключит верхнюю часть' : removable ? 'Удалить секцию' : 'Нельзя удалить — все остальные секции зафиксированы, освободившееся место некому занять'}">
            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z"/></svg>
-         </button>`
-      : '';
-    const collapsed = collapsedSections.has(sec);
+         </button>`;
+    const collapsed = !expandedSections.has(sec);
     card.innerHTML = `
       <div class="section-card-header">
         <button class="section-collapse-btn ${collapsed ? 'collapsed' : ''}" data-idx="${i}" title="${collapsed ? 'Развернуть секцию' : 'Свернуть секцию'}">
@@ -1037,7 +1045,7 @@ function renderMezzanineList() {
         </button>
         <span class="section-card-title">Секция ${i + 1}</span>
         <div class="section-card-width">
-          <input type="number" class="dim-input section-width-input" data-idx="${i}" value="${Math.round(sec.width)}" min="${MIN_SECTION_WIDTH}">
+          <input type="number" class="dim-input section-width-input" data-idx="${i}" value="${Math.round(sec.width)}" min="${MIN_SECTION_WIDTH}" autocomplete="off">
           <span class="section-card-unit">мм</span>
           <button class="section-lock-btn ${sec.widthLocked ? 'active' : ''}" data-idx="${i}" title="Зафиксировать ширину секции — не изменится при добавлении/удалении других секций">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
@@ -1138,8 +1146,8 @@ function renderMezzanineList() {
       const sec = state.mezzanineSections[Number(btn.dataset.idx)];
       const card = btn.closest('.section-card');
       const rows = card.querySelector('.section-rows');
-      const nowCollapsed = !collapsedSections.has(sec);
-      if (nowCollapsed) collapsedSections.add(sec); else collapsedSections.delete(sec);
+      const nowCollapsed = expandedSections.has(sec);
+      if (nowCollapsed) expandedSections.delete(sec); else expandedSections.add(sec);
       rows.style.display = nowCollapsed ? 'none' : '';
       btn.classList.toggle('collapsed', nowCollapsed);
       btn.title = nowCollapsed ? 'Развернуть секцию' : 'Свернуть секцию';
@@ -1155,6 +1163,13 @@ function renderMezzanineList() {
   container.querySelectorAll('.section-remove-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const idx = Number(btn.dataset.idx);
+      // Удаление последней секции = выключение верхней части (секции при этом реально
+      // стираются — включение кнопкой начнёт с чистой дефолтной секции).
+      if (state.mezzanineSections.length === 1) {
+        state.mezzanineSections.splice(idx, 1);
+        setMezzanineEnabled(false);
+        return;
+      }
       if (!canRemoveSection(idx, state.mezzanineSections)) {
         showToast('Нельзя удалить секцию — все остальные секции зафиксированы (корзиной или галочкой), освободившееся место некому занять.');
         return;
@@ -1208,6 +1223,13 @@ export function bindSectionsControls() {
   // ящиков/корзин: та же логика добавления, что и у основной "+", но без ящика/штанги по умолчанию
   // (антресоли обычно мельче) и без полей ящика/корзины вовсе.
   document.getElementById('addMezzanineSectionBtn').addEventListener('click', () => {
+    // Пока верхняя часть выключена — эта же кнопка работает включателем («Верхняя часть без
+    // стоек»): включает зону и добавляет первую секцию, после чего перерисовывается в
+    // «+ Добавить секцию» (см. renderMezzanineList).
+    if (!state.mezzanineEnabled) {
+      setMezzanineEnabled(true);
+      return;
+    }
     if (!canAddSection(state.mezzanineSections)) {
       showToast('Не удаётся добавить секцию в верхней части — все секции зафиксированы и заняли всю ширину. Снимите фиксацию у одной из секций или уменьшите её ширину.');
       return;
@@ -1224,6 +1246,36 @@ export function bindSectionsControls() {
 // полей нет вовсе (не нужны — UI их не использует, а geometry/sizing-хелперы, которые их читают,
 // на верхнюю часть не вызываются). items — намеренно пустой массив: пользователь сам наполняет
 // секцию с нуля, никакой полки/штанги по умолчанию не ставим.
+// Включение/выключение верхней части (бывший чекбокс в Опциях «Внешнего», теперь управляется
+// кнопкой в разделе «Верхняя часть» вкладки «Внутреннее» и удалением последней секции).
+// Включение сеет одну дефолтную секцию, если список ещё пуст — при повторном вкл/выкл ничего
+// не теряем, т.к. mezzanineSections не очищается при выключении (кроме явного удаления
+// последней секции пользователем — тогда список действительно пустеет).
+function setMezzanineEnabled(on) {
+  state.mezzanineEnabled = on;
+  if (on) {
+    // Неубираемая (pinned) полка каждой секции становится ОДНОЙ сплошной полкой на весь короб
+    // (см. buildWardrobeBox) — свои отдельные копии в секциях больше не нужны, убираем их.
+    state.sections.forEach(sec => {
+      sec.items = sec.items.filter(it => !(it.type === 'shelf' && it.pinned));
+    });
+    if (state.mezzanineSections.length === 0) {
+      state.mezzanineSections.push(newMezzanineSection());
+    }
+  } else {
+    // Возвращаем структурную полку туда, где её больше нет — без верхней части у секции снова
+    // должна быть своя опорная (неубираемая) полка, как до включения.
+    const { fillBottom, fillTop } = sectionVerticalBounds();
+    state.sections.forEach(sec => {
+      if (!sec.items.some(it => it.type === 'shelf' && it.pinned)) {
+        sec.items.push({ id: newItemId(), type: 'shelf', y: defaultPinnedShelfY(fillBottom, fillTop), pinned: true });
+      }
+    });
+  }
+  buildFurniture();
+  renderSectionsList();
+}
+
 function newMezzanineSection() {
   return {
     width: MIN_SECTION_WIDTH,
@@ -1371,36 +1423,6 @@ export function bindVariantControls() {
 
   bindSlider('plinthHeight', 'plinthHeight', ' мм');
 
-  // Антресоли (задание «антресоли 19,07») — верхняя зона без стоек, см. state.js. Включение
-  // сеет одну дефолтную секцию антресолей, если список ещё пуст (первое включение) — ничего не
-  // теряем при повторном вкл/выкл, т.к. mezzanineSections не очищается при выключении.
-  const mezzCb = document.getElementById('mezzanineEnabled');
-  const mezzHeightFld = document.getElementById('mezzanineHeightField');
-  mezzCb.addEventListener('change', () => {
-    state.mezzanineEnabled = mezzCb.checked;
-    mezzHeightFld.style.display = state.mezzanineEnabled ? 'block' : 'none';
-    if (state.mezzanineEnabled) {
-      // Неубираемая (pinned) полка каждой секции становится ОДНОЙ сплошной полкой на весь короб
-      // (см. buildWardrobeBox) — свои отдельные копии в секциях больше не нужны, убираем их.
-      state.sections.forEach(sec => {
-        sec.items = sec.items.filter(it => !(it.type === 'shelf' && it.pinned));
-      });
-      if (state.mezzanineSections.length === 0) {
-        state.mezzanineSections.push(newMezzanineSection());
-      }
-    } else {
-      // Возвращаем структурную полку туда, где её больше нет — без верхней части у секции снова
-      // должна быть своя опорная (неубираемая) полка, как до включения.
-      const { fillBottom, fillTop } = sectionVerticalBounds();
-      state.sections.forEach(sec => {
-        if (!sec.items.some(it => it.type === 'shelf' && it.pinned)) {
-          sec.items.push({ id: newItemId(), type: 'shelf', y: defaultPinnedShelfY(fillBottom, fillTop), pinned: true });
-        }
-      });
-    }
-    buildFurniture();
-    renderSectionsList();
-  });
   bindSlider('mezzanineHeight', 'mezzanineHeight', ' мм');
 }
 
