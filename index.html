@@ -435,10 +435,10 @@
             </div>
           </div>
 
-          <!-- Комбинированная дверь: окно редактирования одной двери (перемычки, наполнение
-               секций полотна) — js/core/doorEditor.js -->
+          <!-- Редактирование одной двери (перемычки, наполнение секций полотна) —
+               js/core/doorEditor.js -->
           <div class="field-group" style="margin-top:12px">
-            <button id="comboDoorBtn" class="add-item-btn" type="button">Комбинированная дверь</button>
+            <button id="comboDoorBtn" class="add-item-btn" type="button">Редактировать дверь</button>
           </div>
         </div>
       </div>
@@ -605,19 +605,23 @@
     </div>
   </div>
 
-  <!-- Окно «Комбинированная дверь» (задание «двери-начали 20,07») — одна дверь схемой + редактор:
+  <!-- Окно «Редактировать дверь» (задание «двери-начали 20,07») — одна дверь схемой + редактор:
        профиль/цвет (глобальные, синхронно со вкладкой «Фасад»), перемычки и наполнение секций
-       полотна (индивидуальные для двери) — js/core/doorEditor.js -->
+       полотна (индивидуальные для двери). «Сохранить» применяет и закрывает; закрытие
+       крестиком/кликом мимо/Escape откатывает изменения — js/core/doorEditor.js -->
   <div id="doorEditorOverlay" class="overlay">
     <div class="door-editor-modal">
       <div class="projects-modal-header">
-        <div class="pane-title" style="margin:0">Комбинированная дверь</div>
-        <button id="doorEditorClose" class="projects-modal-close" title="Закрыть">×</button>
+        <div class="pane-title" style="margin:0">Редактирование двери</div>
+        <button id="doorEditorClose" class="projects-modal-close" title="Закрыть без сохранения">×</button>
       </div>
       <div class="door-editor-doors" id="doorEditorDoorBtns"></div>
       <div class="door-editor-body">
         <svg id="doorEditorSvg" xmlns="http://www.w3.org/2000/svg"></svg>
         <div class="door-editor-controls" id="doorEditorControls"></div>
+      </div>
+      <div class="door-editor-footer">
+        <button id="doorEditorSave" class="btn-primary" type="button">Сохранить</button>
       </div>
     </div>
   </div>
