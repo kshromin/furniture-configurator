@@ -3,7 +3,8 @@ import { camera, renderer, controls, furnitureGroup, isFrontView, showPerspectiv
 import { state } from './state.js';
 import { buildFurniture } from './build.js';
 import {
-  lastBuildItemMeshes, lastBuildValetMeshes, lastBuildSectionCenters, lastBuildMezzanineSectionCenters, lastBuildY0,
+  lastBuildItemMeshes, lastBuildValetMeshes, lastBuildDoorMeshes, lastBuildDoorLayout,
+  lastBuildSectionCenters, lastBuildMezzanineSectionCenters, lastBuildY0,
   checkOverlap, boundsForZone, boundsForZonePhysical, secForZone, valetAnchorCandidates, resolveValetAnchorY,
   itemPhysicalBands, itemPhysicalHeight, itemBands, itemBandHeight, resolveLockedMove, absorbIntoLockedGap,
   nearestSupportSurfaceY, horizontalSupportYRange,
@@ -34,6 +35,12 @@ const RED_EMISSIVE = 0xff2222;
 
 let dragState = null; // только между pointerdown и pointerup — живое перемещение мешей
 let active = null;    // { kind, sectionIndex, sec, item?, itemType?, meshes }
+
+// Сдвиг дверей купе мышкой (задание «двери-начали 20,07») — ТОЛЬКО просмотр: накопленный сдвиг
+// каждой двери от построечной позиции держим здесь (не в state), пересборка возвращает двери
+// на место — сбрасываем на furniture-rebuilt.
+const doorViewOffsets = new Map(); // doorIndex -> суммарный сдвиг X от построечной позиции
+window.addEventListener('furniture-rebuilt', () => doorViewOffsets.clear());
 
 const overlay = document.getElementById('dimOverlay');
 const infoPanel = document.getElementById('dragInfoPanel');
@@ -100,6 +107,7 @@ function pickDraggable(e) {
     if (obj.userData.hSupportSide) return { mesh: obj, kind: 'hsupport', side: obj.userData.hSupportSide, zone };
     if (obj.userData.itemId) return { mesh: obj, kind: 'item', zone };
     if (obj.userData.itemType === 'valet') return { mesh: obj, kind: 'valet', zone };
+    if (obj.userData.doorIndex !== undefined) return { mesh: obj, kind: 'door', zone };
   }
   return null;
 }
@@ -141,6 +149,19 @@ function refreshActive() {
 function describeActive() {
   const { kind, sec, item, itemType } = active;
   if (kind === 'valet') return { title: 'Торцевое вешало', lines: [`Длина: ${sec.valetLength} мм`] };
+  // Дверь купе (задание «двери-начали 20,07») — двигается мышкой вдоль своей направляющей для
+  // наглядности, позиция не сохраняется (пересборка/перезагрузка возвращает на место).
+  if (kind === 'door') {
+    const L = lastBuildDoorLayout;
+    return {
+      title: `Дверь ${active.doorIndex + 1}`,
+      lines: [
+        `Рельса: ${L?.rails[active.doorIndex] === 'front' ? 'передняя' : 'задняя'}`,
+        ...(L ? [`Ширина: ${Math.round(L.doorW)} мм`] : []),
+        'Двигается мышкой вдоль направляющей (просмотр)',
+      ],
+    };
+  }
   switch (itemType) {
     case 'shelf':
       return {
@@ -533,6 +554,43 @@ function onPointerDown(e) {
   controls.enabled = false;
   renderer.domElement.style.cursor = 'grabbing';
 
+  // Дверь купе (задание «двери-начали 20,07») — отдельная ветка ДО секционной логики (у дверей
+  // нет sectionIndex): выделение + драг вдоль направляющей (по X), только просмотр. Дверь ездит
+  // в пределах проёма и не проходит сквозь двери СВОЕЙ рельсы (чередование рельс — соседние
+  // двери на разных, их можно проезжать внахлёст). Границы считаем один раз на pointerdown —
+  // остальные двери во время драга неподвижны.
+  if (picked.kind === 'door') {
+    const idx = picked.mesh.userData.doorIndex;
+    const L = lastBuildDoorLayout;
+    const meshes = lastBuildDoorMeshes[idx] || [picked.mesh];
+    if (!L) return;
+    const worldAnchor = picked.mesh.getWorldPosition(new THREE.Vector3());
+    buildDragPlane(worldAnchor);
+    updatePointerNDC(e);
+    raycaster.setFromCamera(pointerNDC, camera);
+    if (!raycaster.ray.intersectPlane(dragPlane, startHit)) return;
+    const startCenter = L.xs[idx] + (doorViewOffsets.get(idx) || 0);
+    let minC = L.spanLeftX + L.doorW / 2, maxC = L.spanRightX - L.doorW / 2;
+    L.xs.forEach((x0, j) => {
+      if (j === idx || L.rails[j] !== L.rails[idx]) return;
+      const oc = x0 + (doorViewOffsets.get(j) || 0);
+      if (oc > startCenter) maxC = Math.min(maxC, oc - L.doorW);
+      else if (oc < startCenter) minC = Math.max(minC, oc + L.doorW);
+    });
+    active = { kind: 'door', doorIndex: idx, meshes };
+    dragState = {
+      kind: 'door', doorIndex: idx, meshes,
+      originalX: meshes.map(m => m.position.x),
+      startPointerX: startHit.x, startCenter, minC, maxC, appliedOffset: 0,
+    };
+    setHighlight(meshes, SELECT_EMISSIVE);
+    showInfoPanel();
+    updateEditInputs(); // прячет поля просветов, если остались от прежнего выделения
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    return;
+  }
+
   const { sectionIndex } = picked.mesh.userData;
   const zone = picked.zone;
   const sec = secForZone(zone, sectionIndex);
@@ -612,6 +670,19 @@ function onPointerMove(e) {
   updatePointerNDC(e);
   raycaster.setFromCamera(pointerNDC, camera);
   if (!raycaster.ray.intersectPlane(dragPlane, planeHit)) return;
+
+  // Дверь купе — движение по X (вдоль направляющей), кламп по границам прямо в живом драге
+  // (в отличие от вертикального драга элементов: тут упор физический — рельса/соседняя дверь,
+  // «пройти сквозь и вернуть» не имеет смысла для чисто просмотровой функции).
+  if (dragState.kind === 'door') {
+    const deltaX = planeHit.x - dragState.startPointerX;
+    const c = Math.max(dragState.minC, Math.min(dragState.maxC, dragState.startCenter + deltaX));
+    const applied = c - dragState.startCenter;
+    dragState.meshes.forEach((m, i) => { m.position.x = dragState.originalX[i] + applied; });
+    dragState.appliedOffset = applied;
+    return;
+  }
+
   const deltaY = planeHit.y - dragState.startPointerY;
 
   if (dragState.kind === 'item') {
@@ -665,6 +736,13 @@ function onPointerUp() {
   window.removeEventListener('pointerup', onPointerUp);
 
   const dragKind = dragState.kind;
+  if (dragKind === 'door') {
+    // Только просмотр: накапливаем сдвиг в doorViewOffsets (для клампа следующего драга),
+    // state не трогаем и НЕ пересобираем 3D — пересборка вернула бы дверь на место.
+    doorViewOffsets.set(dragState.doorIndex, (doorViewOffsets.get(dragState.doorIndex) || 0) + dragState.appliedOffset);
+    dragState = null;
+    return; // дверь остаётся выделенной, меши живы (пересборки не было)
+  }
   if (dragKind === 'item') {
     // dragState.candidateY — сырая позиция под курсором (см. onPointerMove, live-драг ничего не
     // клампит). Здесь, один раз на отпускании, считаем каскад/клампинг по месту упора и по

@@ -157,11 +157,13 @@ function buildSlidingDoor(x, y, z, w, h, fillColor) {
   // Наполнение по типу (только купе; у распашных всегда ЛДСП — см. wardrobe.js doorFillType).
   const fill = state.fasadDoorType === 'sliding' ? state.doorFill : 'ldsp';
   const fc = fill === 'mirror' ? DOOR_FILL_MIRROR_COLOR : fill === 'special' ? DOOR_FILL_SPECIAL_COLOR : fillColor;
-  addPanel(w, fw, DOOR_FRAME_DEPTH, frameColor, [x, y + h / 2 - fw / 2, z]); // верхний брусок рамки
-  addPanel(w, fw, DOOR_FRAME_DEPTH, frameColor, [x, y - h / 2 + fw / 2, z]); // нижний брусок рамки
-  addPanel(fw, h - 2 * fw, DOOR_FRAME_DEPTH, frameColor, [x - w / 2 + fw / 2, y, z]); // левый брусок
-  addPanel(fw, h - 2 * fw, DOOR_FRAME_DEPTH, frameColor, [x + w / 2 - fw / 2, y, z]); // правый брусок
-  addPanel(w - 2 * fw, h - 2 * fw, PANEL_THICKNESS, fc, [x, y, z], 0.85); // наполнение
+  return [
+    addPanel(w, fw, DOOR_FRAME_DEPTH, frameColor, [x, y + h / 2 - fw / 2, z]), // верхний брусок рамки
+    addPanel(w, fw, DOOR_FRAME_DEPTH, frameColor, [x, y - h / 2 + fw / 2, z]), // нижний брусок рамки
+    addPanel(fw, h - 2 * fw, DOOR_FRAME_DEPTH, frameColor, [x - w / 2 + fw / 2, y, z]), // левый брусок
+    addPanel(fw, h - 2 * fw, DOOR_FRAME_DEPTH, frameColor, [x + w / 2 - fw / 2, y, z]), // правый брусок
+    addPanel(w - 2 * fw, h - 2 * fw, PANEL_THICKNESS, fc, [x, y, z], 0.85), // наполнение
+  ];
 }
 
 // Транзиентные реестры "что было построено в последней сборке" — не часть state (не
@@ -175,6 +177,12 @@ function buildSlidingDoor(x, y, z, w, h, fillColor) {
 // сборки, не дублируя формулу расчёта cursorX/y0 здесь и там.
 export let lastBuildItemMeshes = new Map();
 export let lastBuildValetMeshes = new Map();
+// Двери купе (задание «двери-начали 20,07»): lastBuildDoorMeshes[i] — меши i-й двери (рамка+
+// наполнение), lastBuildDoorLayout — раскладка ряда для драга вдоль направляющей (границы
+// проёма, ширина двери, рельса и построечный X-центр каждой двери). Драг — только просмотр:
+// позиции живут в мешах до следующей пересборки, в state не пишутся.
+export let lastBuildDoorMeshes = [];
+export let lastBuildDoorLayout = null;
 export let lastBuildSectionCenters = [];
 // Мировые X-центры антресольного ряда секций (задание «антресоли 19,07») — своя раскладка ширин,
 // независимая от lastBuildSectionCenters основных секций, но та же горизонталь (innerSpanW).
@@ -221,6 +229,8 @@ export function buildWardrobeBox() {
   const t = PANEL_THICKNESS;
   lastBuildItemMeshes = new Map();
   lastBuildValetMeshes = new Map();
+  lastBuildDoorMeshes = [];
+  lastBuildDoorLayout = null;
   lastBuildSectionCenters = [];
   lastBuildMezzanineSectionCenters = [];
   const kColor = getColor('korpus').color;
@@ -434,11 +444,24 @@ export function buildWardrobeBox() {
     const doorH       = doorTop - doorBottom;
     const doorCenterY = (doorBottom + doorTop) / 2;
 
+    // Раскладка ряда — для драга дверей мышкой вдоль направляющей (js/core/itemDrag.js,
+    // kind:'door'): дверь ездит в пределах проёма, двери ОДНОЙ рельсы друг сквозь друга не
+    // проходят (чередование рельс — front/back по чётности, как и в slidingDoorsCanClear).
+    lastBuildDoorLayout = {
+      doorW,
+      spanLeftX: spanCenterX - spanW / 2,
+      spanRightX: spanCenterX + spanW / 2,
+      rails: [], xs: [],
+    };
     for (let i = 0; i < doorCount; i++) {
       const leftEdge = -spanW / 2 + i * (doorW - DOOR_OVERLAP);
       const x = spanCenterX + leftEdge + doorW / 2;
       const z = i % 2 === 0 ? railFront : railBack;
-      buildSlidingDoor(x, doorCenterY, z, doorW, doorH, fColor);
+      const meshes = buildSlidingDoor(x, doorCenterY, z, doorW, doorH, fColor);
+      meshes.forEach(m => { m.userData.doorIndex = i; });
+      lastBuildDoorMeshes[i] = meshes;
+      lastBuildDoorLayout.rails.push(i % 2 === 0 ? 'front' : 'back');
+      lastBuildDoorLayout.xs.push(x);
     }
   }
 
