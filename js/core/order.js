@@ -263,11 +263,13 @@ function captureThumbnail() {
     renderer.render(scene, camera);
     const src = renderer.domElement;
     if (!src.width || !src.height) return null;
-    const w = 160, h = Math.max(1, Math.round(w * src.height / src.width));
+    // 100px/качество 0.5 — список может разрастись до сотен проектов (см. пагинация в
+    // projects.js), суммарный вес важнее детализации превью.
+    const w = 100, h = Math.max(1, Math.round(w * src.height / src.width));
     const off = document.createElement('canvas');
     off.width = w; off.height = h;
     off.getContext('2d').drawImage(src, 0, 0, w, h);
-    return off.toDataURL('image/jpeg', 0.6);
+    return off.toDataURL('image/jpeg', 0.5);
   } catch {
     return null; // не критично — проект всё равно сохранится, просто без картинки
   }
