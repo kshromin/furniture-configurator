@@ -137,6 +137,28 @@ html, body {
 }
 .dim-drag-input:focus { outline: none; border-color: #e6a800; background: #fffbea; }
 
+/* Стрелка «сдвинуть вплотную к соседу» рядом с полем просвета (js/core/itemDrag.js, задание
+   «смещение элемента до края 19,07») — тот же принцип позиционирования/z-index, что и у самого
+   поля, просто сдвинута правее (см. positionSnapBtn). */
+.dim-snap-btn {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1.5px solid #2f6fed;
+  border-radius: 4px;
+  background: #fff;
+  color: #2f6fed;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+.dim-snap-btn:hover { background: #eef3ff; }
+
 /* ── Инфопанель выбранного элемента (js/core/itemDrag.js) — пока элемент "выбран" (зажата ЛКМ
    или после отпускания, пока не кликнули мимо), в углу вьюпорта, не мешает перетаскиванию ── */
 .drag-info-panel {

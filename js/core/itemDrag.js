@@ -5,7 +5,7 @@ import { buildFurniture } from './build.js';
 import {
   lastBuildItemMeshes, lastBuildValetMeshes, lastBuildSectionCenters, lastBuildMezzanineSectionCenters, lastBuildY0,
   checkOverlap, boundsForZone, boundsForZonePhysical, secForZone, valetAnchorCandidates, resolveValetAnchorY,
-  itemPhysicalBands, itemPhysicalHeight, resolveLockedMove, absorbIntoLockedGap,
+  itemPhysicalBands, itemPhysicalHeight, itemBands, itemBandHeight, resolveLockedMove, absorbIntoLockedGap,
   nearestSupportSurfaceY, horizontalSupportYRange,
   clampDrawerOffsetWidth, MIN_DRAWER_OFFSET_WIDTH, MIN_DRAWER_REMAINING_WIDTH, DEFAULT_DRAWER_OFFSET_WIDTH,
 } from '../types/_wardrobe-shared.js';
@@ -45,6 +45,28 @@ const aboveInput = document.createElement('input');
   inp.style.display = 'none';
   overlay.appendChild(inp);
 });
+
+// Смещение элемента до края одним нажатием (задание «смещение элемента до края 19,07») — стрелка
+// рядом с полем просвета, жмёшь и элемент уходит вплотную к этому соседу: то же самое, что
+// вписать 0 в поле и подтвердить (commitGapEdit/commitHSupportEdit уже умеют каскад по
+// зафиксированным просветам и клампинг по границам — переиспользуем один в один, не дублируем).
+const snapBelowBtn = document.createElement('button');
+const snapAboveBtn = document.createElement('button');
+snapBelowBtn.textContent = '▼';
+snapAboveBtn.textContent = '▲';
+snapBelowBtn.title = 'Сдвинуть вплотную к соседу снизу';
+snapAboveBtn.title = 'Сдвинуть вплотную к соседу сверху';
+[snapBelowBtn, snapAboveBtn].forEach(btn => {
+  btn.type = 'button';
+  btn.className = 'dim-snap-btn';
+  btn.style.display = 'none';
+  // Не должно приводить к клику по канвасу под оверлеем/сбрасывать текущий выбор — тот же приём,
+  // что и у галочки фиксации просвета (.dim-lock-cb) в dimensions.js.
+  btn.addEventListener('pointerdown', e => e.stopPropagation());
+  overlay.appendChild(btn);
+});
+snapBelowBtn.addEventListener('click', e => { e.stopPropagation(); snapGap(true); });
+snapAboveBtn.addEventListener('click', e => { e.stopPropagation(); snapGap(false); });
 
 // Антресоли (задание «антресоли 19,07») — свой ряд секций (state.mezzanineSections), независимая
 // от основного нумерация sectionIndex с нуля, поэтому центр по X ищем в своём массиве координат.
@@ -280,6 +302,14 @@ function neighborGaps(sec, itemId, lo, hi, fillBottom, fillTop) {
   return { belowHi, aboveLo };
 }
 
+// Стрелка-кнопка «сдвинуть вплотную» — сидит чуть правее своего поля (то же center-anchoring
+// через translate(-50%,-50%) в CSS, просто со сдвигом по X, см. .dim-snap-btn).
+function positionSnapBtn(btn, pos) {
+  btn.style.left = (pos.x + 34) + 'px';
+  btn.style.top = pos.y + 'px';
+  btn.style.display = pos.behind ? 'none' : '';
+}
+
 // Поля просвета ручки перемычки (kind:'hsupport') — те же belowInput/aboveInput, но «соседи»
 // тут не другие элементы секции, а фиксированные концы отрезка трубы: опора снизу (полка/пол) и
 // сама штанга сверху (см. задание «трубы вертикально плюс», HORIZONTAL_SUPPORT_MARGIN).
@@ -301,6 +331,7 @@ function updateHSupportInputs() {
   belowInput.style.display = belowPos.behind ? 'none' : '';
   if (document.activeElement !== belowInput) belowInput.value = Math.round(y - surfaceY);
   updateArrow('drag-below', cx, lastBuildY0 + surfaceY, lastBuildY0 + y);
+  positionSnapBtn(snapBelowBtn, belowPos);
 
   const abovePos = projectToOverlay(cx, lastBuildY0 + (y + rodY) / 2, 0);
   aboveInput.style.left = abovePos.x + 'px';
@@ -308,12 +339,15 @@ function updateHSupportInputs() {
   aboveInput.style.display = abovePos.behind ? 'none' : '';
   if (document.activeElement !== aboveInput) aboveInput.value = Math.round(rodY - y);
   updateArrow('drag-above', cx, lastBuildY0 + y, lastBuildY0 + rodY);
+  positionSnapBtn(snapAboveBtn, abovePos);
 }
 
 function updateEditInputs() {
   if (!active || (active.kind !== 'item' && active.kind !== 'hsupport')) {
     belowInput.style.display = 'none';
     aboveInput.style.display = 'none';
+    snapBelowBtn.style.display = 'none';
+    snapAboveBtn.style.display = 'none';
     hideArrow('drag-below');
     hideArrow('drag-above');
     return;
@@ -339,6 +373,7 @@ function updateEditInputs() {
   belowInput.style.display = belowPos.behind ? 'none' : '';
   if (document.activeElement !== belowInput) belowInput.value = Math.round(lo - belowHi);
   updateArrow('drag-below', cx, lastBuildY0 + belowHi, lastBuildY0 + lo);
+  positionSnapBtn(snapBelowBtn, belowPos);
 
   const abovePos = projectToOverlay(cx, lastBuildY0 + (hi + aboveLo) / 2, 0);
   aboveInput.style.left = abovePos.x + 'px';
@@ -346,6 +381,7 @@ function updateEditInputs() {
   aboveInput.style.display = abovePos.behind ? 'none' : '';
   if (document.activeElement !== aboveInput) aboveInput.value = Math.round(aboveLo - hi);
   updateArrow('drag-above', cx, lastBuildY0 + hi, lastBuildY0 + aboveLo);
+  positionSnapBtn(snapAboveBtn, abovePos);
 }
 
 // Коммит числа для ручки перемычки — просто клампит в допустимый диапазон (никаких соседей/
@@ -393,6 +429,52 @@ function commitGapEdit(fromBelow) {
   updateEditInputs();
 }
 
+// Смещение до края одним нажатием (задание «смещение элемента до края 19,07») — dispatcher по
+// kind, тот же принцип, что и у commitGapEdit. Для hsupport подстановка val=0 в существующий
+// commitHSupportEdit уже корректна (тот КЛАМПИТ к границам диапазона, не отклоняет невалидное
+// значение целиком). Для kind:'item' — отдельная реализация (snapToNeighbor), не через val=0 в
+// commitGapEdit: тот считает целевую позицию от ФИЗИЧЕСКОЙ границы соседа/пола (active.belowHi/
+// aboveLo, из itemPhysicalBands), а проверяет результат checkOverlap'ом по границе КОЛЛИЗИЙ
+// (sectionVerticalBounds, у той есть свои +10мм отступа расстановки от пола/потолка секции) —
+// у самого пола/потолка (когда физического соседа нет) эти две границы РАЗНЫЕ, и достигнутая
+// физическая граница проваливает проверку коллизий — движение молча отклонялось.
+function snapGap(fromBelow) {
+  if (!active) return;
+  if (active.kind === 'hsupport') {
+    const inp = fromBelow ? belowInput : aboveInput;
+    inp.value = 0;
+    commitHSupportEdit(fromBelow);
+    return;
+  }
+  if (active.kind !== 'item') return;
+  snapToNeighbor(fromBelow);
+}
+
+function snapToNeighbor(fromBelow) {
+  const { sec, item, itemType, zone } = active;
+  const { fillBottom, fillTop } = boundsForZone(zone);
+  const h = itemBandHeight(itemType, sec, item);
+  const bands = itemBands(sec, item.id);
+  let targetY;
+  if (fromBelow) {
+    const below = bands.filter(b => b.hi <= item.y).sort((a, b) => b.hi - a.hi)[0];
+    targetY = (below ? below.hi : fillBottom) + h / 2;
+  } else {
+    const above = bands.filter(b => b.lo >= item.y).sort((a, b) => a.lo - b.lo)[0];
+    targetY = (above ? above.lo : fillTop) - h / 2;
+  }
+  const { updates } = resolveLockedMove(sec, item.id, targetY, fillBottom, fillTop);
+  updates.forEach(u => {
+    const it = sec.items.find(x => x.id === u.id);
+    if (it) it.y = u.y;
+  });
+  absorbIntoLockedGap(sec, item.id);
+  buildFurniture();
+  active.meshes = lastBuildItemMeshes.get(active.sectionIndex + '|' + item.id) || [];
+  setHighlight(active.meshes, SELECT_EMISSIVE);
+  updateEditInputs();
+}
+
 [belowInput, aboveInput].forEach((inp, i) => {
   const fromBelow = i === 0;
   inp.addEventListener('keydown', e => {
@@ -410,6 +492,8 @@ function closeActive() {
   hideInfoPanel();
   belowInput.style.display = 'none';
   aboveInput.style.display = 'none';
+  snapBelowBtn.style.display = 'none';
+  snapAboveBtn.style.display = 'none';
   hideArrow('drag-below');
   hideArrow('drag-above');
   active = null;
