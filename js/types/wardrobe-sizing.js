@@ -9,6 +9,23 @@ import {
 // Ничего не строит в 3D и не трогает коллизии между уже расставленными элементами (см.
 // wardrobe-items.js) — эти два модуля сознательно разделены, geometry опирается на оба.
 
+// Секции полотна двери по горизонтальным перемычкам (окно «Комбинированная дверь», задание
+// «двери-начали 20,07»): высоты секций в мм и наполнение каждой (снизу вверх, fill null =
+// глобальное state.doorFill). Клампы позиций перемычек согласованы с геометрией
+// (buildSlidingDoor в wardrobe-geometry.js) — цена и 3D видят одну и ту же разбивку.
+export function doorCustomSegments(custom, doorH, frameW = 40) {
+  const lo = frameW + 30, hi = doorH - frameW - 30;
+  const dividers = (custom?.dividers || []).map(d => Math.max(lo, Math.min(hi, d))).sort((a, b) => a - b);
+  const segments = [];
+  let prev = frameW;
+  dividers.forEach((d, j) => {
+    segments.push({ hMm: Math.max(0, d - frameW / 2 - prev), fill: custom?.fills?.[j] || null });
+    prev = d + frameW / 2;
+  });
+  segments.push({ hMm: Math.max(0, doorH - frameW - prev), fill: custom?.fills?.[dividers.length] || null });
+  return { segments, dividers };
+}
+
 // Все допустимые варианты количества дверей купе для данного пролёта: ширина одной двери
 // (пролёт + нахлёсты) / n должна попасть в конструктивный допуск 500–1100мм.
 export function doorCountOptions(spanW) {

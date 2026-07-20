@@ -815,6 +815,26 @@ html, body {
 .profile-color-btn:hover { border-color: #a8c0f8; }
 .profile-color-btn.active { border-color: #2f6fed; box-shadow: 0 0 0 2px #eef3ff; }
 
+/* ── Окно «Комбинированная дверь» (js/core/doorEditor.js) ── */
+.door-editor-modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 18px 20px;
+  width: min(680px, 92vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.door-editor-doors { display: flex; gap: 6px; flex-wrap: wrap; }
+.door-editor-body { display: flex; gap: 18px; min-height: 0; }
+#doorEditorSvg { flex-shrink: 0; align-self: flex-start; }
+.door-editor-controls { flex: 1; min-width: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.door-editor-btn-row { display: flex; gap: 4px; flex-wrap: wrap; }
+.door-editor-divider-row { display: flex; gap: 6px; align-items: center; }
+.door-editor-fill-row { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.door-editor-fill-row .el-row-label { min-width: 86px; }
+
 .profile-btn {
   display: flex;
   flex-direction: column;

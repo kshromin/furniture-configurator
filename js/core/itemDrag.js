@@ -42,6 +42,12 @@ let active = null;    // { kind, sectionIndex, sec, item?, itemType?, meshes }
 const doorViewOffsets = new Map(); // doorIndex -> суммарный сдвиг X от построечной позиции
 window.addEventListener('furniture-rebuilt', () => doorViewOffsets.clear());
 
+// Выделенная сейчас дверь (или null) — окно «Комбинированная дверь» (js/core/doorEditor.js)
+// открывается на ней; если ничего не выделено, редактор стартует с первой двери.
+export function getActiveDoorIndex() {
+  return active?.kind === 'door' ? active.doorIndex : null;
+}
+
 const overlay = document.getElementById('dimOverlay');
 const infoPanel = document.getElementById('dragInfoPanel');
 const belowInput = document.createElement('input');

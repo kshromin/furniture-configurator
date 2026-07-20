@@ -17,6 +17,7 @@ import { initItemDrag } from './core/itemDrag.js';
 import { initDimensions } from './core/dimensions.js';
 import { initHistory, undo, onHistoryChange } from './core/history.js';
 import { initAutofillGuard } from './core/autofillGuard.js';
+import { bindDoorEditor } from './core/doorEditor.js';
 
 async function init() {
   bindLoginForm();
@@ -80,6 +81,7 @@ async function init() {
   onHistoryChange(count => { undoBtn.disabled = count < 2; });
 
   initAutofillGuard();
+  bindDoorEditor();
 
   syncUIFromState();
   buildFurniture();

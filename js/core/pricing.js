@@ -41,7 +41,7 @@ const BACK_WALL_RATE = { ldsp: 2000, hdf: 500 };
 export function updatePrice(counts) {
   const type = TYPES[state.type] || TYPES['wardrobe'];
   const {
-    korpusM2 = 0, fasadM2 = 0, doorM2 = 0, doorFillType = 'ldsp', doorHardwarePrice = 0,
+    korpusM2 = 0, fasadM2 = 0, doorFillPrice = 0, doorHardwarePrice = 0,
     fillM2 = 0, backWallM2 = 0, backWallType = state.backWall,
     meshPrice = 0, basketPrice = 0, drawerSlidePrice = 0, edgeLengthM = 0, mountPrice = 0,
   } = type.areas(counts);
@@ -60,14 +60,10 @@ export function updatePrice(counts) {
   // (fastenerCount/embedCount из wardrobe.js areas()) выйдут строками в будущей спецификации.
   const korpusPrice   = korpusM2   * kMat.pricePerM2 * thickMul + mountPrice;
   // Фасады не умножаются: двери купе — рамочный профиль с наполнением, не плита 32мм.
-  // doorM2 — полотна дверей отдельно от фасадов ящиков (fasadM2): тариф наполнения по типу
-  // (задание «двери-начали 20,07») — ЛДСП по цвету фасада / зеркало по каталогу / «цвет
-  // специальный» по цене, введённой пользователем (state.specialFillPrice).
-  const doorFillRate =
-    doorFillType === 'mirror'  ? (materials.slidingDoor?.fills?.mirror?.pricePerM2 || 0) :
-    doorFillType === 'special' ? (state.specialFillPrice || 0) :
-    fMat.pricePerM2;
-  const fasadPrice    = fasadM2 * fMat.pricePerM2 + doorM2 * doorFillRate;
+  // doorFillPrice — полотна дверей готовой суммой из wardrobe.js areas() (тариф по типу
+  // наполнения каждой секции полотна: ЛДСП/зеркало/спеццвет, задание «двери-начали 20,07»);
+  // fasadM2 — фасады ящиков, всегда ЛДСП по цвету фасада.
+  const fasadPrice    = fasadM2 * fMat.pricePerM2 + doorFillPrice;
   // Сетчатые полки считаются за погонный метр (своя цена на комбинацию глубина+цвет), корзины —
   // за штуку по каталогу (комбинация ширина+глубина+высота+цвет) — не за м² по общему тарифу
   // наполнения, просто добавляем уже готовые суммы в ту же строку сметы.

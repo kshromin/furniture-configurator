@@ -301,7 +301,7 @@ export function syncUIFromState() {
 // Заодно миграция старых сохранённых значений (задание «двери-начали 20,07»): прежние виды
 // профиля (standard/slim/anod/black — slim совпадает с новым «узким» и остаётся) → closed,
 // убранное стекло → ЛДСП.
-function syncFasadUI() {
+export function syncFasadUI() {
   const validProfiles = ['open', 'closed', 'slim', 'slimbox', 'widebox'];
   if (!validProfiles.includes(state.profile)) state.profile = 'closed';
   if (!['ldsp', 'mirror', 'special'].includes(state.doorFill)) state.doorFill = 'ldsp';

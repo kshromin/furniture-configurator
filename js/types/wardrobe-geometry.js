@@ -149,21 +149,53 @@ export function clampSectionSizes(sections, depth) {
 // Наполнение сейчас той же толщины, что и панели короба, и красится в цвет фасада —
 // когда рамка/наполнение станут настраиваться раздельно (разный цвет рамки, разный материал
 // наполнения), менять нужно будет только эту функцию.
-function buildSlidingDoor(x, y, z, w, h, fillColor) {
+// Цвет наполнения двери по типу; ЛДСП — цвет фасада (fillColor).
+function doorFillColor(fill, fillColor) {
+  return fill === 'mirror' ? DOOR_FILL_MIRROR_COLOR : fill === 'special' ? DOOR_FILL_SPECIAL_COLOR : fillColor;
+}
+
+// doorIndex — для индивидуальных перемычек/наполнения секций двери (state.doorCustom[i], окно
+// «Комбинированная дверь»); у распашных не передаётся — кастом не применяется, всегда ЛДСП.
+function buildSlidingDoor(x, y, z, w, h, fillColor, doorIndex) {
   const fw = PROFILE_FRAME_WIDTHS[state.profile] || DOOR_FRAME_WIDTH;
   // Цвет профиля — из каталога (hex вида "#c4c4c8" → число для Three.js).
   const colorEntry = (materials.slidingDoor?.colors || []).find(c => c.id === state.profileColor);
   const frameColor = colorEntry ? parseInt(colorEntry.hex.slice(1), 16) : DOOR_FRAME_COLOR;
-  // Наполнение по типу (только купе; у распашных всегда ЛДСП — см. wardrobe.js doorFillType).
-  const fill = state.fasadDoorType === 'sliding' ? state.doorFill : 'ldsp';
-  const fc = fill === 'mirror' ? DOOR_FILL_MIRROR_COLOR : fill === 'special' ? DOOR_FILL_SPECIAL_COLOR : fillColor;
-  return [
+  const sliding = state.fasadDoorType === 'sliding';
+  const custom = (sliding && doorIndex !== undefined) ? state.doorCustom?.[doorIndex] : null;
+  const globalFill = sliding ? state.doorFill : 'ldsp';
+
+  const meshes = [
     addPanel(w, fw, DOOR_FRAME_DEPTH, frameColor, [x, y + h / 2 - fw / 2, z]), // верхний брусок рамки
     addPanel(w, fw, DOOR_FRAME_DEPTH, frameColor, [x, y - h / 2 + fw / 2, z]), // нижний брусок рамки
     addPanel(fw, h - 2 * fw, DOOR_FRAME_DEPTH, frameColor, [x - w / 2 + fw / 2, y, z]), // левый брусок
     addPanel(fw, h - 2 * fw, DOOR_FRAME_DEPTH, frameColor, [x + w / 2 - fw / 2, y, z]), // правый брусок
-    addPanel(w - 2 * fw, h - 2 * fw, PANEL_THICKNESS, fc, [x, y, z], 0.85), // наполнение
   ];
+
+  const innerW = w - 2 * fw;
+  // Горизонтальные перемычки (state.doorCustom[i].dividers — мм от низа двери) делят полотно на
+  // секции, у каждой своё наполнение (fills[j], снизу вверх); без кастома — одно полотно с общим
+  // наполнением. Позиции перемычек клампятся внутрь рамки (та же страховка, что и в цене —
+  // doorCustomSegments в wardrobe-sizing.js).
+  const dividers = (custom?.dividers || [])
+    .map(d => Math.max(fw + 30, Math.min(h - fw - 30, d)))
+    .sort((a, b) => a - b);
+  let prev = fw;
+  dividers.forEach((d, j) => {
+    const segH = d - fw / 2 - prev;
+    if (segH > 1) {
+      const fc = doorFillColor(custom?.fills?.[j] || globalFill, fillColor);
+      meshes.push(addPanel(innerW, segH, PANEL_THICKNESS, fc, [x, y - h / 2 + prev + segH / 2, z], 0.85));
+    }
+    meshes.push(addPanel(innerW, fw, DOOR_FRAME_DEPTH, frameColor, [x, y - h / 2 + d, z])); // перемычка
+    prev = d + fw / 2;
+  });
+  const lastH = h - fw - prev;
+  if (lastH > 1) {
+    const fc = doorFillColor(custom?.fills?.[dividers.length] || globalFill, fillColor);
+    meshes.push(addPanel(innerW, lastH, PANEL_THICKNESS, fc, [x, y - h / 2 + prev + lastH / 2, z], 0.85));
+  }
+  return meshes;
 }
 
 // Транзиентные реестры "что было построено в последней сборке" — не часть state (не
@@ -448,7 +480,7 @@ export function buildWardrobeBox() {
     // kind:'door'): дверь ездит в пределах проёма, двери ОДНОЙ рельсы друг сквозь друга не
     // проходят (чередование рельс — front/back по чётности, как и в slidingDoorsCanClear).
     lastBuildDoorLayout = {
-      doorW,
+      doorW, doorH,
       spanLeftX: spanCenterX - spanW / 2,
       spanRightX: spanCenterX + spanW / 2,
       rails: [], xs: [],
@@ -457,7 +489,7 @@ export function buildWardrobeBox() {
       const leftEdge = -spanW / 2 + i * (doorW - DOOR_OVERLAP);
       const x = spanCenterX + leftEdge + doorW / 2;
       const z = i % 2 === 0 ? railFront : railBack;
-      const meshes = buildSlidingDoor(x, doorCenterY, z, doorW, doorH, fColor);
+      const meshes = buildSlidingDoor(x, doorCenterY, z, doorW, doorH, fColor, i);
       meshes.forEach(m => { m.userData.doorIndex = i; });
       lastBuildDoorMeshes[i] = meshes;
       lastBuildDoorLayout.rails.push(i % 2 === 0 ? 'front' : 'back');

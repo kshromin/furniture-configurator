@@ -435,10 +435,10 @@
             </div>
           </div>
 
-          <!-- Комбинированная дверь: окно редактирования выделенной двери (перемычки, наполнение
-               секций) — следующий блок задания «двери-начали 20,07» -->
+          <!-- Комбинированная дверь: окно редактирования одной двери (перемычки, наполнение
+               секций полотна) — js/core/doorEditor.js -->
           <div class="field-group" style="margin-top:12px">
-            <button id="comboDoorBtn" class="add-item-btn" type="button" disabled>Комбинированная дверь <span class="wip-label">в разработке</span></button>
+            <button id="comboDoorBtn" class="add-item-btn" type="button">Комбинированная дверь</button>
           </div>
         </div>
       </div>
@@ -601,6 +601,23 @@
              логика сохранения — вытеснены моделью Прорисовки → Проекты/Заказы. Сама таблица
              в Supabase не тронута (архив). -->
         <button id="logoutBtn" class="btn-secondary" style="width:100%;margin-top:20px;padding:10px;border-radius:8px">Выйти</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Окно «Комбинированная дверь» (задание «двери-начали 20,07») — одна дверь схемой + редактор:
+       профиль/цвет (глобальные, синхронно со вкладкой «Фасад»), перемычки и наполнение секций
+       полотна (индивидуальные для двери) — js/core/doorEditor.js -->
+  <div id="doorEditorOverlay" class="overlay">
+    <div class="door-editor-modal">
+      <div class="projects-modal-header">
+        <div class="pane-title" style="margin:0">Комбинированная дверь</div>
+        <button id="doorEditorClose" class="projects-modal-close" title="Закрыть">×</button>
+      </div>
+      <div class="door-editor-doors" id="doorEditorDoorBtns"></div>
+      <div class="door-editor-body">
+        <svg id="doorEditorSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="door-editor-controls" id="doorEditorControls"></div>
       </div>
     </div>
   </div>

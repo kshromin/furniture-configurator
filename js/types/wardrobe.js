@@ -1,8 +1,9 @@
 import { state, materials, PANEL_THICKNESS } from '../core/state.js';
 import { korpusBoxAreaM2 } from '../core/pricing.js';
+import { getColor } from '../core/materials.js';
 import {
   buildWardrobeBox, getDoorCount, effectiveDoorSpan, drawerBoxSize, basketFits, sectionMissingSideSupport,
-  sectionBackWallSegments, clampDrawerOffsetWidth,
+  sectionBackWallSegments, doorCustomSegments, clampDrawerOffsetWidth,
   DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_RAIL_HEIGHT, BOTTOM_RAIL_HEIGHT, STIFFENER_HEIGHT, SWING_GAP,
 } from './_wardrobe-shared.js';
 
@@ -48,33 +49,54 @@ export default {
       dw = (spanW + (dc - 1) * DOOR_OVERLAP) / dc;
       doorH = height - topOff - bottomOff - TOP_RAIL_HEIGHT - BOTTOM_RAIL_HEIGHT - 2 * gap;
     }
-    // Площадь полотен дверей — ОТДЕЛЬНО от фасадов ящиков (fasadM2 ниже): наполнение двери
-    // может быть не ЛДСП (зеркало/спеццвет, задание «двери-начали 20,07»), тариф выбирает
-    // pricing.js по doorFillType; фасады ящиков — всегда ЛДСП по цвету фасада.
+    // Полотна дверей — ОТДЕЛЬНО от фасадов ящиков (fasadM2 ниже): наполнение двери может быть
+    // не ЛДСП (зеркало/спеццвет, задание «двери-начали 20,07»), а с перемычками (окно
+    // «Комбинированная дверь») — у каждой секции полотна своё наполнение; считаем готовую сумму
+    // здесь (та же схема, что и drawerSlidePrice). Фасады ящиков — всегда ЛДСП по цвету фасада.
     // «Без дверей»: конструктив под купе, но двери в стоимость не входят вообще.
-    const doorM2 = state.fasadDoorType === 'none' ? 0 : (dc * dw * doorH) / 1e6;
-    // У распашных наполнение всегда ЛДСП (профильная система редактируется только у купе).
-    const doorFillType = state.fasadDoorType === 'sliding' ? state.doorFill : 'ldsp';
+    const mirrorRate = materials.slidingDoor?.fills?.mirror?.pricePerM2 || 0;
+    const fillRate = f =>
+      f === 'mirror'  ? mirrorRate :
+      f === 'special' ? (state.specialFillPrice || 0) :
+      getColor('fasad').pricePerM2;
     let fasadM2 = 0;
+    let doorFillPrice = 0;
 
-    // Фурнитура/профиль дверей купе (задание «двери-начали 20,07», цены-заглушки — единый
-    // ценовой хвост): вертикальные профили (2 шт/дверь × высота), горизонтальные верхний и
-    // нижний (ширина двери), комплект роликов (шт/дверь), направляющая верх+низ на всю ширину
-    // проёма (пог. м). Вид профиля и цвет — общие на все двери (state.profile/profileColor),
-    // цвет пока заглушкой-множителем priceMul. Горизонтальные перемычки добавятся с окном
-    // «Комбинированная дверь».
+    // Фурнитура/профиль дверей купе (цены-заглушки — единый ценовой хвост): вертикальные
+    // профили (2 шт/дверь × высота), горизонтальные верхний и нижний (ширина двери),
+    // горизонтальные перемычки (пог. м, по разбивке doorCustom), комплект роликов (шт/дверь),
+    // направляющая верх+низ на всю ширину проёма (пог. м). Вид профиля и цвет — общие на все
+    // двери (state.profile/profileColor), цвет пока заглушкой-множителем priceMul.
     let doorHardwarePrice = 0;
-    if (state.fasadDoorType === 'sliding') {
-      const cat = materials.slidingDoor || {};
-      const prof = (cat.profiles || []).find(p => p.id === state.profile) || (cat.profiles || [])[0];
-      const colorMul = ((cat.colors || []).find(c => c.id === state.profileColor) || {}).priceMul ?? 1;
-      if (prof) {
-        const vertM = (2 * doorH * dc) / 1000;
-        const horizM = (dw * dc) / 1000;
-        doorHardwarePrice =
-          (vertM * prof.vertPerM + horizM * prof.horizTopPerM + horizM * prof.horizBottomPerM) * colorMul +
-          dc * (cat.rollers?.pricePerSet || 0) +
-          (spanW / 1000) * (cat.track?.pricePerM || 0);
+    if (state.fasadDoorType !== 'none') {
+      const sliding = state.fasadDoorType === 'sliding';
+      const globalFill = sliding ? state.doorFill : 'ldsp'; // у распашных всегда ЛДСП
+      let dividerM = 0;
+      for (let i = 0; i < dc; i++) {
+        const custom = sliding ? state.doorCustom?.[i] : null;
+        const oneDoorM2 = (dw * doorH) / 1e6;
+        if (custom?.dividers?.length) {
+          const { segments, dividers } = doorCustomSegments(custom, doorH);
+          const totalH = segments.reduce((s, x) => s + x.hMm, 0) || 1;
+          segments.forEach(sgm => { doorFillPrice += oneDoorM2 * (sgm.hMm / totalH) * fillRate(sgm.fill || globalFill); });
+          dividerM += (dividers.length * dw) / 1000;
+        } else {
+          doorFillPrice += oneDoorM2 * fillRate(globalFill);
+        }
+      }
+      if (sliding) {
+        const cat = materials.slidingDoor || {};
+        const prof = (cat.profiles || []).find(p => p.id === state.profile) || (cat.profiles || [])[0];
+        const colorMul = ((cat.colors || []).find(c => c.id === state.profileColor) || {}).priceMul ?? 1;
+        if (prof) {
+          const vertM = (2 * doorH * dc) / 1000;
+          const horizM = (dw * dc) / 1000;
+          doorHardwarePrice =
+            (vertM * prof.vertPerM + horizM * prof.horizTopPerM + horizM * prof.horizBottomPerM) * colorMul +
+            dividerM * (cat.divider?.pricePerM || 0) * colorMul +
+            dc * (cat.rollers?.pricePerSet || 0) +
+            (spanW / 1000) * (cat.track?.pricePerM || 0);
+        }
       }
     }
 
@@ -292,7 +314,7 @@ export default {
 
     return {
       korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2 + extraKorpusM2,
-      fasadM2, doorM2, doorFillType, doorHardwarePrice,
+      fasadM2, doorFillPrice, doorHardwarePrice,
       fillM2: fillM2 + extraFillM2, backWallM2, backWallType, meshPrice, basketPrice, drawerSlidePrice,
       edgeLengthM: (edgeLengthMm + extraEdgeMm) / 1000,
       mountPrice, fastenerCount, embedCount, // для будущей спецификации
