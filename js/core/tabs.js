@@ -1408,6 +1408,10 @@ export function bindVariantControls() {
 export function bindTabSwitching() {
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      // «Проекты» — большое модальное окно поверх текущей вкладки (сессия 37), не обычное
+      // переключение: нет своей .tab-pane больше, открытие модала — отдельный слушатель в
+      // main.js (openProjectsModal). Сайдбар/typeBar остаются как были.
+      if (btn.dataset.tab === 'projects') return;
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
       btn.classList.add('active');

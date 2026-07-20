@@ -9,7 +9,7 @@ import {
 } from './core/tabs.js';
 import { addCurrentToOrder, renderOrderCards, bindOrderForm } from './core/order.js';
 import { renderExtras, bindExtras } from './core/extras.js';
-import { renderProjects, renderOrders, bindProjectsControls } from './core/projects.js';
+import { renderOrders, bindProjectsControls, openProjectsModal } from './core/projects.js';
 import { initAuth, bindLoginForm } from './core/auth.js';
 import { renderCabinet, bindCabinetControls } from './core/cabinet.js';
 import { renderAdminOrders } from './core/admin.js';
@@ -68,7 +68,7 @@ async function init() {
   bindCabinetControls();
   bindProjectsControls();
   document.querySelector('[data-tab="cabinet"]').addEventListener('click', () => { renderCabinet(); renderOrders(); });
-  document.querySelector('[data-tab="projects"]').addEventListener('click', renderProjects);
+  document.querySelector('[data-tab="projects"]').addEventListener('click', openProjectsModal);
   document.getElementById('adminTabBtn').addEventListener('click', renderAdminOrders);
 
   initItemDrag();

@@ -9,6 +9,7 @@ import { resetHistory } from './history.js';
 import { supabase } from './supabaseClient.js';
 import { auth } from './auth.js';
 import { showToast } from './toast.js';
+import { scene, camera, renderer } from './scene.js';
 
 // Вкладка «Прорисовки» — локальный рабочий комплект (несколько изделий/услуг), без адресного
 // сохранения. Комплект целиком сохраняется одной строкой таблицы projects (см.
@@ -251,6 +252,27 @@ export function startNewKit() {
   showToast('Новый комплект — прорисовки очищены.');
 }
 
+// Маленькая превьюшка текущего вида 3D-модели (задание «Проекты» — большое окно с превью,
+// сессия 37) — сохраняется вместе со строкой проекта, показывается в списке без загрузки
+// самого снапшота. Форсируем свежий рендер прямо перед снятием кадра — WebGL-канвас без
+// preserveDrawingBuffer не гарантирует, что в буфере лежит валидная картинка к моменту клика
+// (тот приходит асинхронно относительно цикла рендера в scene.js). Даунскейлим через offscreen-
+// канвас — веса не для полноразмерного скриншота, а для строки в базе (единицы КБ).
+function captureThumbnail() {
+  try {
+    renderer.render(scene, camera);
+    const src = renderer.domElement;
+    if (!src.width || !src.height) return null;
+    const w = 160, h = Math.max(1, Math.round(w * src.height / src.width));
+    const off = document.createElement('canvas');
+    off.width = w; off.height = h;
+    off.getContext('2d').drawImage(src, 0, 0, w, h);
+    return off.toDataURL('image/jpeg', 0.6);
+  } catch {
+    return null; // не критично — проект всё равно сохранится, просто без картинки
+  }
+}
+
 function openSaveModal(kind) {
   modalKind = kind;
   const overlay = document.getElementById('orderOverlay');
@@ -310,6 +332,8 @@ export function bindOrderForm() {
       client_name: name, client_phone: phone, client_address: address,
       items: items.map(({ id, ...rest }) => rest), // локальные id не сохраняем
       total,
+      item_count: items.length,
+      thumbnail: captureThumbnail(),
       updated_at: new Date().toISOString(),
     };
 

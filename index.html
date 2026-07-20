@@ -514,27 +514,6 @@
       <button id="newKitBtn" class="btn-secondary" style="width:100%;margin-top:8px;padding:10px;border-radius:8px">Начать новый комплект</button>
     </div>
 
-    <!-- 7б. Проекты — сохранённые комплекты прорисовок (kind='project') -->
-    <div class="tab-pane" id="tab-projects">
-      <div class="pane-title">Проекты</div>
-      <div class="field" style="margin-bottom:10px">
-        <select id="projectsSortSelect" class="mini-select-wide" style="width:100%">
-          <option value="created">Сортировка: по дате создания</option>
-          <option value="updated">Сортировка: по дате изменения</option>
-          <option value="title">Сортировка: по названию</option>
-          <option value="client">Сортировка: по клиенту</option>
-        </select>
-      </div>
-      <div class="field" style="margin-bottom:10px">
-        <input type="text" id="projectsSearch" class="dim-input" style="width:100%;text-align:left" placeholder="Поиск: название или клиент...">
-      </div>
-      <div id="projectsRange" class="date-range" style="display:none">
-        <input type="date" id="projectsFrom"><span>—</span><input type="date" id="projectsTo">
-        <button id="projectsRangeClear" class="opt-btn" title="Сбросить диапазон">×</button>
-      </div>
-      <div id="projectsEmpty" class="placeholder-note" style="display:none">Сохранённых проектов пока нет.</div>
-      <div id="projectsList"></div>
-    </div>
 
     <!-- 8. Заказы (бывш. Кабинет): свершившиеся заказы + конфигурации + выход -->
     <div class="tab-pane" id="tab-cabinet">
@@ -601,6 +580,33 @@
     </div>
 
   </div><!-- /panel -->
+
+  <!-- Большое окно «Проекты» (сессия 37) — вместо узкой вкладки в сайдбаре; список — те же
+       элементы (id совпадают с прежней .tab-pane), просто в модале, js/core/projects.js их не
+       различает. Открывается кнопкой «Проекты» в sidebar (см. main.js openProjectsModal). -->
+  <div id="projectsModalOverlay" class="overlay projects-modal-overlay">
+    <div class="projects-modal-box">
+      <div class="projects-modal-header">
+        <div class="pane-title" style="margin:0">Проекты</div>
+        <button id="projectsModalClose" class="projects-modal-close" title="Закрыть">×</button>
+      </div>
+      <div class="projects-modal-controls">
+        <select id="projectsSortSelect" class="mini-select-wide">
+          <option value="created">Сортировка: по дате создания</option>
+          <option value="updated">Сортировка: по дате изменения</option>
+          <option value="title">Сортировка: по названию</option>
+          <option value="client">Сортировка: по клиенту</option>
+        </select>
+        <input type="text" id="projectsSearch" class="dim-input" style="text-align:left" placeholder="Поиск: название или клиент...">
+        <div id="projectsRange" class="date-range" style="display:none">
+          <input type="date" id="projectsFrom"><span>—</span><input type="date" id="projectsTo">
+          <button id="projectsRangeClear" class="opt-btn" title="Сбросить диапазон">×</button>
+        </div>
+      </div>
+      <div id="projectsEmpty" class="placeholder-note" style="display:none">Сохранённых проектов пока нет.</div>
+      <div id="projectsList" class="projects-modal-grid"></div>
+    </div>
+  </div>
 
   <!-- Модальное окно сохранения проекта (данные клиента) -->
   <div id="orderOverlay" class="overlay">

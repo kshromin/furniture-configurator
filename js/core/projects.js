@@ -54,8 +54,13 @@ export async function renderList(kindKey) {
   // Диапазон дат показывается только при сортировке по датам; поиск виден всегда
   document.getElementById(cfg.range).style.display = byDate ? 'flex' : 'none';
 
+  // Лёгкий список (сессия 37, см. SUPABASE-SETUP.md п.13) — без items (jsonb с полными 3D-
+  // снапшотами каждой прорисовки, самое тяжёлое поле). item_count/thumbnail — отдельные лёгкие
+  // колонки, посчитаны/сняты один раз при сохранении (см. captureThumbnail в order.js), не из
+  // items. Сам items грузится только точечно, при открытии конкретного проекта — см. ниже.
   const { data, error } = await supabase
-    .from('projects').select('*')
+    .from('projects')
+    .select('id, kind, title, client_name, client_phone, project_code, total, item_count, thumbnail, created_at, updated_at')
     .eq('user_id', auth.session.user.id)
     .eq('kind', cfg.kind);
 
@@ -105,10 +110,12 @@ export async function renderList(kindKey) {
   rows.forEach(p => {
     const created = new Date(p.created_at).toLocaleDateString('ru-RU');
     const client = [p.client_name, p.client_phone].filter(Boolean).join(', ') || 'Без клиента';
-    const n = (p.items || []).length;
+    const n = p.item_count ?? 0;
+    const thumb = p.thumbnail ? `<img class="order-card-thumb" src="${p.thumbnail}" alt="">` : '';
     const card = document.createElement('div');
     card.className = 'order-card';
     card.innerHTML = `
+      ${thumb}
       <div class="order-card-header">
         <span class="order-card-num">${p.project_code ? `${p.project_code} · ` : ''}${created}</span>
         <span class="order-card-name">${p.title ? `<b>${p.title}</b><br>` : ''}${client}<br>Прорисовок: ${n}</span>
@@ -132,15 +139,36 @@ export async function renderList(kindKey) {
   });
 
   list.querySelectorAll('.order-card-edit').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const p = rows.find(x => x.id === Number(btn.dataset.id));
-      if (p) openProject(p);
+      if (!p) return;
+      // Лёгкий список не содержит items (см. select выше) — подгружаем ПОЛНУЮ строку (со
+      // снапшотами прорисовок) только теперь, когда реально открываем этот конкретный проект.
+      btn.disabled = true;
+      btn.textContent = 'Загрузка…';
+      const { data: full, error: fullError } = await supabase.from('projects').select('*').eq('id', p.id).single();
+      btn.disabled = false;
+      btn.textContent = 'Открыть';
+      if (fullError || !full) { window.alert('Не удалось загрузить проект: ' + (fullError?.message || '')); return; }
+      openProject(full);
     });
   });
 }
 
 export const renderProjects = () => renderList('project');
 export const renderOrders   = () => renderList('order');
+
+// Большое окно «Проекты» (задание, сессия 37) — вместо узкой вкладки в сайдбаре, отдельный
+// модал (тот же приём, что и .choice-dialog-overlay в js/core/toast.js, только крупнее). Список
+// внутри — те же элементы (#projectsList и т.д.), просто теперь в модале, а не в .tab-pane —
+// renderList/bindListControls их не различают, id совпадают.
+export function openProjectsModal() {
+  document.getElementById('projectsModalOverlay').classList.add('visible');
+  renderProjects();
+}
+export function closeProjectsModal() {
+  document.getElementById('projectsModalOverlay').classList.remove('visible');
+}
 
 function bindListControls(kindKey) {
   const cfg = LISTS[kindKey];
@@ -162,4 +190,11 @@ export function bindProjectsControls() {
   bindListControls('project');
   bindListControls('order');
   window.addEventListener('projects-changed', () => { renderProjects(); renderOrders(); });
+
+  const overlay = document.getElementById('projectsModalOverlay');
+  document.getElementById('projectsModalClose').addEventListener('click', closeProjectsModal);
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeProjectsModal(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && overlay.classList.contains('visible')) closeProjectsModal();
+  });
 }

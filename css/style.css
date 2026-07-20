@@ -1244,6 +1244,72 @@ html, body {
   width: 100%;
 }
 
+/* ── Большое окно «Проекты» (js/core/projects.js, сессия 37) — тот же .overlay/.visible, что и
+   у сохранения проекта, но крупный бокс с прокручиваемой сеткой карточек вместо узкой колонки
+   в сайдбаре ── */
+.projects-modal-box {
+  width: min(1000px, 92vw);
+  height: min(80vh, 760px);
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.3);
+}
+
+.projects-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+
+.projects-modal-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: #999;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.projects-modal-close:hover { color: #333; }
+
+.projects-modal-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.projects-modal-controls select { width: 220px; }
+.projects-modal-controls input[type="text"] { flex: 1; min-width: 200px; height: 34px; }
+.projects-modal-controls .date-range { margin-bottom: 0; }
+
+.projects-modal-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  align-content: start;
+}
+.projects-modal-grid .order-card { margin-bottom: 0; }
+
+.order-card-thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #eee;
+  margin-bottom: 8px;
+}
+
 /* ── Статус заказа (кабинет + админ) ── */
 .status-pill {
   display: inline-block;
