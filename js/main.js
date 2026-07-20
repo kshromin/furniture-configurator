@@ -16,6 +16,7 @@ import { renderAdminOrders } from './core/admin.js';
 import { initItemDrag } from './core/itemDrag.js';
 import { initDimensions } from './core/dimensions.js';
 import { initHistory, undo, onHistoryChange } from './core/history.js';
+import { initAutofillGuard } from './core/autofillGuard.js';
 
 async function init() {
   bindLoginForm();
@@ -77,6 +78,8 @@ async function init() {
   const undoBtn = document.getElementById('undoBtn');
   undoBtn.addEventListener('click', undo);
   onHistoryChange(count => { undoBtn.disabled = count < 2; });
+
+  initAutofillGuard();
 
   syncUIFromState();
   buildFurniture();

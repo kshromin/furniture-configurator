@@ -661,13 +661,16 @@
   <div id="loginOverlay" class="overlay visible">
     <div class="order-modal">
       <h3>Вход</h3>
+      <!-- name/autocomplete обязательны: без них менеджер паролей браузера не понимает, где
+           поля входа, и эвристически вешает иконку-«ключик» на случайные поля страницы
+           (числовые поля секций) — см. js/core/autofillGuard.js -->
       <div class="field">
         <label>Логин</label>
-        <input type="text" id="loginEmail" placeholder="имя (или полный e-mail)">
+        <input type="text" id="loginEmail" name="username" autocomplete="username" placeholder="имя (или полный e-mail)">
       </div>
       <div class="field">
         <label>Пароль</label>
-        <input type="password" id="loginPassword" placeholder="••••••••">
+        <input type="password" id="loginPassword" name="password" autocomplete="current-password" placeholder="••••••••">
       </div>
       <div id="loginResult" class="order-result"></div>
       <div class="order-actions">
