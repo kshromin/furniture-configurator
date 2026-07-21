@@ -93,15 +93,41 @@ def set_price(obj, field, val, label):
         obj[field] = val
 
 
+def pick_xlsx():
+    """Окно выбора файла (просьба 21.07): по умолчанию «цены.xlsx», но можно выбрать любой
+    (например, файл, присланный по почте). Если окно недоступно — берётся цены.xlsx."""
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+        path = filedialog.askopenfilename(
+            title='Какой файл с ценами загрузить?',
+            initialdir=os.path.dirname(XLSX),
+            initialfile=os.path.basename(XLSX),
+            filetypes=[('Excel', '*.xlsx')])
+        root.destroy()
+        return path or None  # закрыл окно без выбора = отмена
+    except Exception:
+        return XLSX if os.path.exists(XLSX) else None
+
+
 def main():
     from openpyxl import load_workbook
 
-    if not os.path.exists(XLSX):
-        print(f'Файл не найден: {XLSX}\nСначала запустите «Выгрузить цены.bat».')
+    # Путь можно передать аргументом (без окна выбора) — для автоматизации/проверок
+    xlsx = sys.argv[1] if len(sys.argv) > 1 else pick_xlsx()
+    if not xlsx:
+        print('Загрузка отменена — файл не выбран.')
         return 1
+    if not os.path.exists(xlsx):
+        print(f'Файл не найден: {xlsx}\nСначала запустите «Выгрузить цены.bat».')
+        return 1
+    print(f'Загружаю: {xlsx}\n')
     with open(SRC, encoding='utf-8') as f:
         data = json.load(f)
-    wb = load_workbook(XLSX, data_only=True)
+    wb = load_workbook(xlsx, data_only=True)
 
     # ── ЛДСП (3 листа): правки по _id, новые строки = новые цвета ──
     for title, group in LDSP_GROUPS.items():
@@ -145,9 +171,15 @@ def main():
             else:
                 prod = prod_by_name.get(cell_str(prod_name).lower())
                 if not prod:
-                    errors.append(f'{where}: производитель «{prod_name}» не найден '
-                                  f'(есть: {", ".join(p["name"] for p in producers)})')
-                    continue
+                    # Новый производитель создаётся сам (просьба 21.07) — по имени в строке
+                    pn = cell_str(prod_name)
+                    if not pn:
+                        errors.append(f'{where}: не заполнен производитель')
+                        continue
+                    prod = {'id': new_id(group[0] + 'p'), 'name': pn, 'colors': []}
+                    producers.append(prod)
+                    prod_by_name[pn.lower()] = prod
+                    changes.append(f'{title}: создан производитель «{pn}»')
                 col = {'id': new_id(group[0]), 'name': name, 'color': hx, 'pricePerM2': price}
                 if texture:
                     col['texture'] = texture
@@ -158,65 +190,26 @@ def main():
             errors.append(f'«{title}»: удалены строки ({", ".join(sorted(missing))}) — '
                           f'удаление через этот файл запрещено')
 
-    # ── Профили купе ──
-    profiles = data['slidingDoor']['profiles']
-    by_id = {p['id']: p for p in profiles}
-    seen = set()
-    for r, (name, vert, top, bottom, pid) in rows_of(wb, 'Профили купе', 5):
-        where = f'«Профили купе», строка {r}'
-        if cell_str(pid) in by_id:
-            seen.add(cell_str(pid))
-        name = cell_str(name)
-        vert, top, bottom = (parse_price(v, where) for v in (vert, top, bottom))
-        if not name:
-            errors.append(f'{where}: не заполнено название')
-        if None in (vert, top, bottom) or not name:
-            continue
-        pid = cell_str(pid)
-        if pid:
-            if pid not in by_id:
-                errors.append(f'{where}: служебный id «{pid}» не найден')
-                continue
-            seen.add(pid)
-            p = by_id[pid]
-            set_price(p, 'vertPerM', vert, f'Профиль {name}, вертикаль')
-            set_price(p, 'horizTopPerM', top, f'Профиль {name}, гориз. верх')
-            set_price(p, 'horizBottomPerM', bottom, f'Профиль {name}, гориз. низ')
-            if p['name'] != name:
-                changes.append(f'Профиль «{p["name"]}» переименован в «{name}»')
-                p['name'] = name
-        else:
-            profiles.append({'id': new_id('prof'), 'name': name, 'vertPerM': vert,
-                             'horizTopPerM': top, 'horizBottomPerM': bottom})
-            changes.append(f'Профили купе: добавлен «{name}» (рамка в 3D — стандартной ширины)')
-    if set(by_id) - seen:
-        errors.append('«Профили купе»: часть строк удалена — удаление запрещено')
-
-    # ── Цвета профилей ──
+    # ── Цвета профилей (ассортимент; цены — на листе «Профили купе») ──
     colors = data['slidingDoor']['colors']
     by_id = {c['id']: c for c in colors}
     seen = set()
-    for r, (name, hexv, mul, cid) in rows_of(wb, 'Цвета профилей', 4):
+    for r, (name, hexv, cid) in rows_of(wb, 'Цвета профилей', 3):
         where = f'«Цвета профилей», строка {r}'
         if cell_str(cid) in by_id:
             seen.add(cell_str(cid))
         name = cell_str(name)
         hx = parse_hex(hexv, where)
-        mul = parse_price(mul, where, allow_fraction=True)
         if not name:
             errors.append(f'{where}: не заполнено название')
-        if hx is None or mul is None or not name:
+        if hx is None or not name:
             continue
         cid = cell_str(cid)
         if cid:
             if cid not in by_id:
                 errors.append(f'{where}: служебный id «{cid}» не найден')
                 continue
-            seen.add(cid)
             c = by_id[cid]
-            if c['priceMul'] != mul:
-                changes.append(f'Цвет профиля {name}: множитель {c["priceMul"]} → {mul}')
-                c['priceMul'] = mul
             if c['hex'] != hx:
                 changes.append(f'Цвет профиля {name}: {c["hex"]} → {hx}')
                 c['hex'] = hx
@@ -224,10 +217,73 @@ def main():
                 changes.append(f'Цвет профиля «{c["name"]}» переименован в «{name}»')
                 c['name'] = name
         else:
-            colors.append({'id': new_id('pcol'), 'name': name, 'hex': hx, 'priceMul': mul})
-            changes.append(f'Цвета профилей: добавлен «{name}»')
+            colors.append({'id': new_id('pcol'), 'name': name, 'hex': hx})
+            changes.append(f'Цвета профилей: добавлен «{name}» (заполните его цены на листе «Профили купе»)')
     if set(by_id) - seen:
         errors.append('«Цвета профилей»: часть строк удалена — удаление запрещено')
+
+    # ── Профили купе: полный прайс по сочетаниям профиль×цвет ──
+    profiles = data['slidingDoor']['profiles']
+    price_list = data['slidingDoor'].setdefault('profilePrices', [])
+    by_key = {f"{x['profile']}:{x['color']}": x for x in price_list}
+    prof_by_name = {p['name'].strip().lower(): p for p in profiles}
+    col_by_name = {c['name'].strip().lower(): c for c in colors}
+    seen = set()
+    for r, (pname, cname, vert, top, bottom, key) in rows_of(wb, 'Профили купе', 6):
+        where = f'«Профили купе», строка {r}'
+        if cell_str(key) in by_key:
+            seen.add(cell_str(key))
+        vert, top, bottom = (parse_price(v, where) for v in (vert, top, bottom))
+        if None in (vert, top, bottom):
+            continue
+        key = cell_str(key)
+        if key:
+            if key not in by_key:
+                errors.append(f'{where}: служебный ключ «{key}» не найден — колонку _key менять нельзя')
+                continue
+            x = by_key[key]
+            label = f'Профиль {cell_str(pname)} × {cell_str(cname)}'
+            set_price(x, 'vertPerM', vert, f'{label}, вертикаль')
+            set_price(x, 'horizTopPerM', top, f'{label}, гориз. верх')
+            set_price(x, 'horizBottomPerM', bottom, f'{label}, гориз. низ')
+        else:
+            # Новая строка прайса: цвет должен существовать, профиль создаётся сам по имени
+            col = col_by_name.get(cell_str(cname).lower())
+            if not col:
+                errors.append(f'{where}: цвет «{cname}» не найден — сначала добавьте его '
+                              f'на листе «Цвета профилей»')
+                continue
+            pn = cell_str(pname)
+            if not pn:
+                errors.append(f'{where}: не заполнен профиль')
+                continue
+            prof = prof_by_name.get(pn.lower())
+            if not prof:
+                prof = {'id': new_id('prof'), 'name': pn, 'vertPerM': vert,
+                        'horizTopPerM': top, 'horizBottomPerM': bottom}
+                profiles.append(prof)
+                prof_by_name[pn.lower()] = prof
+                changes.append(f'Профили купе: создан профиль «{pn}» (рамка в 3D — стандартной ширины)')
+            k = f"{prof['id']}:{col['id']}"
+            if k in by_key:
+                errors.append(f'{where}: сочетание {pn} × {col["name"]} уже есть в прайсе выше')
+                continue
+            x = {'profile': prof['id'], 'color': col['id'],
+                 'vertPerM': vert, 'horizTopPerM': top, 'horizBottomPerM': bottom}
+            price_list.append(x)
+            by_key[k] = x
+            seen.add(k)
+            changes.append(f'Профили купе: добавлен прайс {pn} × {col["name"]}')
+    missing_rows = set(by_key) - seen
+    if missing_rows:
+        errors.append('«Профили купе»: часть строк удалена — удаление запрещено')
+    # Полнота прайса: у каждой пары профиль×цвет должна быть цена — иначе конфигуратор
+    # не сможет посчитать это сочетание
+    for p in profiles:
+        for c in colors:
+            if f"{p['id']}:{c['id']}" not in by_key:
+                errors.append(f'«Профили купе»: нет цен для сочетания {p["name"]} × {c["name"]} — '
+                              f'добавьте строку')
 
     # ── Наполнение дверей: зеркало (цена) + стёкла (ассортимент) ──
     fills = data['slidingDoor']['fills']
@@ -351,7 +407,7 @@ def main():
         print(f'НИЧЕГО НЕ ЗАГРУЖЕНО — найдено ошибок: {len(errors)}\n')
         for e in errors:
             print(' •', e)
-        print('\nИсправьте файл «цены.xlsx» и запустите загрузку ещё раз.')
+        print(f'\nИсправьте файл «{os.path.basename(xlsx)}» и запустите загрузку ещё раз.')
         return 1
 
     if not changes:

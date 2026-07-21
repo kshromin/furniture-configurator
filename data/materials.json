@@ -5,21 +5,66 @@
         "id": "egger",
         "name": "ЭГГЕР",
         "colors": [
-          { "id": "w980",  "name": "Белый альпийский", "color": "#f4f3f0", "pricePerM2": 900 },
-          { "id": "u727",  "name": "Серый камень",      "color": "#9a9a9a", "pricePerM2": 950 },
-          { "id": "u961",  "name": "Графит",            "color": "#4a4a4a", "pricePerM2": 950 },
-          { "id": "h3840", "name": "Дуб Сонома",        "color": "#c8a97a", "pricePerM2": 1050 },
-          { "id": "h1334", "name": "Орех Термо",        "color": "#7a5c3a", "pricePerM2": 1100 }
+          {
+            "id": "w980",
+            "name": "Белый альпийский",
+            "color": "#f4f3f0",
+            "pricePerM2": 900
+          },
+          {
+            "id": "u727",
+            "name": "Серый камень",
+            "color": "#9a9a9a",
+            "pricePerM2": 950
+          },
+          {
+            "id": "u961",
+            "name": "Графит",
+            "color": "#4a4a4a",
+            "pricePerM2": 950
+          },
+          {
+            "id": "h3840",
+            "name": "Дуб Сонома",
+            "color": "#c8a97a",
+            "pricePerM2": 1050
+          },
+          {
+            "id": "h1334",
+            "name": "Орех Термо",
+            "color": "#7a5c3a",
+            "pricePerM2": 1100
+          }
         ]
       },
       {
         "id": "tomsk",
         "name": "ТОМСК",
         "colors": [
-          { "id": "t01", "name": "Белый",  "color": "#f2f2f0", "pricePerM2": 650 },
-          { "id": "t02", "name": "Серый",  "color": "#b0b0b0", "pricePerM2": 650 },
-          { "id": "t03", "name": "Венге",  "color": "#3b2a1a", "pricePerM2": 700 },
-          { "id": "t04", "name": "Бук",    "color": "#d4a96a", "pricePerM2": 700 }
+          {
+            "id": "t01",
+            "name": "Белый",
+            "color": "#f2f2f0",
+            "pricePerM2": 650
+          },
+          {
+            "id": "t02",
+            "name": "Серый",
+            "color": "#b0b0b0",
+            "pricePerM2": 650
+          },
+          {
+            "id": "t03",
+            "name": "Венге",
+            "color": "#3b2a1a",
+            "pricePerM2": 700
+          },
+          {
+            "id": "t04",
+            "name": "Бук",
+            "color": "#d4a96a",
+            "pricePerM2": 700
+          }
         ]
       }
     ]
@@ -30,19 +75,54 @@
         "id": "egger",
         "name": "ЭГГЕР",
         "colors": [
-          { "id": "fw980",   "name": "Белый альпийский", "color": "#f4f3f0", "pricePerM2": 900 },
-          { "id": "fu727",   "name": "Серый камень",     "color": "#9a9a9a", "pricePerM2": 950 },
-          { "id": "fu961",   "name": "Графит",           "color": "#4a4a4a", "pricePerM2": 950 },
-          { "id": "fmirror", "name": "Зеркало",          "color": "#cfe8ec", "pricePerM2": 1200 }
+          {
+            "id": "fw980",
+            "name": "Белый альпийский",
+            "color": "#f4f3f0",
+            "pricePerM2": 900
+          },
+          {
+            "id": "fu727",
+            "name": "Серый камень",
+            "color": "#9a9a9a",
+            "pricePerM2": 950
+          },
+          {
+            "id": "fu961",
+            "name": "Графит",
+            "color": "#4a4a4a",
+            "pricePerM2": 950
+          },
+          {
+            "id": "fmirror",
+            "name": "Зеркало",
+            "color": "#cfe8ec",
+            "pricePerM2": 1200
+          }
         ]
       },
       {
         "id": "tomsk",
         "name": "ТОМСК",
         "colors": [
-          { "id": "ft01", "name": "Белый", "color": "#f2f2f0", "pricePerM2": 650 },
-          { "id": "ft02", "name": "Серый", "color": "#b0b0b0", "pricePerM2": 650 },
-          { "id": "ft03", "name": "Венге", "color": "#3b2a1a", "pricePerM2": 700 }
+          {
+            "id": "ft01",
+            "name": "Белый",
+            "color": "#f2f2f0",
+            "pricePerM2": 650
+          },
+          {
+            "id": "ft02",
+            "name": "Серый",
+            "color": "#b0b0b0",
+            "pricePerM2": 650
+          },
+          {
+            "id": "ft03",
+            "name": "Венге",
+            "color": "#3b2a1a",
+            "pricePerM2": 700
+          }
         ]
       }
     ]
@@ -53,192 +133,1159 @@
         "id": "egger",
         "name": "ЭГГЕР",
         "colors": [
-          { "id": "nw980",  "name": "Белый альпийский", "color": "#f4f3f0", "pricePerM2": 900 },
-          { "id": "nh3840", "name": "Дуб Сонома",       "color": "#c8a97a", "pricePerM2": 1050 }
+          {
+            "id": "nw980",
+            "name": "Белый альпийский",
+            "color": "#f4f3f0",
+            "pricePerM2": 900
+          },
+          {
+            "id": "nh3840",
+            "name": "Дуб Сонома",
+            "color": "#c8a97a",
+            "pricePerM2": 1050
+          }
         ]
       },
       {
         "id": "tomsk",
         "name": "ТОМСК",
         "colors": [
-          { "id": "nt01", "name": "Белый", "color": "#f2f2f0", "pricePerM2": 650 },
-          { "id": "nt04", "name": "Бук",   "color": "#d4a96a", "pricePerM2": 700 }
+          {
+            "id": "nt01",
+            "name": "Белый",
+            "color": "#f2f2f0",
+            "pricePerM2": 650
+          },
+          {
+            "id": "nt04",
+            "name": "Бук",
+            "color": "#d4a96a",
+            "pricePerM2": 700
+          }
         ]
       }
     ]
   },
   "fittings": [
-    { "id": "hardware_set",  "name": "Крепёж и доводчики (на изделие)", "price": 500,  "per": "item"   },
-    { "id": "shelf_support", "name": "Опоры полки (компл.)",            "price": 150,  "per": "shelf"  },
-    { "id": "rod",           "name": "Штанга для одежды",               "price": 400,  "per": "rod"    },
-    { "id": "rod_flange",    "name": "Фланец крепления трубы",          "price": 50,   "per": "rodFlange" },
-    { "id": "rod_t_crab",    "name": "Краб Т-образный (соединение труб)", "price": 300, "per": "rodTCrab" },
-    { "id": "valet",         "name": "Торцевое вешало (выдвижное)",     "price": 1500, "per": "valet"  }
+    {
+      "id": "hardware_set",
+      "name": "Крепёж и доводчики (на изделие)",
+      "price": 500,
+      "per": "item"
+    },
+    {
+      "id": "shelf_support",
+      "name": "Опоры полки (компл.)",
+      "price": 150,
+      "per": "shelf"
+    },
+    {
+      "id": "rod",
+      "name": "Штанга для одежды",
+      "price": 400,
+      "per": "rod"
+    },
+    {
+      "id": "rod_flange",
+      "name": "Фланец крепления трубы",
+      "price": 50,
+      "per": "rodFlange"
+    },
+    {
+      "id": "rod_t_crab",
+      "name": "Краб Т-образный (соединение труб)",
+      "price": 300,
+      "per": "rodTCrab"
+    },
+    {
+      "id": "valet",
+      "name": "Торцевое вешало (выдвижное)",
+      "price": 1500,
+      "per": "valet"
+    }
   ],
-  "swingDoorHardware": { "name": "Фурнитура распашной двери (компл.)", "pricePerDoor": 500 },
+  "swingDoorHardware": {
+    "name": "Фурнитура распашной двери (компл.)",
+    "pricePerDoor": 500
+  },
   "slidingDoor": {
     "profiles": [
-      { "id": "open",    "name": "Открытый",    "vertPerM": 450, "horizTopPerM": 350, "horizBottomPerM": 400 },
-      { "id": "closed",  "name": "Закрытый",    "vertPerM": 500, "horizTopPerM": 380, "horizBottomPerM": 430 },
-      { "id": "slim",    "name": "Узкий",       "vertPerM": 550, "horizTopPerM": 400, "horizBottomPerM": 450 },
-      { "id": "slimbox", "name": "Узкий BOX",   "vertPerM": 650, "horizTopPerM": 450, "horizBottomPerM": 500 },
-      { "id": "widebox", "name": "Широкий BOX", "vertPerM": 750, "horizTopPerM": 500, "horizBottomPerM": 550 }
+      {
+        "id": "open",
+        "name": "Открытый",
+        "vertPerM": 450,
+        "horizTopPerM": 350,
+        "horizBottomPerM": 400
+      },
+      {
+        "id": "closed",
+        "name": "Закрытый",
+        "vertPerM": 500,
+        "horizTopPerM": 380,
+        "horizBottomPerM": 430
+      },
+      {
+        "id": "slim",
+        "name": "Узкий",
+        "vertPerM": 550,
+        "horizTopPerM": 400,
+        "horizBottomPerM": 450
+      },
+      {
+        "id": "slimbox",
+        "name": "Узкий BOX",
+        "vertPerM": 650,
+        "horizTopPerM": 450,
+        "horizBottomPerM": 500
+      },
+      {
+        "id": "widebox",
+        "name": "Широкий BOX",
+        "vertPerM": 750,
+        "horizTopPerM": 500,
+        "horizBottomPerM": 550
+      }
     ],
     "colors": [
-      { "id": "silver", "name": "Серебро", "hex": "#c4c4c8", "priceMul": 1 },
-      { "id": "black",  "name": "Чёрный",  "hex": "#2b2b2e", "priceMul": 1.1 },
-      { "id": "white",  "name": "Белый",   "hex": "#f2f2f2", "priceMul": 1.1 },
-      { "id": "gold",   "name": "Золото",  "hex": "#c9a44a", "priceMul": 1.3 },
-      { "id": "bronze", "name": "Бронза",  "hex": "#9a7148", "priceMul": 1.3 }
+      {
+        "id": "silver",
+        "name": "Серебро",
+        "hex": "#c4c4c8"
+      },
+      {
+        "id": "black",
+        "name": "Чёрный",
+        "hex": "#2b2b2e"
+      },
+      {
+        "id": "white",
+        "name": "Белый",
+        "hex": "#f2f2f2"
+      },
+      {
+        "id": "gold",
+        "name": "Золото",
+        "hex": "#c9a44a"
+      },
+      {
+        "id": "bronze",
+        "name": "Бронза",
+        "hex": "#9a7148"
+      }
     ],
-    "rollers": { "name": "Комплект роликов (на дверь)", "pricePerSet": 900 },
-    "track":   { "name": "Направляющая верх+низ (за пог. м ширины проёма)", "pricePerM": 1200 },
-    "divider": { "name": "Горизонтальная перемычка (за пог. м)", "pricePerM": 400 },
+    "rollers": {
+      "name": "Комплект роликов (на дверь)",
+      "pricePerSet": 900
+    },
+    "track": {
+      "name": "Направляющая верх+низ (за пог. м ширины проёма)",
+      "pricePerM": 1200
+    },
+    "divider": {
+      "name": "Горизонтальная перемычка (за пог. м)",
+      "pricePerM": 400
+    },
     "fills": {
-      "mirror": { "name": "Зеркало", "pricePerM2": 2000 },
+      "mirror": {
+        "name": "Зеркало",
+        "pricePerM2": 2000
+      },
       "glass": {
         "name": "Стекло",
         "colors": [
-          { "id": "clear",   "name": "Прозрачное",       "color": "#d9ecf0", "pricePerM2": 1800 },
-          { "id": "uclear",  "name": "Ультрапрозрачное", "color": "#e6f4f5", "pricePerM2": 2600 },
-          { "id": "fblack",  "name": "Плёнка чёрное",    "color": "#3a3a3e", "pricePerM2": 2400 },
-          { "id": "fwhite",  "name": "Плёнка белое",     "color": "#f4f4f2", "pricePerM2": 2400 },
-          { "id": "fsilver", "name": "Плёнка серебро",   "color": "#c9ccd2", "pricePerM2": 2600 }
+          {
+            "id": "clear",
+            "name": "Прозрачное",
+            "color": "#d9ecf0",
+            "pricePerM2": 1800
+          },
+          {
+            "id": "uclear",
+            "name": "Ультрапрозрачное",
+            "color": "#e6f4f5",
+            "pricePerM2": 2600
+          },
+          {
+            "id": "fblack",
+            "name": "Плёнка чёрное",
+            "color": "#3a3a3e",
+            "pricePerM2": 2400
+          },
+          {
+            "id": "fwhite",
+            "name": "Плёнка белое",
+            "color": "#f4f4f2",
+            "pricePerM2": 2400
+          },
+          {
+            "id": "fsilver",
+            "name": "Плёнка серебро",
+            "color": "#c9ccd2",
+            "pricePerM2": 2600
+          }
         ]
       }
-    }
+    },
+    "profilePrices": [
+      {
+        "profile": "open",
+        "color": "silver",
+        "vertPerM": 450,
+        "horizTopPerM": 350,
+        "horizBottomPerM": 400
+      },
+      {
+        "profile": "open",
+        "color": "black",
+        "vertPerM": 495,
+        "horizTopPerM": 385,
+        "horizBottomPerM": 440
+      },
+      {
+        "profile": "open",
+        "color": "white",
+        "vertPerM": 495,
+        "horizTopPerM": 385,
+        "horizBottomPerM": 440
+      },
+      {
+        "profile": "open",
+        "color": "gold",
+        "vertPerM": 585,
+        "horizTopPerM": 455,
+        "horizBottomPerM": 520
+      },
+      {
+        "profile": "open",
+        "color": "bronze",
+        "vertPerM": 585,
+        "horizTopPerM": 455,
+        "horizBottomPerM": 520
+      },
+      {
+        "profile": "closed",
+        "color": "silver",
+        "vertPerM": 500,
+        "horizTopPerM": 380,
+        "horizBottomPerM": 430
+      },
+      {
+        "profile": "closed",
+        "color": "black",
+        "vertPerM": 550,
+        "horizTopPerM": 418,
+        "horizBottomPerM": 473
+      },
+      {
+        "profile": "closed",
+        "color": "white",
+        "vertPerM": 550,
+        "horizTopPerM": 418,
+        "horizBottomPerM": 473
+      },
+      {
+        "profile": "closed",
+        "color": "gold",
+        "vertPerM": 650,
+        "horizTopPerM": 494,
+        "horizBottomPerM": 559
+      },
+      {
+        "profile": "closed",
+        "color": "bronze",
+        "vertPerM": 650,
+        "horizTopPerM": 494,
+        "horizBottomPerM": 559
+      },
+      {
+        "profile": "slim",
+        "color": "silver",
+        "vertPerM": 550,
+        "horizTopPerM": 400,
+        "horizBottomPerM": 450
+      },
+      {
+        "profile": "slim",
+        "color": "black",
+        "vertPerM": 605,
+        "horizTopPerM": 440,
+        "horizBottomPerM": 495
+      },
+      {
+        "profile": "slim",
+        "color": "white",
+        "vertPerM": 605,
+        "horizTopPerM": 440,
+        "horizBottomPerM": 495
+      },
+      {
+        "profile": "slim",
+        "color": "gold",
+        "vertPerM": 715,
+        "horizTopPerM": 520,
+        "horizBottomPerM": 585
+      },
+      {
+        "profile": "slim",
+        "color": "bronze",
+        "vertPerM": 715,
+        "horizTopPerM": 520,
+        "horizBottomPerM": 585
+      },
+      {
+        "profile": "slimbox",
+        "color": "silver",
+        "vertPerM": 650,
+        "horizTopPerM": 450,
+        "horizBottomPerM": 500
+      },
+      {
+        "profile": "slimbox",
+        "color": "black",
+        "vertPerM": 715,
+        "horizTopPerM": 495,
+        "horizBottomPerM": 550
+      },
+      {
+        "profile": "slimbox",
+        "color": "white",
+        "vertPerM": 715,
+        "horizTopPerM": 495,
+        "horizBottomPerM": 550
+      },
+      {
+        "profile": "slimbox",
+        "color": "gold",
+        "vertPerM": 845,
+        "horizTopPerM": 585,
+        "horizBottomPerM": 650
+      },
+      {
+        "profile": "slimbox",
+        "color": "bronze",
+        "vertPerM": 845,
+        "horizTopPerM": 585,
+        "horizBottomPerM": 650
+      },
+      {
+        "profile": "widebox",
+        "color": "silver",
+        "vertPerM": 750,
+        "horizTopPerM": 500,
+        "horizBottomPerM": 550
+      },
+      {
+        "profile": "widebox",
+        "color": "black",
+        "vertPerM": 825,
+        "horizTopPerM": 550,
+        "horizBottomPerM": 605
+      },
+      {
+        "profile": "widebox",
+        "color": "white",
+        "vertPerM": 825,
+        "horizTopPerM": 550,
+        "horizBottomPerM": 605
+      },
+      {
+        "profile": "widebox",
+        "color": "gold",
+        "vertPerM": 975,
+        "horizTopPerM": 650,
+        "horizBottomPerM": 715
+      },
+      {
+        "profile": "widebox",
+        "color": "bronze",
+        "vertPerM": 975,
+        "horizTopPerM": 650,
+        "horizBottomPerM": 715
+      }
+    ]
   },
-  "edgeBanding": { "pricePerM": 150 },
+  "edgeBanding": {
+    "pricePerM": 150
+  },
   "drawerSlide": [
-    { "type": "ball", "length": 250, "price": 320  }, { "type": "ball", "length": 300, "price": 350  }, { "type": "ball", "length": 350, "price": 390  }, { "type": "ball", "length": 400, "price": 430  },
-    { "type": "ball", "length": 450, "price": 470  }, { "type": "ball", "length": 500, "price": 510  }, { "type": "ball", "length": 550, "price": 550  }, { "type": "ball", "length": 600, "price": 580  },
-    { "type": "soft", "length": 250, "price": 420  }, { "type": "soft", "length": 300, "price": 470  }, { "type": "soft", "length": 350, "price": 520  }, { "type": "soft", "length": 400, "price": 570  },
-    { "type": "soft", "length": 450, "price": 630  }, { "type": "soft", "length": 500, "price": 680  }, { "type": "soft", "length": 550, "price": 730  }, { "type": "soft", "length": 600, "price": 780  },
-    { "type": "push", "length": 250, "price": 520  }, { "type": "push", "length": 300, "price": 590  }, { "type": "push", "length": 350, "price": 650  }, { "type": "push", "length": 400, "price": 720  },
-    { "type": "push", "length": 450, "price": 780  }, { "type": "push", "length": 500, "price": 850  }, { "type": "push", "length": 550, "price": 910  }, { "type": "push", "length": 600, "price": 970  },
-    { "type": "blum", "length": 250, "price": 840  }, { "type": "blum", "length": 300, "price": 940  }, { "type": "blum", "length": 350, "price": 1050 }, { "type": "blum", "length": 400, "price": 1150 },
-    { "type": "blum", "length": 450, "price": 1250 }, { "type": "blum", "length": 500, "price": 1350 }, { "type": "blum", "length": 550, "price": 1460 }, { "type": "blum", "length": 600, "price": 1560 }
+    {
+      "type": "ball",
+      "length": 250,
+      "price": 320
+    },
+    {
+      "type": "ball",
+      "length": 300,
+      "price": 350
+    },
+    {
+      "type": "ball",
+      "length": 350,
+      "price": 390
+    },
+    {
+      "type": "ball",
+      "length": 400,
+      "price": 430
+    },
+    {
+      "type": "ball",
+      "length": 450,
+      "price": 470
+    },
+    {
+      "type": "ball",
+      "length": 500,
+      "price": 510
+    },
+    {
+      "type": "ball",
+      "length": 550,
+      "price": 550
+    },
+    {
+      "type": "ball",
+      "length": 600,
+      "price": 580
+    },
+    {
+      "type": "soft",
+      "length": 250,
+      "price": 420
+    },
+    {
+      "type": "soft",
+      "length": 300,
+      "price": 470
+    },
+    {
+      "type": "soft",
+      "length": 350,
+      "price": 520
+    },
+    {
+      "type": "soft",
+      "length": 400,
+      "price": 570
+    },
+    {
+      "type": "soft",
+      "length": 450,
+      "price": 630
+    },
+    {
+      "type": "soft",
+      "length": 500,
+      "price": 680
+    },
+    {
+      "type": "soft",
+      "length": 550,
+      "price": 730
+    },
+    {
+      "type": "soft",
+      "length": 600,
+      "price": 780
+    },
+    {
+      "type": "push",
+      "length": 250,
+      "price": 520
+    },
+    {
+      "type": "push",
+      "length": 300,
+      "price": 590
+    },
+    {
+      "type": "push",
+      "length": 350,
+      "price": 650
+    },
+    {
+      "type": "push",
+      "length": 400,
+      "price": 720
+    },
+    {
+      "type": "push",
+      "length": 450,
+      "price": 780
+    },
+    {
+      "type": "push",
+      "length": 500,
+      "price": 850
+    },
+    {
+      "type": "push",
+      "length": 550,
+      "price": 910
+    },
+    {
+      "type": "push",
+      "length": 600,
+      "price": 970
+    },
+    {
+      "type": "blum",
+      "length": 250,
+      "price": 840
+    },
+    {
+      "type": "blum",
+      "length": 300,
+      "price": 940
+    },
+    {
+      "type": "blum",
+      "length": 350,
+      "price": 1050
+    },
+    {
+      "type": "blum",
+      "length": 400,
+      "price": 1150
+    },
+    {
+      "type": "blum",
+      "length": 450,
+      "price": 1250
+    },
+    {
+      "type": "blum",
+      "length": 500,
+      "price": 1350
+    },
+    {
+      "type": "blum",
+      "length": 550,
+      "price": 1460
+    },
+    {
+      "type": "blum",
+      "length": 600,
+      "price": 1560
+    }
   ],
   "meshShelf": [
-    { "depth": 300, "color": "white",  "name": "Белая, 300мм",   "pricePerM": 900  },
-    { "depth": 300, "color": "silver", "name": "Серебро, 300мм", "pricePerM": 1100 },
-    { "depth": 400, "color": "white",  "name": "Белая, 400мм",   "pricePerM": 1100 },
-    { "depth": 400, "color": "silver", "name": "Серебро, 400мм", "pricePerM": 1300 },
-    { "depth": 500, "color": "white",  "name": "Белая, 500мм",   "pricePerM": 1300 },
-    { "depth": 500, "color": "silver", "name": "Серебро, 500мм", "pricePerM": 1500 }
+    {
+      "depth": 300,
+      "color": "white",
+      "name": "Белая, 300мм",
+      "pricePerM": 900
+    },
+    {
+      "depth": 300,
+      "color": "silver",
+      "name": "Серебро, 300мм",
+      "pricePerM": 1100
+    },
+    {
+      "depth": 400,
+      "color": "white",
+      "name": "Белая, 400мм",
+      "pricePerM": 1100
+    },
+    {
+      "depth": 400,
+      "color": "silver",
+      "name": "Серебро, 400мм",
+      "pricePerM": 1300
+    },
+    {
+      "depth": 500,
+      "color": "white",
+      "name": "Белая, 500мм",
+      "pricePerM": 1300
+    },
+    {
+      "depth": 500,
+      "color": "silver",
+      "name": "Серебро, 500мм",
+      "pricePerM": 1500
+    }
   ],
   "basket": [
-    { "width": 300, "depth": 400, "height": 120, "color": "silver", "price": 1550 },
-    { "width": 300, "depth": 400, "height": 120, "color": "white",  "price": 1350 },
-    { "width": 300, "depth": 400, "height": 120, "color": "black",  "price": 1490 },
-    { "width": 300, "depth": 400, "height": 190, "color": "silver", "price": 1710 },
-    { "width": 300, "depth": 400, "height": 190, "color": "white",  "price": 1490 },
-    { "width": 300, "depth": 400, "height": 190, "color": "black",  "price": 1640 },
-
-    { "width": 400, "depth": 400, "height": 120, "color": "silver", "price": 1610 },
-    { "width": 400, "depth": 400, "height": 120, "color": "white",  "price": 1400 },
-    { "width": 400, "depth": 400, "height": 120, "color": "black",  "price": 1540 },
-    { "width": 400, "depth": 400, "height": 190, "color": "silver", "price": 1770 },
-    { "width": 400, "depth": 400, "height": 190, "color": "white",  "price": 1540 },
-    { "width": 400, "depth": 400, "height": 190, "color": "black",  "price": 1690 },
-
-    { "width": 400, "depth": 450, "height": 120, "color": "silver", "price": 1630 },
-    { "width": 400, "depth": 450, "height": 120, "color": "white",  "price": 1420 },
-    { "width": 400, "depth": 450, "height": 120, "color": "black",  "price": 1560 },
-    { "width": 400, "depth": 450, "height": 190, "color": "silver", "price": 1790 },
-    { "width": 400, "depth": 450, "height": 190, "color": "white",  "price": 1560 },
-    { "width": 400, "depth": 450, "height": 190, "color": "black",  "price": 1720 },
-
-    { "width": 400, "depth": 500, "height": 120, "color": "silver", "price": 1660 },
-    { "width": 400, "depth": 500, "height": 120, "color": "white",  "price": 1440 },
-    { "width": 400, "depth": 500, "height": 120, "color": "black",  "price": 1580 },
-    { "width": 400, "depth": 500, "height": 190, "color": "silver", "price": 1820 },
-    { "width": 400, "depth": 500, "height": 190, "color": "white",  "price": 1580 },
-    { "width": 400, "depth": 500, "height": 190, "color": "black",  "price": 1740 },
-
-    { "width": 400, "depth": 550, "height": 120, "color": "silver", "price": 1680 },
-    { "width": 400, "depth": 550, "height": 120, "color": "white",  "price": 1460 },
-    { "width": 400, "depth": 550, "height": 120, "color": "black",  "price": 1610 },
-    { "width": 400, "depth": 550, "height": 190, "color": "silver", "price": 1840 },
-    { "width": 400, "depth": 550, "height": 190, "color": "white",  "price": 1600 },
-    { "width": 400, "depth": 550, "height": 190, "color": "black",  "price": 1760 },
-
-    { "width": 400, "depth": 600, "height": 120, "color": "silver", "price": 1700 },
-    { "width": 400, "depth": 600, "height": 120, "color": "white",  "price": 1480 },
-    { "width": 400, "depth": 600, "height": 120, "color": "black",  "price": 1630 },
-    { "width": 400, "depth": 600, "height": 190, "color": "silver", "price": 1860 },
-    { "width": 400, "depth": 600, "height": 190, "color": "white",  "price": 1620 },
-    { "width": 400, "depth": 600, "height": 190, "color": "black",  "price": 1780 },
-
-    { "width": 500, "depth": 500, "height": 120, "color": "silver", "price": 1710 },
-    { "width": 500, "depth": 500, "height": 120, "color": "white",  "price": 1490 },
-    { "width": 500, "depth": 500, "height": 120, "color": "black",  "price": 1640 },
-    { "width": 500, "depth": 500, "height": 190, "color": "silver", "price": 1870 },
-    { "width": 500, "depth": 500, "height": 190, "color": "white",  "price": 1630 },
-    { "width": 500, "depth": 500, "height": 190, "color": "black",  "price": 1790 },
-
-    { "width": 500, "depth": 550, "height": 120, "color": "silver", "price": 1740 },
-    { "width": 500, "depth": 550, "height": 120, "color": "white",  "price": 1510 },
-    { "width": 500, "depth": 550, "height": 120, "color": "black",  "price": 1660 },
-    { "width": 500, "depth": 550, "height": 190, "color": "silver", "price": 1900 },
-    { "width": 500, "depth": 550, "height": 190, "color": "white",  "price": 1650 },
-    { "width": 500, "depth": 550, "height": 190, "color": "black",  "price": 1820 },
-
-    { "width": 500, "depth": 600, "height": 120, "color": "silver", "price": 1760 },
-    { "width": 500, "depth": 600, "height": 120, "color": "white",  "price": 1530 },
-    { "width": 500, "depth": 600, "height": 120, "color": "black",  "price": 1680 },
-    { "width": 500, "depth": 600, "height": 190, "color": "silver", "price": 1920 },
-    { "width": 500, "depth": 600, "height": 190, "color": "white",  "price": 1670 },
-    { "width": 500, "depth": 600, "height": 190, "color": "black",  "price": 1840 },
-
-    { "width": 600, "depth": 550, "height": 120, "color": "silver", "price": 1100 },
-    { "width": 600, "depth": 550, "height": 120, "color": "white",  "price": 1864 },
-    { "width": 600, "depth": 550, "height": 120, "color": "black",  "price": 2064 },
-    { "width": 600, "depth": 550, "height": 190, "color": "silver", "price": 2264 },
-    { "width": 600, "depth": 550, "height": 190, "color": "white",  "price": 2168 },
-    { "width": 600, "depth": 550, "height": 190, "color": "black",  "price": 2408 },
-
-    { "width": 600, "depth": 600, "height": 120, "color": "silver", "price": 1310 },
-    { "width": 600, "depth": 600, "height": 120, "color": "white",  "price": 1255 },
-    { "width": 600, "depth": 600, "height": 120, "color": "black",  "price": 1225 },
-    { "width": 600, "depth": 600, "height": 190, "color": "silver", "price": 2448 },
-    { "width": 600, "depth": 600, "height": 190, "color": "white",  "price": 2304 },
-    { "width": 600, "depth": 600, "height": 190, "color": "black",  "price": 2552 }
+    {
+      "width": 300,
+      "depth": 400,
+      "height": 120,
+      "color": "silver",
+      "price": 1550
+    },
+    {
+      "width": 300,
+      "depth": 400,
+      "height": 120,
+      "color": "white",
+      "price": 1350
+    },
+    {
+      "width": 300,
+      "depth": 400,
+      "height": 120,
+      "color": "black",
+      "price": 1490
+    },
+    {
+      "width": 300,
+      "depth": 400,
+      "height": 190,
+      "color": "silver",
+      "price": 1710
+    },
+    {
+      "width": 300,
+      "depth": 400,
+      "height": 190,
+      "color": "white",
+      "price": 1490
+    },
+    {
+      "width": 300,
+      "depth": 400,
+      "height": 190,
+      "color": "black",
+      "price": 1640
+    },
+    {
+      "width": 400,
+      "depth": 400,
+      "height": 120,
+      "color": "silver",
+      "price": 1610
+    },
+    {
+      "width": 400,
+      "depth": 400,
+      "height": 120,
+      "color": "white",
+      "price": 1400
+    },
+    {
+      "width": 400,
+      "depth": 400,
+      "height": 120,
+      "color": "black",
+      "price": 1540
+    },
+    {
+      "width": 400,
+      "depth": 400,
+      "height": 190,
+      "color": "silver",
+      "price": 1770
+    },
+    {
+      "width": 400,
+      "depth": 400,
+      "height": 190,
+      "color": "white",
+      "price": 1540
+    },
+    {
+      "width": 400,
+      "depth": 400,
+      "height": 190,
+      "color": "black",
+      "price": 1690
+    },
+    {
+      "width": 400,
+      "depth": 450,
+      "height": 120,
+      "color": "silver",
+      "price": 1630
+    },
+    {
+      "width": 400,
+      "depth": 450,
+      "height": 120,
+      "color": "white",
+      "price": 1420
+    },
+    {
+      "width": 400,
+      "depth": 450,
+      "height": 120,
+      "color": "black",
+      "price": 1560
+    },
+    {
+      "width": 400,
+      "depth": 450,
+      "height": 190,
+      "color": "silver",
+      "price": 1790
+    },
+    {
+      "width": 400,
+      "depth": 450,
+      "height": 190,
+      "color": "white",
+      "price": 1560
+    },
+    {
+      "width": 400,
+      "depth": 450,
+      "height": 190,
+      "color": "black",
+      "price": 1720
+    },
+    {
+      "width": 400,
+      "depth": 500,
+      "height": 120,
+      "color": "silver",
+      "price": 1660
+    },
+    {
+      "width": 400,
+      "depth": 500,
+      "height": 120,
+      "color": "white",
+      "price": 1440
+    },
+    {
+      "width": 400,
+      "depth": 500,
+      "height": 120,
+      "color": "black",
+      "price": 1580
+    },
+    {
+      "width": 400,
+      "depth": 500,
+      "height": 190,
+      "color": "silver",
+      "price": 1820
+    },
+    {
+      "width": 400,
+      "depth": 500,
+      "height": 190,
+      "color": "white",
+      "price": 1580
+    },
+    {
+      "width": 400,
+      "depth": 500,
+      "height": 190,
+      "color": "black",
+      "price": 1740
+    },
+    {
+      "width": 400,
+      "depth": 550,
+      "height": 120,
+      "color": "silver",
+      "price": 1680
+    },
+    {
+      "width": 400,
+      "depth": 550,
+      "height": 120,
+      "color": "white",
+      "price": 1460
+    },
+    {
+      "width": 400,
+      "depth": 550,
+      "height": 120,
+      "color": "black",
+      "price": 1610
+    },
+    {
+      "width": 400,
+      "depth": 550,
+      "height": 190,
+      "color": "silver",
+      "price": 1840
+    },
+    {
+      "width": 400,
+      "depth": 550,
+      "height": 190,
+      "color": "white",
+      "price": 1600
+    },
+    {
+      "width": 400,
+      "depth": 550,
+      "height": 190,
+      "color": "black",
+      "price": 1760
+    },
+    {
+      "width": 400,
+      "depth": 600,
+      "height": 120,
+      "color": "silver",
+      "price": 1700
+    },
+    {
+      "width": 400,
+      "depth": 600,
+      "height": 120,
+      "color": "white",
+      "price": 1480
+    },
+    {
+      "width": 400,
+      "depth": 600,
+      "height": 120,
+      "color": "black",
+      "price": 1630
+    },
+    {
+      "width": 400,
+      "depth": 600,
+      "height": 190,
+      "color": "silver",
+      "price": 1860
+    },
+    {
+      "width": 400,
+      "depth": 600,
+      "height": 190,
+      "color": "white",
+      "price": 1620
+    },
+    {
+      "width": 400,
+      "depth": 600,
+      "height": 190,
+      "color": "black",
+      "price": 1780
+    },
+    {
+      "width": 500,
+      "depth": 500,
+      "height": 120,
+      "color": "silver",
+      "price": 1710
+    },
+    {
+      "width": 500,
+      "depth": 500,
+      "height": 120,
+      "color": "white",
+      "price": 1490
+    },
+    {
+      "width": 500,
+      "depth": 500,
+      "height": 120,
+      "color": "black",
+      "price": 1640
+    },
+    {
+      "width": 500,
+      "depth": 500,
+      "height": 190,
+      "color": "silver",
+      "price": 1870
+    },
+    {
+      "width": 500,
+      "depth": 500,
+      "height": 190,
+      "color": "white",
+      "price": 1630
+    },
+    {
+      "width": 500,
+      "depth": 500,
+      "height": 190,
+      "color": "black",
+      "price": 1790
+    },
+    {
+      "width": 500,
+      "depth": 550,
+      "height": 120,
+      "color": "silver",
+      "price": 1740
+    },
+    {
+      "width": 500,
+      "depth": 550,
+      "height": 120,
+      "color": "white",
+      "price": 1510
+    },
+    {
+      "width": 500,
+      "depth": 550,
+      "height": 120,
+      "color": "black",
+      "price": 1660
+    },
+    {
+      "width": 500,
+      "depth": 550,
+      "height": 190,
+      "color": "silver",
+      "price": 1900
+    },
+    {
+      "width": 500,
+      "depth": 550,
+      "height": 190,
+      "color": "white",
+      "price": 1650
+    },
+    {
+      "width": 500,
+      "depth": 550,
+      "height": 190,
+      "color": "black",
+      "price": 1820
+    },
+    {
+      "width": 500,
+      "depth": 600,
+      "height": 120,
+      "color": "silver",
+      "price": 1760
+    },
+    {
+      "width": 500,
+      "depth": 600,
+      "height": 120,
+      "color": "white",
+      "price": 1530
+    },
+    {
+      "width": 500,
+      "depth": 600,
+      "height": 120,
+      "color": "black",
+      "price": 1680
+    },
+    {
+      "width": 500,
+      "depth": 600,
+      "height": 190,
+      "color": "silver",
+      "price": 1920
+    },
+    {
+      "width": 500,
+      "depth": 600,
+      "height": 190,
+      "color": "white",
+      "price": 1670
+    },
+    {
+      "width": 500,
+      "depth": 600,
+      "height": 190,
+      "color": "black",
+      "price": 1840
+    },
+    {
+      "width": 600,
+      "depth": 550,
+      "height": 120,
+      "color": "silver",
+      "price": 1100
+    },
+    {
+      "width": 600,
+      "depth": 550,
+      "height": 120,
+      "color": "white",
+      "price": 1864
+    },
+    {
+      "width": 600,
+      "depth": 550,
+      "height": 120,
+      "color": "black",
+      "price": 2064
+    },
+    {
+      "width": 600,
+      "depth": 550,
+      "height": 190,
+      "color": "silver",
+      "price": 2264
+    },
+    {
+      "width": 600,
+      "depth": 550,
+      "height": 190,
+      "color": "white",
+      "price": 2168
+    },
+    {
+      "width": 600,
+      "depth": 550,
+      "height": 190,
+      "color": "black",
+      "price": 2408
+    },
+    {
+      "width": 600,
+      "depth": 600,
+      "height": 120,
+      "color": "silver",
+      "price": 1310
+    },
+    {
+      "width": 600,
+      "depth": 600,
+      "height": 120,
+      "color": "white",
+      "price": 1255
+    },
+    {
+      "width": 600,
+      "depth": 600,
+      "height": 120,
+      "color": "black",
+      "price": 1225
+    },
+    {
+      "width": 600,
+      "depth": 600,
+      "height": 190,
+      "color": "silver",
+      "price": 2448
+    },
+    {
+      "width": 600,
+      "depth": 600,
+      "height": 190,
+      "color": "white",
+      "price": 2304
+    },
+    {
+      "width": 600,
+      "depth": 600,
+      "height": 190,
+      "color": "black",
+      "price": 2552
+    }
   ],
   "extras": [
     {
       "id": "elements",
       "name": "Доп. элементы",
       "items": [
-        { "id": "el_custom",  "name": "Индивидуальный элемент (заглушка)", "price": 1000 }
+        {
+          "id": "el_custom",
+          "name": "Индивидуальный элемент (заглушка)",
+          "price": 1000
+        }
       ]
     },
     {
       "id": "delivery",
       "name": "Доставка",
       "items": [
-        { "id": "dlv_city",   "name": "Доставка в черте города",     "price": 3500 }
+        {
+          "id": "dlv_city",
+          "name": "Доставка в черте города",
+          "price": 3500
+        }
       ]
     },
     {
       "id": "lift",
       "name": "Подъём на этаж",
       "items": [
-        { "id": "lift_floor", "name": "Подъём на этаж (за этаж)",    "price": 200 }
+        {
+          "id": "lift_floor",
+          "name": "Подъём на этаж (за этаж)",
+          "price": 200
+        }
       ]
     },
     {
       "id": "montage",
       "name": "Монтаж",
       "items": [
-        { "id": "mnt_1class", "name": "Монтаж 1 КЛАСС",              "price": 22000 }
+        {
+          "id": "mnt_1class",
+          "name": "Монтаж 1 КЛАСС",
+          "price": 22000
+        }
       ]
     }
   ],
   "presets": [
-    { "name": "Компакт 1.2м",         "type": "wardrobe", "width": 1200, "height": 2400, "depth": 600, "korpusProducer": "egger",  "korpusId": "w980",  "fasadProducer": "egger",  "fasadId": "fw980",  "fillProducer": "egger",  "fillId": "nw980",  "sections": 2, "shelves": 3, "drawers": 0, "rod": true  },
-    { "name": "Стандарт 1.8м",        "type": "wardrobe", "width": 1800, "height": 2400, "depth": 600, "korpusProducer": "tomsk",  "korpusId": "t01",   "fasadProducer": "egger",  "fasadId": "fu727",  "fillProducer": "tomsk",  "fillId": "nt01",   "sections": 2, "shelves": 4, "drawers": 2, "rod": true  },
-    { "name": "Большой 2.6м зеркало", "type": "wardrobe", "width": 2600, "height": 2500, "depth": 600, "korpusProducer": "egger",  "korpusId": "u961",  "fasadProducer": "egger",  "fasadId": "fmirror","fillProducer": "egger",  "fillId": "nw980",  "sections": 3, "shelves": 5, "drawers": 2, "rod": true  },
-    { "name": "Комод 4 ящика",        "type": "chest",    "width": 900,  "height": 900,  "depth": 450, "korpusProducer": "tomsk",  "korpusId": "t01",   "fasadProducer": "tomsk",  "fasadId": "ft01",   "fillProducer": "tomsk",  "fillId": "nt01",   "sections": 1, "shelves": 0, "drawers": 4, "rod": false }
+    {
+      "name": "Компакт 1.2м",
+      "type": "wardrobe",
+      "width": 1200,
+      "height": 2400,
+      "depth": 600,
+      "korpusProducer": "egger",
+      "korpusId": "w980",
+      "fasadProducer": "egger",
+      "fasadId": "fw980",
+      "fillProducer": "egger",
+      "fillId": "nw980",
+      "sections": 2,
+      "shelves": 3,
+      "drawers": 0,
+      "rod": true
+    },
+    {
+      "name": "Стандарт 1.8м",
+      "type": "wardrobe",
+      "width": 1800,
+      "height": 2400,
+      "depth": 600,
+      "korpusProducer": "tomsk",
+      "korpusId": "t01",
+      "fasadProducer": "egger",
+      "fasadId": "fu727",
+      "fillProducer": "tomsk",
+      "fillId": "nt01",
+      "sections": 2,
+      "shelves": 4,
+      "drawers": 2,
+      "rod": true
+    },
+    {
+      "name": "Большой 2.6м зеркало",
+      "type": "wardrobe",
+      "width": 2600,
+      "height": 2500,
+      "depth": 600,
+      "korpusProducer": "egger",
+      "korpusId": "u961",
+      "fasadProducer": "egger",
+      "fasadId": "fmirror",
+      "fillProducer": "egger",
+      "fillId": "nw980",
+      "sections": 3,
+      "shelves": 5,
+      "drawers": 2,
+      "rod": true
+    },
+    {
+      "name": "Комод 4 ящика",
+      "type": "chest",
+      "width": 900,
+      "height": 900,
+      "depth": 450,
+      "korpusProducer": "tomsk",
+      "korpusId": "t01",
+      "fasadProducer": "tomsk",
+      "fasadId": "ft01",
+      "fillProducer": "tomsk",
+      "fillId": "nt01",
+      "sections": 1,
+      "shelves": 0,
+      "drawers": 4,
+      "rod": false
+    }
   ]
 }

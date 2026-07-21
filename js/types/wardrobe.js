@@ -27,13 +27,23 @@ export function doorFillRate(f, sp, colorId) {
   return getColor('fasad').pricePerM2;
 }
 
-// Цена одной двери купе целиком: профиль (вертикали+горизонтали+перемычки, с множителем цвета) +
-// ролики + наполнение по секциям. Без общей направляющей (та на весь проём, не на дверь).
+// Ставки профиля купе для текущих state.profile/profileColor: отдельная строка прайса на каждое
+// сочетание профиль×цвет (slidingDoor.profilePrices, без коэффициентов — просьба 21.07).
+// Фолбэк на базовые ставки профиля — для сочетаний, которых в прайсе нет (старые снапшоты).
+export function profileRates() {
+  const cat = materials.slidingDoor || {};
+  return (cat.profilePrices || []).find(x => x.profile === state.profile && x.color === state.profileColor)
+    || (cat.profiles || []).find(p => p.id === state.profile)
+    || (cat.profiles || [])[0]
+    || null;
+}
+
+// Цена одной двери купе целиком: профиль (вертикали+горизонтали+перемычки) + ролики +
+// наполнение по секциям. Без общей направляющей (та на весь проём, не на дверь).
 // Формулы те же, что в areas() — для инфопанели выделенной двери (js/core/itemDrag.js).
 export function slidingDoorUnitPrice(doorIndex, doorW, doorH) {
   const cat = materials.slidingDoor || {};
-  const prof = (cat.profiles || []).find(p => p.id === state.profile) || (cat.profiles || [])[0];
-  const mul = ((cat.colors || []).find(c => c.id === state.profileColor) || {}).priceMul ?? 1;
+  const prof = profileRates();
   const custom = state.doorCustom?.[doorIndex];
   const { segments, dividers } = doorCustomSegments(custom, doorH);
   const oneDoorM2 = (doorW * doorH) / 1e6;
@@ -45,7 +55,7 @@ export function slidingDoorUnitPrice(doorIndex, doorW, doorH) {
     fill = oneDoorM2 * doorFillRate(state.doorFill, null, null);
   }
   const profile = prof
-    ? ((2 * doorH / 1000) * prof.vertPerM + (doorW / 1000) * (prof.horizTopPerM + prof.horizBottomPerM) + dividers.length * (doorW / 1000) * (cat.divider?.pricePerM || 0)) * mul
+    ? (2 * doorH / 1000) * prof.vertPerM + (doorW / 1000) * (prof.horizTopPerM + prof.horizBottomPerM) + dividers.length * (doorW / 1000) * (cat.divider?.pricePerM || 0)
     : 0;
   const rollers = cat.rollers?.pricePerSet || 0;
   return { profile, rollers, fill, total: profile + rollers + fill };
@@ -106,7 +116,7 @@ export default {
     // профили (2 шт/дверь × высота), горизонтальные верхний и нижний (ширина двери),
     // горизонтальные перемычки (пог. м, по разбивке doorCustom), комплект роликов (шт/дверь),
     // направляющая верх+низ на всю ширину проёма (пог. м). Вид профиля и цвет — общие на все
-    // двери (state.profile/profileColor), цвет пока заглушкой-множителем priceMul.
+    // двери (state.profile/profileColor), цены — прайс profilePrices по сочетанию профиль×цвет.
     let doorHardwarePrice = 0;
     if (state.fasadDoorType !== 'none') {
       const sliding = state.fasadDoorType === 'sliding';
@@ -128,14 +138,13 @@ export default {
       }
       if (sliding) {
         const cat = materials.slidingDoor || {};
-        const prof = (cat.profiles || []).find(p => p.id === state.profile) || (cat.profiles || [])[0];
-        const colorMul = ((cat.colors || []).find(c => c.id === state.profileColor) || {}).priceMul ?? 1;
+        const prof = profileRates(); // прайс профиль×цвет, см. экспорт выше
         if (prof) {
           const vertM = (2 * doorH * dc) / 1000;
           const horizM = (dw * dc) / 1000;
           doorHardwarePrice =
-            (vertM * prof.vertPerM + horizM * prof.horizTopPerM + horizM * prof.horizBottomPerM) * colorMul +
-            dividerM * (cat.divider?.pricePerM || 0) * colorMul +
+            vertM * prof.vertPerM + horizM * prof.horizTopPerM + horizM * prof.horizBottomPerM +
+            dividerM * (cat.divider?.pricePerM || 0) +
             dc * (cat.rollers?.pricePerSet || 0) +
             (spanW / 1000) * (cat.track?.pricePerM || 0);
         }

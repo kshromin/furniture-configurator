@@ -573,7 +573,7 @@ export function bindFasadTab() {
 
 // Цвета профиля дверей купе — круглые свотчи из каталога (data/materials.json →
 // slidingDoor.colors), тот же принцип, что и свотчи ЛДСП, но каталог плоский (без
-// производителей). Цена цвета — пока множитель priceMul к пог. м профиля (заглушка).
+// производителей). Цена — в прайсе slidingDoor.profilePrices по сочетанию профиль×цвет.
 function renderProfileColors() {
   const wrap = document.getElementById('profileColors');
   const nameEl = document.getElementById('profileColorName');
