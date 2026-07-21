@@ -1,4 +1,4 @@
-import { state, markStateSafe } from './state.js';
+import { state, markStateSafe, hasUnsavedChanges } from './state.js';
 import { getColor } from './materials.js';
 import { fmt } from './pricing.js';
 import { TYPES } from '../types/registry.js';
@@ -138,19 +138,28 @@ export function loadItemForEdit(id) {
 let pendingAfterSave = null;
 
 async function guardUnsavedItems(discardLabel, proceed) {
-  if (orderItems.length === 0 || itemsSavedToProject) { proceed(); return; }
+  const dirtyItems = orderItems.length > 0 && !itemsSavedToProject;
+  // Правки текущей 3D-прорисовки, не добавленные в комплект — в т.ч. правка открытого проекта
+  // БЕЗ кнопки «Изменить» и прорисовка «с нуля», которую вообще ни разу не сохраняли — тоже
+  // несохранённая работа (задание «сохранение заказа 21,07», часть 2): при сохранении она
+  // добавляется в комплект как новая прорисовка.
+  const dirtyState = hasUnsavedChanges();
+  if (!dirtyItems && !dirtyState) { proceed(); return; }
   const choice = await showChoiceDialog(
-    'Текущие прорисовки не сохранены и будут утеряны.',
+    'Текущая прорисовка не сохранена.',
     [
       { label: 'Отмена', value: null },
       { label: discardLabel, value: 'discard' },
-      { label: 'Сохранить прорисовки', value: 'save', primary: true },
+      { label: 'Сохранить в проект', value: 'project', primary: true },
+      { label: 'Сохранить в заказ', value: 'order' },
     ],
   );
   if (choice === 'discard') { proceed(); return; }
-  if (choice === 'save') {
+  if (choice === 'project' || choice === 'order') {
+    if (dirtyState) addCurrentToOrder(); // текущая работа — в комплект как новая прорисовка
+    renderOrderCards();
     pendingAfterSave = proceed;
-    openSaveModal(editingProjectKind || 'project');
+    openSaveModal(choice);
   }
 }
 
@@ -182,9 +191,11 @@ function doOpenProject(project) {
       renderSwatches(g, g + 'Swatches');
     });
     buildFurniture();
-    markStateSafe();
     resetHistory(); // другой проект — не откатываться в историю прежнего (см. history.js)
   }
+  // Свежая точка отсчёта несохранённых правок ВСЕГДА (не только при наличии снапшота): иначе
+  // после открытия пустого проекта guard считал бы «грязными» правки, сделанные ещё до открытия.
+  markStateSafe();
   document.querySelector('[data-tab="order"]').click();
   showToast(`Проект${project.project_code ? ' № ' + project.project_code : ''} открыт — комплект в «Прорисовках».`);
 }
@@ -281,7 +292,7 @@ export function orderSummaryFull() {
 
 // Сброс рабочего комплекта — начать с чистого листа (новый клиент/новый проект).
 export function startNewKit() {
-  guardUnsavedItems('Начать новый без сохранения', doStartNewKit);
+  guardUnsavedItems('Не сохранять', doStartNewKit);
 }
 
 function doStartNewKit() {
@@ -295,6 +306,7 @@ function doStartNewKit() {
   itemsSavedToProject = false;
   document.getElementById('addItemBtn').textContent = '+ Добавить в прорисовки';
   renderOrderCards();
+  markStateSafe(); // новая точка отсчёта — текущее 3D остаётся, но «грязным» больше не считается
   showToast('Новый комплект — прорисовки очищены.');
 }
 
@@ -344,6 +356,7 @@ export function bindOrderForm() {
   document.getElementById('saveProjectBtn').addEventListener('click', () => openSaveModal('project'));
   document.getElementById('saveOrderBtn').addEventListener('click', () => openSaveModal('order'));
   document.getElementById('newKitBtn').addEventListener('click', startNewKit);
+  document.getElementById('newKitTopBtn').addEventListener('click', startNewKit);
   // Закрытие модалки без сохранения отменяет и отложенное действие (см. guardUnsavedItems) —
   // прорисовки не сохранены, затирать их молча нельзя.
   document.getElementById('orderCancel').addEventListener('click', () => {
