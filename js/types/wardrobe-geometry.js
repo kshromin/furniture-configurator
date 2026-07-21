@@ -149,9 +149,22 @@ export function clampSectionSizes(sections, depth) {
 // Наполнение сейчас той же толщины, что и панели короба, и красится в цвет фасада —
 // когда рамка/наполнение станут настраиваться раздельно (разный цвет рамки, разный материал
 // наполнения), менять нужно будет только эту функцию.
-// Цвет наполнения двери по типу; ЛДСП — цвет фасада (fillColor).
-function doorFillColor(fill, fillColor) {
-  return fill === 'mirror' ? DOOR_FILL_MIRROR_COLOR : fill === 'special' ? DOOR_FILL_SPECIAL_COLOR : fillColor;
+// Цвет наполнения двери по типу; ЛДСП — цвет фасада (fillColor). colorId — индивидуальный цвет
+// секции (задание 21.07): id цвета стекла для glass, id цвета фасада для ЛДСП; null — глобальные.
+function doorFillColor(fill, fillColor, colorId) {
+  if (fill === 'mirror') return DOOR_FILL_MIRROR_COLOR;
+  if (fill === 'special') return DOOR_FILL_SPECIAL_COLOR;
+  if (fill === 'glass') {
+    const cols = materials.slidingDoor?.fills?.glass?.colors || [];
+    const c = cols.find(x => x.id === (colorId || state.doorGlassColor)) || cols[0];
+    return c ? parseInt(c.color.slice(1), 16) : DOOR_FILL_MIRROR_COLOR;
+  }
+  if (colorId) {
+    const prod = (materials.fasad?.producers || []).find(p => p.id === state.fasadProducer);
+    const c = (prod?.colors || []).find(x => x.id === colorId);
+    if (c) return parseInt(c.color.slice(1), 16);
+  }
+  return fillColor;
 }
 
 // doorIndex — для индивидуальных перемычек/наполнения секций двери (state.doorCustom[i], окно
@@ -184,7 +197,7 @@ function buildSlidingDoor(x, y, z, w, h, fillColor, doorIndex) {
   dividers.forEach((d, j) => {
     const segH = d - fw / 2 - prev;
     if (segH > 1) {
-      const fc = doorFillColor(custom?.fills?.[j] || globalFill, fillColor);
+      const fc = doorFillColor(custom?.fills?.[j] || globalFill, fillColor, custom?.fillColors?.[j]);
       meshes.push(addPanel(innerW, segH, PANEL_THICKNESS, fc, [x, y - h / 2 + prev + segH / 2, z], 0.85));
     }
     meshes.push(addPanel(innerW, fw, DOOR_FRAME_DEPTH, frameColor, [x, y - h / 2 + d, z])); // перемычка
@@ -192,7 +205,7 @@ function buildSlidingDoor(x, y, z, w, h, fillColor, doorIndex) {
   });
   const lastH = h - fw - prev;
   if (lastH > 1) {
-    const fc = doorFillColor(custom?.fills?.[dividers.length] || globalFill, fillColor);
+    const fc = doorFillColor(custom?.fills?.[dividers.length] || globalFill, fillColor, custom?.fillColors?.[dividers.length]);
     meshes.push(addPanel(innerW, lastH, PANEL_THICKNESS, fc, [x, y - h / 2 + prev + lastH / 2, z], 0.85));
   }
   return meshes;

@@ -173,15 +173,17 @@ export const state = {
   // перемычки/наполнение секций конкретной двери появятся в окне «Комбинированная дверь».
   profile: 'closed',         // open | closed | slim | slimbox | widebox
   profileColor: 'silver',    // silver | black | white | gold | bronze
-  doorFill: 'ldsp',          // ldsp | mirror | special
+  doorFill: 'ldsp',          // ldsp | mirror | special | glass
+  doorGlassColor: 'clear',   // цвет стекла для глобального doorFill='glass' (каталог slidingDoor.fills.glass)
   specialFillPrice: 3000,    // ₽/м² «цвета специального» — пользователь вводит сам
   specialFillName: '',       // название спеццвета (вводит пользователь, выходит в смету)
   // Индивидуальная разбивка двери (окно «Редактировать дверь»): ключ — индекс двери,
-  // значение — { dividers: [мм от низа двери], fills: ['ldsp'|'mirror'|'special', ...],
-  // specialInfo: [{name, price}|null, ...] } — fills и specialInfo на одну длиннее dividers
-  // (секции снизу вверх); specialInfo[j] — индивидуальные название/цена спеццвета секции j
-  // (в одной двери могут быть разные спеццвета, задание 21.07), null — не спеццвет либо
-  // глобальные specialFillName/specialFillPrice. Двери без записи — сплошное полотно с общим
-  // наполнением doorFill. Сохраняется в прорисовку вместе с остальным state.
+  // значение — { dividers: [мм от низа двери], fills: ['ldsp'|'mirror'|'special'|'glass', ...],
+  // specialInfo: [{name, price}|null, ...], fillColors: [colorId|null, ...] } — fills,
+  // specialInfo и fillColors на одну длиннее dividers (секции снизу вверх); specialInfo[j] —
+  // индивидуальные название/цена спеццвета секции j (в одной двери могут быть разные спеццвета,
+  // задание 21.07), fillColors[j] — индивидуальный цвет секции (id цвета фасада для ЛДСП, id
+  // цвета стекла для glass), null — глобальные значения. Двери без записи — сплошное полотно с
+  // общим наполнением doorFill. Сохраняется в прорисовку вместе с остальным state.
   doorCustom: {},
 };

@@ -7,6 +7,50 @@ import {
   DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_RAIL_HEIGHT, BOTTOM_RAIL_HEIGHT, STIFFENER_HEIGHT, SWING_GAP,
 } from './_wardrobe-shared.js';
 
+// Ставка наполнения двери, ₽/м² (общая для цены шкафа в areas() и цены одной двери в
+// slidingDoorUnitPrice): sp — индивидуальные {name, price} спеццвета секции, colorId —
+// индивидуальный цвет секции (ЛДСП — id цвета фасада, стекло — id цвета стекла); без них —
+// глобальные значения (цвет фасада, doorGlassColor, specialFillPrice).
+export function doorFillRate(f, sp, colorId) {
+  if (f === 'mirror') return materials.slidingDoor?.fills?.mirror?.pricePerM2 || 0;
+  if (f === 'glass') {
+    const cols = materials.slidingDoor?.fills?.glass?.colors || [];
+    const c = cols.find(x => x.id === (colorId || state.doorGlassColor)) || cols[0];
+    return c?.pricePerM2 || 0;
+  }
+  if (f === 'special') return sp?.price ?? state.specialFillPrice ?? 0;
+  if (colorId) {
+    const prod = (materials.fasad?.producers || []).find(p => p.id === state.fasadProducer);
+    const c = (prod?.colors || []).find(x => x.id === colorId);
+    if (c) return c.pricePerM2;
+  }
+  return getColor('fasad').pricePerM2;
+}
+
+// Цена одной двери купе целиком: профиль (вертикали+горизонтали+перемычки, с множителем цвета) +
+// ролики + наполнение по секциям. Без общей направляющей (та на весь проём, не на дверь).
+// Формулы те же, что в areas() — для инфопанели выделенной двери (js/core/itemDrag.js).
+export function slidingDoorUnitPrice(doorIndex, doorW, doorH) {
+  const cat = materials.slidingDoor || {};
+  const prof = (cat.profiles || []).find(p => p.id === state.profile) || (cat.profiles || [])[0];
+  const mul = ((cat.colors || []).find(c => c.id === state.profileColor) || {}).priceMul ?? 1;
+  const custom = state.doorCustom?.[doorIndex];
+  const { segments, dividers } = doorCustomSegments(custom, doorH);
+  const oneDoorM2 = (doorW * doorH) / 1e6;
+  const totalH = segments.reduce((s, x) => s + x.hMm, 0) || 1;
+  let fill = 0;
+  if (custom) {
+    segments.forEach(sgm => { fill += oneDoorM2 * (sgm.hMm / totalH) * doorFillRate(sgm.fill || state.doorFill, sgm.special, sgm.fillColor); });
+  } else {
+    fill = oneDoorM2 * doorFillRate(state.doorFill, null, null);
+  }
+  const profile = prof
+    ? ((2 * doorH / 1000) * prof.vertPerM + (doorW / 1000) * (prof.horizTopPerM + prof.horizBottomPerM) + dividers.length * (doorW / 1000) * (cat.divider?.pricePerM || 0)) * mul
+    : 0;
+  const rollers = cat.rollers?.pricePerSet || 0;
+  return { profile, rollers, fill, total: profile + rollers + fill };
+}
+
 export default {
   id: 'wardrobe',
   name: 'Шкаф-купе',
@@ -54,13 +98,7 @@ export default {
     // «Комбинированная дверь») — у каждой секции полотна своё наполнение; считаем готовую сумму
     // здесь (та же схема, что и drawerSlidePrice). Фасады ящиков — всегда ЛДСП по цвету фасада.
     // «Без дверей»: конструктив под купе, но двери в стоимость не входят вообще.
-    const mirrorRate = materials.slidingDoor?.fills?.mirror?.pricePerM2 || 0;
-    // sp — индивидуальные {name, price} спеццвета секции двери (segment.special из
-    // doorCustomSegments): в одной двери могут быть разные спеццвета, без sp — глобальная цена.
-    const fillRate = (f, sp) =>
-      f === 'mirror'  ? mirrorRate :
-      f === 'special' ? (sp?.price ?? state.specialFillPrice ?? 0) :
-      getColor('fasad').pricePerM2;
+    const fillRate = doorFillRate; // общий расчёт ставки — см. экспорт выше
     let fasadM2 = 0;
     let doorFillPrice = 0;
 
@@ -77,13 +115,15 @@ export default {
       for (let i = 0; i < dc; i++) {
         const custom = sliding ? state.doorCustom?.[i] : null;
         const oneDoorM2 = (dw * doorH) / 1e6;
-        if (custom?.dividers?.length) {
+        // Кастом учитывается и БЕЗ перемычек (было custom?.dividers?.length — наполнение всей
+        // двери, заданное в редакторе одной секцией, показывалось в 3D, но не попадало в цену)
+        if (custom) {
           const { segments, dividers } = doorCustomSegments(custom, doorH);
           const totalH = segments.reduce((s, x) => s + x.hMm, 0) || 1;
-          segments.forEach(sgm => { doorFillPrice += oneDoorM2 * (sgm.hMm / totalH) * fillRate(sgm.fill || globalFill, sgm.special); });
+          segments.forEach(sgm => { doorFillPrice += oneDoorM2 * (sgm.hMm / totalH) * fillRate(sgm.fill || globalFill, sgm.special, sgm.fillColor); });
           dividerM += (dividers.length * dw) / 1000;
         } else {
-          doorFillPrice += oneDoorM2 * fillRate(globalFill);
+          doorFillPrice += oneDoorM2 * fillRate(globalFill, null, null);
         }
       }
       if (sliding) {

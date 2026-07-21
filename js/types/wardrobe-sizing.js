@@ -18,12 +18,13 @@ export function doorCustomSegments(custom, doorH, frameW = 40) {
   const dividers = (custom?.dividers || []).map(d => Math.max(lo, Math.min(hi, d))).sort((a, b) => a - b);
   const segments = [];
   let prev = frameW;
-  // special — индивидуальные {name, price} спеццвета секции (задание 21.07), null = глобальные
+  // special — индивидуальные {name, price} спеццвета секции (задание 21.07), fillColor —
+  // индивидуальный цвет секции (ЛДСП/стекло), null = глобальные значения
   dividers.forEach((d, j) => {
-    segments.push({ hMm: Math.max(0, d - frameW / 2 - prev), fill: custom?.fills?.[j] || null, special: custom?.specialInfo?.[j] || null });
+    segments.push({ hMm: Math.max(0, d - frameW / 2 - prev), fill: custom?.fills?.[j] || null, special: custom?.specialInfo?.[j] || null, fillColor: custom?.fillColors?.[j] || null });
     prev = d + frameW / 2;
   });
-  segments.push({ hMm: Math.max(0, doorH - frameW - prev), fill: custom?.fills?.[dividers.length] || null, special: custom?.specialInfo?.[dividers.length] || null });
+  segments.push({ hMm: Math.max(0, doorH - frameW - prev), fill: custom?.fills?.[dividers.length] || null, special: custom?.specialInfo?.[dividers.length] || null, fillColor: custom?.fillColors?.[dividers.length] || null });
   return { segments, dividers };
 }
 

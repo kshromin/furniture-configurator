@@ -12,6 +12,11 @@ import {
 } from '../types/_wardrobe-shared.js';
 import { projectToOverlay, updateArrow, hideArrow } from './dimensions.js';
 import { renderSectionsList, selectSectionFromScene } from './tabs.js';
+// Напрямую из wardrobe.js (не через barrel — тот не реэкспортирует сам тип во избежание цикла):
+// цена одной двери для инфопанели выделенной двери.
+import { slidingDoorUnitPrice } from '../types/wardrobe.js';
+import { materials } from './state.js';
+import { fmt } from './pricing.js';
 
 // Свободное перетаскивание мышкой наполнения секции (полки/ящики/сетка/корзины/штанга) — во
 // время драга элемент может визуально проходить сквозь другие (двигаем меши напрямую, без
@@ -159,12 +164,22 @@ function describeActive() {
   // наглядности, позиция не сохраняется (пересборка/перезагрузка возвращает на место).
   if (kind === 'door') {
     const L = lastBuildDoorLayout;
+    const cat = materials.slidingDoor || {};
+    const profName = (cat.profiles || []).find(p => p.id === state.profile)?.name || '—';
+    const profColor = (cat.colors || []).find(c => c.id === state.profileColor)?.name || '—';
+    // Цена за дверь целиком: профиль (вертикали+горизонтали+перемычки) + ролики + наполнение —
+    // slidingDoorUnitPrice, та же формула, что и в общей цене (wardrobe.js areas)
+    const p = L ? slidingDoorUnitPrice(active.doorIndex, L.doorW, L.doorH) : null;
     return {
       title: `Дверь ${active.doorIndex + 1}`,
       lines: [
         `Рельса: ${L?.rails[active.doorIndex] === 'front' ? 'передняя' : 'задняя'}`,
         ...(L ? [`Ширина: ${Math.round(L.doorW)} мм`] : []),
-        'Двигается мышкой вдоль направляющей (просмотр)',
+        `Профиль: ${profName}, ${profColor.toLowerCase()}`,
+        ...(p ? [
+          `<b>Цена двери: ${fmt(Math.round(p.total))}</b>`,
+          `профиль ${fmt(Math.round(p.profile))} · ролики ${fmt(Math.round(p.rollers))} · наполнение ${fmt(Math.round(p.fill))}`,
+        ] : []),
       ],
     };
   }

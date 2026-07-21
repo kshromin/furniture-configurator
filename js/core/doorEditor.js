@@ -1,6 +1,6 @@
 import { state, materials } from './state.js';
 import { buildFurniture } from './build.js';
-import { getColor } from './materials.js';
+import { getColor, getColors } from './materials.js';
 import { fmt } from './pricing.js';
 import { showToast } from './toast.js';
 import { syncFasadUI } from './tabs.js';
@@ -22,7 +22,7 @@ import { doorCustomSegments, lastBuildDoorLayout } from '../types/_wardrobe-shar
 // (ЛДСП — цвет фасада, зеркало — голубоватое, спеццвет — розоватый), те же цвета, что и в
 // buildSlidingDoor. Разбивка на секции — doorCustomSegments, та же функция, что и в цене.
 
-const FILL_LABELS = { ldsp: 'ЛДСП', mirror: 'Зеркало', special: 'Спец. цвет' };
+const FILL_LABELS = { ldsp: 'ЛДСП', mirror: 'Зеркало', glass: 'Стекло', special: 'Спец. цвет' };
 const FILL_COLORS = { mirror: '#cfe8ec', special: '#e8b4c8' };
 const SVG_H = 380; // высота схемы двери в px, ширина масштабируется по реальным пропорциям
 // Минимум между центрами соседних перемычек: 40 профиль + 30 видимая секция (как отступ от рамки).
@@ -54,8 +54,29 @@ function ensureSpecialInfo(c, len) {
   return c.specialInfo;
 }
 
-function fillColor(fill) {
-  return FILL_COLORS[fill] || getColor('fasad').color;
+// fillColors — то же для индивидуальных цветов секций (id цвета фасада у ЛДСП, id цвета стекла
+// у glass), null = глобальный цвет.
+function ensureFillColors(c, len) {
+  if (!c.fillColors) c.fillColors = [];
+  while (c.fillColors.length < len) c.fillColors.push(null);
+  return c.fillColors;
+}
+
+// colorId — индивидуальный цвет секции (id цвета стекла для glass, id цвета фасада для ЛДСП),
+// null — глобальные (doorGlassColor / выбранный цвет фасада). Та же логика, что doorFillColor
+// в wardrobe-geometry.js — схема и 3D красятся одинаково.
+function fillColor(fill, colorId) {
+  if (fill === 'glass') {
+    const cols = materials.slidingDoor?.fills?.glass?.colors || [];
+    const c = cols.find(x => x.id === (colorId || state.doorGlassColor)) || cols[0];
+    return c?.color || FILL_COLORS.mirror;
+  }
+  if (FILL_COLORS[fill]) return FILL_COLORS[fill];
+  if (colorId) {
+    const c = getColors('fasad', state.fasadProducer).find(x => x.id === colorId);
+    if (c) return c.color;
+  }
+  return getColor('fasad').color;
 }
 
 function rerender() {
@@ -99,7 +120,7 @@ function render() {
   segments.forEach(sgm => {
     const hPx = sgm.hMm * scale;
     const yPx = SVG_H - (accMm + sgm.hMm) * scale;
-    rects += `<rect x="${fw}" y="${yPx.toFixed(1)}" width="${svgW - 2 * fw}" height="${hPx.toFixed(1)}" fill="${fillColor(sgm.fill || globalFill)}"/>`;
+    rects += `<rect x="${fw}" y="${yPx.toFixed(1)}" width="${svgW - 2 * fw}" height="${hPx.toFixed(1)}" fill="${fillColor(sgm.fill || globalFill, sgm.fillColor)}"/>`;
     accMm += sgm.hMm + 40; // + перемычка
   });
   dividers.forEach(d => {
@@ -202,6 +223,7 @@ function render() {
       c.dividers = dividers.filter((_, k) => k !== j);
       c.fills.splice(j + 1, 1); // верхняя из двух объединяемых секций исчезает, нижняя остаётся
       if (c.specialInfo) c.specialInfo.splice(j + 1, 1);
+      if (c.fillColors) c.fillColors.splice(j + 1, 1);
       selectedFillRow = null; // индексы секций съехали
       rerender();
     });
@@ -226,6 +248,7 @@ function render() {
     const at = c.dividers.indexOf(pos);
     c.fills.splice(at + 1, 0, c.fills[at] ?? state.doorFill);
     if (c.specialInfo) c.specialInfo.splice(at + 1, 0, c.specialInfo[at] ?? null);
+    if (c.fillColors) c.fillColors.splice(at + 1, 0, c.fillColors[at] ?? null);
     selectedFillRow = null; // индексы секций съехали
     rerender();
   });
@@ -282,10 +305,36 @@ function render() {
       rerender();
     });
     row.appendChild(sel);
-    // Справа: для ЛДСП — цвет фасада, для спеццвета — название (клик — переименовать)
+    // Выбор цвета прямо в строке (задание 21.07): у ЛДСП — цвета фасада текущего производителя,
+    // у стекла — цвета из каталога (прозрачное/ультрапрозрачное/плёнки). Индивидуально на секцию.
+    if (fill === 'ldsp' || fill === 'glass') {
+      const colorSel = document.createElement('select');
+      colorSel.className = 'mini-select-wide door-editor-color-sel';
+      const opts = fill === 'glass'
+        ? (materials.slidingDoor?.fills?.glass?.colors || [])
+        : getColors('fasad', state.fasadProducer);
+      opts.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c.id;
+        o.textContent = c.name;
+        colorSel.appendChild(o);
+      });
+      const globalId = fill === 'glass' ? state.doorGlassColor : getColor('fasad').id;
+      colorSel.value = sgm.fillColor || globalId;
+      if (!colorSel.value && opts[0]) colorSel.value = opts[0].id;
+      colorSel.addEventListener('click', e => e.stopPropagation());
+      colorSel.addEventListener('change', () => {
+        const c = ensureCustom(currentDoor);
+        while (c.fills.length < segments.length) c.fills.push(globalFill);
+        ensureFillColors(c, segments.length)[j] = colorSel.value;
+        selectedFillRow = j;
+        rerender();
+      });
+      row.appendChild(colorSel);
+    }
+    // Справа: у спеццвета — название (клик — переименовать)
     const info = document.createElement('span');
     info.className = 'door-editor-fill-info';
-    if (fill === 'ldsp') info.textContent = getColor('fasad').name || '';
     if (fill === 'special') {
       info.textContent = sp?.name || state.specialFillName || 'без названия';
       info.classList.add('renamable');

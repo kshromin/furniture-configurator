@@ -407,6 +407,7 @@
           <select id="doorFillSelect" class="mini-select-wide" style="width:100%">
             <option value="ldsp">ЛДСП</option>
             <option value="mirror">Зеркало</option>
+            <option value="glass">Стекло</option>
             <option value="special">Спец. цвет</option>
           </select>
 
@@ -426,6 +427,16 @@
               <div style="width:100%;height:80px;background:linear-gradient(135deg,#cfe8ec 0%,#e8f4f8 50%,#cfe8ec 100%);border-radius:6px;border:1px solid #b0d4dc;display:flex;align-items:center;justify-content:center;color:#5a9aaa;font-size:13px;font-weight:600;">Зеркало</div>
             </div>
             <div class="swatch-name" id="mirrorPriceNote"></div>
+          </div>
+
+          <!-- Стекло (задание 21.07): цвет из каталога slidingDoor.fills.glass, список
+               заполняется из данных в bindFasadTab -->
+          <div class="door-fill-detail" id="fillGlass" style="display:none">
+            <div class="field" style="margin-top:10px">
+              <label>Цвет стекла</label>
+              <select id="glassColorSelect" class="mini-select-wide" style="width:100%"></select>
+            </div>
+            <div class="swatch-name" id="glassPriceNote"></div>
           </div>
 
           <!-- Цвет специальный: название и цена за м² вводятся пользователем вручную,

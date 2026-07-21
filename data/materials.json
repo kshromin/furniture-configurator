@@ -95,7 +95,17 @@
     "track":   { "name": "Направляющая верх+низ (за пог. м ширины проёма)", "pricePerM": 1200 },
     "divider": { "name": "Горизонтальная перемычка (за пог. м)", "pricePerM": 400 },
     "fills": {
-      "mirror": { "name": "Зеркало", "pricePerM2": 2000 }
+      "mirror": { "name": "Зеркало", "pricePerM2": 2000 },
+      "glass": {
+        "name": "Стекло",
+        "colors": [
+          { "id": "clear",   "name": "Прозрачное",       "color": "#d9ecf0", "pricePerM2": 1800 },
+          { "id": "uclear",  "name": "Ультрапрозрачное", "color": "#e6f4f5", "pricePerM2": 2600 },
+          { "id": "fblack",  "name": "Плёнка чёрное",    "color": "#3a3a3e", "pricePerM2": 2400 },
+          { "id": "fwhite",  "name": "Плёнка белое",     "color": "#f4f4f2", "pricePerM2": 2400 },
+          { "id": "fsilver", "name": "Плёнка серебро",   "color": "#c9ccd2", "pricePerM2": 2600 }
+        ]
+      }
     }
   },
   "edgeBanding": { "pricePerM": 150 },

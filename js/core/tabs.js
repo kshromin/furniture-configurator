@@ -304,7 +304,7 @@ export function syncUIFromState() {
 export function syncFasadUI() {
   const validProfiles = ['open', 'closed', 'slim', 'slimbox', 'widebox'];
   if (!validProfiles.includes(state.profile)) state.profile = 'closed';
-  if (!['ldsp', 'mirror', 'special'].includes(state.doorFill)) state.doorFill = 'ldsp';
+  if (!['ldsp', 'mirror', 'special', 'glass'].includes(state.doorFill)) state.doorFill = 'ldsp';
   if (!(materials.slidingDoor?.colors || []).some(c => c.id === state.profileColor)) state.profileColor = 'silver';
 
   document.querySelectorAll('.fasad-type-btn').forEach(b => b.classList.toggle('active', b.dataset.fasad === state.fasadDoorType));
@@ -315,7 +315,7 @@ export function syncFasadUI() {
   renderProfileColors();
   const fillSelect = document.getElementById('doorFillSelect');
   if (fillSelect) fillSelect.value = state.doorFill;
-  ['ldsp', 'mirror', 'special'].forEach(f => {
+  ['ldsp', 'mirror', 'special', 'glass'].forEach(f => {
     const el = document.getElementById('fill' + f.charAt(0).toUpperCase() + f.slice(1));
     if (el) el.style.display = f === state.doorFill ? 'block' : 'none';
   });
@@ -323,6 +323,15 @@ export function syncFasadUI() {
   if (specialInput) specialInput.value = state.specialFillPrice;
   const specialName = document.getElementById('specialFillNameVal');
   if (specialName) specialName.value = state.specialFillName || '';
+  const glassSel = document.getElementById('glassColorSelect');
+  if (glassSel) {
+    const cols = materials.slidingDoor?.fills?.glass?.colors || [];
+    if (!cols.some(c => c.id === state.doorGlassColor)) state.doorGlassColor = cols[0]?.id || 'clear';
+    glassSel.value = state.doorGlassColor;
+    const cur = cols.find(c => c.id === state.doorGlassColor);
+    const note = document.getElementById('glassPriceNote');
+    if (note) note.textContent = cur ? `${cur.pricePerM2} ₽/м²` : '';
+  }
 }
 
 // Откат истории (см. js/core/history.js) подменяет весь state целиком и сам вызывает
@@ -512,7 +521,7 @@ export function bindFasadTab() {
   renderProfileColors();
 
   function showDoorFill(fill) {
-    ['ldsp', 'mirror', 'special'].forEach(f => {
+    ['ldsp', 'mirror', 'special', 'glass'].forEach(f => {
       const el = document.getElementById('fill' + f.charAt(0).toUpperCase() + f.slice(1));
       if (el) el.style.display = f === fill ? 'block' : 'none';
     });
@@ -542,6 +551,21 @@ export function bindFasadTab() {
   specialNameInput.value = state.specialFillName || '';
   specialNameInput.addEventListener('change', () => {
     state.specialFillName = specialNameInput.value.trim();
+  });
+
+  // Стекло (задание 21.07): список цветов из каталога, глобальный выбор для doorFill='glass'
+  // (индивидуальные цвета по секциям дверей — в редакторе двери, doorEditor.js)
+  const glassSel = document.getElementById('glassColorSelect');
+  (materials.slidingDoor?.fills?.glass?.colors || []).forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id;
+    o.textContent = `${c.name} — ${c.pricePerM2} ₽/м²`;
+    glassSel.appendChild(o);
+  });
+  glassSel.addEventListener('change', () => {
+    state.doorGlassColor = glassSel.value;
+    syncFasadUI();
+    buildFurniture();
   });
 
   renderProducerSelect('fasad', 'fasadProducer', 'fasadSwatches');

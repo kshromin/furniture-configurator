@@ -164,7 +164,8 @@ html, body {
 .drag-info-panel {
   display: none;
   position: absolute;
-  top: 12px; left: 12px;
+  /* правее плавающей кнопки «Назад» (#undoBtn: 16px + 40px ширины) — не перекрываются */
+  top: 16px; left: 68px;
   max-width: 240px;
   background: rgba(255,255,255,0.94);
   border: 1px solid #d0d7e3;
@@ -838,7 +839,8 @@ html, body {
 .door-editor-fill-row:hover { background: #f4f7ff; }
 .door-editor-fill-row.active { border-color: #2f6fed; background: #eef3ff; }
 .door-editor-fill-row .el-row-label { min-width: 86px; }
-/* Справа от селекта: цвет ЛДСП или название спеццвета (клик по названию — переименовать) */
+/* Справа от селекта: селект цвета (ЛДСП/стекло) или название спеццвета (клик — переименовать) */
+.door-editor-color-sel { max-width: 150px; }
 .door-editor-fill-info { flex: 1; min-width: 0; font-size: 11px; color: #888; overflow-wrap: break-word; }
 .door-editor-fill-info.renamable { color: #2f6fed; cursor: pointer; }
 .door-editor-fill-info.renamable:hover { text-decoration: underline; }
