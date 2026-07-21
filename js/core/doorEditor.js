@@ -24,6 +24,9 @@ import { doorCustomSegments, lastBuildDoorLayout } from '../types/_wardrobe-shar
 const FILL_LABELS = { ldsp: 'ЛДСП', mirror: 'Зеркало', special: 'Спец. цвет' };
 const FILL_COLORS = { mirror: '#cfe8ec', special: '#e8b4c8' };
 const SVG_H = 380; // высота схемы двери в px, ширина масштабируется по реальным пропорциям
+// Минимум между центрами соседних перемычек: 40 профиль + 30 видимая секция (как отступ от рамки).
+// Общий для полей ввода и перетаскивания — перемычка не перескакивает соседнюю.
+const MIN_GAP = 70;
 
 let currentDoor = 0;
 
@@ -90,7 +93,25 @@ function render() {
     const yPx = SVG_H - (d + 20) * scale;
     rects += `<rect x="${fw}" y="${yPx.toFixed(1)}" width="${svgW - 2 * fw}" height="${Math.max(3, 40 * scale).toFixed(1)}" fill="${frameHex}"/>`;
   });
+  // Табло размеров цепочкой (задание «двери доделка 20,07»): от низа до 1-й перемычки, между
+  // перемычками (центр-центр, те же числа, что в полях справа) и остаток до верха двери —
+  // сумма всегда равна высоте двери. Белая обводка — читается на любом наполнении.
+  let prevMm = 0;
+  [...dividers, L.doorH].forEach(to => {
+    const midY = SVG_H - ((prevMm + to) / 2) * scale;
+    rects += `<text x="${(svgW / 2).toFixed(1)}" y="${(midY + 4).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="600" fill="#222" stroke="#fff" stroke-width="3" paint-order="stroke">${Math.round(to - prevMm)}</text>`;
+    prevMm = to;
+  });
+  // Невидимые зоны захвата (выше самих перемычек — при масштабе схемы перемычка всего ~7px):
+  // тащим перемычку мышкой вверх/вниз, см. startDividerDrag.
+  dividers.forEach((d, j) => {
+    const yPx = SVG_H - d * scale;
+    rects += `<rect data-div="${j}" x="0" y="${(yPx - 8).toFixed(1)}" width="${svgW}" height="16" fill="transparent" style="cursor:ns-resize"/>`;
+  });
   svg.innerHTML = rects;
+  svg.querySelectorAll('[data-div]').forEach(r => {
+    r.addEventListener('pointerdown', e => startDividerDrag(e, Number(r.dataset.div)));
+  });
 
   // Правая колонка: профиль/цвет (глобальные) + перемычки + секции
   const ctrl = document.getElementById('doorEditorControls');
@@ -130,7 +151,6 @@ function render() {
   // state.doorCustom[i].dividers) — пересчёт только на показе и на вводе.
   addNote('Расстояния в мм: от низа двери до 1-й, от 1-й до 2-й и т.д.');
   const lo = 40 + 30, hi = Math.round(L.doorH) - 40 - 30;
-  const MIN_GAP = 70; // 40 профиль перемычки + 30 минимальная видимая секция (как отступ от рамки)
   dividers.forEach((d, j) => {
     const base = j === 0 ? 0 : dividers[j - 1];
     // Перемычка двигается между соседями (не перескакивает): цепочные значения соседних полей
@@ -224,6 +244,47 @@ function render() {
   if (segments.some(s => (s.fill || globalFill) === 'special')) {
     addNote(`Спец. цвет: ${state.specialFillPrice} ₽/м² (общая цена, меняется на «Фасаде» или при выборе)`);
   }
+}
+
+// Перетаскивание перемычки мышкой по схеме (задание «двери доделка 20,07»). Во время движения
+// перерисовывается только окно (render — без 3D), полная пересборка сцены и цены — один раз на
+// отпускании. Клампы к соседям фиксируются на старте (соседи во время драга не двигаются).
+let dividerDrag = null;
+
+function startDividerDrag(e, j) {
+  const L = lastBuildDoorLayout;
+  if (!L) return;
+  e.preventDefault();
+  const { dividers } = doorCustomSegments(state.doorCustom?.[currentDoor], L.doorH);
+  const lo = 40 + 30, hi = Math.round(L.doorH) - 40 - 30;
+  dividerDrag = {
+    j,
+    startClientY: e.clientY,
+    startPos: dividers[j],
+    scale: SVG_H / L.doorH, // svg рисуется в масштабе 1:1 к px (style.width/height = viewBox)
+    loEff: Math.max(lo, j === 0 ? lo : dividers[j - 1] + MIN_GAP),
+    hiEff: Math.min(hi, j < dividers.length - 1 ? dividers[j + 1] - MIN_GAP : hi),
+  };
+  window.addEventListener('pointermove', onDividerDrag);
+  window.addEventListener('pointerup', endDividerDrag);
+}
+
+function onDividerDrag(e) {
+  if (!dividerDrag) return;
+  // Вверх по экрану (clientY меньше) = вверх по двери (мм больше); шаг 10мм, как у полей ввода
+  const raw = dividerDrag.startPos + (dividerDrag.startClientY - e.clientY) / dividerDrag.scale;
+  const v = Math.min(dividerDrag.hiEff, Math.max(dividerDrag.loEff, Math.round(raw / 10) * 10));
+  const c = ensureCustom(currentDoor);
+  const { dividers } = doorCustomSegments(c, lastBuildDoorLayout.doorH);
+  c.dividers = [...dividers];
+  c.dividers[dividerDrag.j] = v;
+  render();
+}
+
+function endDividerDrag() {
+  window.removeEventListener('pointermove', onDividerDrag);
+  window.removeEventListener('pointerup', endDividerDrag);
+  if (dividerDrag) { dividerDrag = null; rerender(); }
 }
 
 // Снапшот на открытии — всё, что окно умеет менять (в т.ч. глобальные профиль/цвет/цену
