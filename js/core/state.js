@@ -14,7 +14,16 @@ export function detailT(key) {
 }
 
 export let materials = { korpus: { producers: [] }, fasad: { producers: [] }, fill: { producers: [] }, fittings: [], meshShelf: [], presets: [] };
-export function setMaterials(m) { materials = m; }
+// Цвет-заглушка ЛДСП без текстуры (просьба 21.07): у ЛДСП настоящий вид задаст текстура
+// (data/textures, колонка «Файл текстуры» в ценах); пока её нет — коричневый как индикатор
+// «текстура не загружена». Новые цвета из экселя приходят без hex вовсе.
+const TEXTURE_PLACEHOLDER_COLOR = '#8b6f47';
+
+export function setMaterials(m) {
+  ['korpus', 'fasad', 'fill'].forEach(g => (m[g]?.producers || []).forEach(p =>
+    (p.colors || []).forEach(c => { if (!c.color) c.color = TEXTURE_PLACEHOLDER_COLOR; })));
+  materials = m;
+}
 
 // Стабильный id для наполнения секции (state.sections[i].items) — не индекс массива, т.к. на
 // него ссылается вешало (valetAnchorId) и он должен пережить добавление/удаление СОСЕДНИХ

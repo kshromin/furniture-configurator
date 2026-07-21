@@ -129,23 +129,62 @@ def main():
         data = json.load(f)
     wb = load_workbook(xlsx, data_only=True)
 
+    # ── Палитра (служебный справочник «имя → hex») — пересобирается из листа целиком;
+    # по ней остальные листы разрешают цвет, введённый по имени ──
+    palette = []
+    pal_names = set()
+    for r, (name, hexv) in rows_of(wb, 'Палитра', 2):
+        where = f'«Палитра», строка {r}'
+        name = cell_str(name)
+        hx = parse_hex(hexv, where)
+        if not name:
+            errors.append(f'{where}: не заполнено название')
+            continue
+        if hx is None:
+            continue
+        if name.lower() in pal_names:
+            errors.append(f'{where}: цвет «{name}» в палитре дважды')
+            continue
+        pal_names.add(name.lower())
+        palette.append({'name': name, 'hex': hx})
+    pal_by_name = {p['name'].lower(): p['hex'] for p in palette}
+    if palette and data.get('palette') != palette:
+        if json.dumps(data.get('palette', []), sort_keys=True) != json.dumps(palette, sort_keys=True):
+            changes.append(f'Палитра обновлена ({len(palette)} цветов)')
+        data['palette'] = palette
+
+    def resolve_color(v, where):
+        """Цвет из ячейки: имя из палитры или сразу hex."""
+        s = cell_str(v)
+        if not s:
+            errors.append(f'{where}: не заполнен цвет')
+            return None
+        if re.fullmatch(r'#?[0-9a-fA-F]{6}', s):
+            return (s if s.startswith('#') else '#' + s).lower()
+        hx = pal_by_name.get(s.lower())
+        if not hx:
+            errors.append(f'{where}: цвета «{s}» нет в палитре — добавьте его на лист «Палитра» '
+                          f'или впишите hex вида #f4f3f0')
+        return hx
+
     # ── ЛДСП (3 листа): правки по _id, новые строки = новые цвета ──
     for title, group in LDSP_GROUPS.items():
         producers = data[group]['producers']
         by_id = {c['id']: c for p in producers for c in p['colors']}
         prod_by_name = {p['name'].strip().lower(): p for p in producers}
         seen = set()
-        for r, (prod_name, name, hexv, price, texture, cid, _pid) in rows_of(wb, title, 7):
+        # Цвет (hex) у ЛДСП не задаётся (просьба 21.07): вид даст текстура, без неё конфигуратор
+        # покажет коричневую заглушку. Старый hex существующих цветов не трогается.
+        for r, (prod_name, name, price, texture, cid, _pid) in rows_of(wb, title, 6):
             where = f'«{title}», строка {r}'
             if cell_str(cid) in by_id:
                 seen.add(cell_str(cid))  # строка на месте, даже если в ней ошибка — без каскада «удалено»
             price = parse_price(price, where)
-            hx = parse_hex(hexv, where)
             name = cell_str(name)
             texture = cell_str(texture)
             if not name:
                 errors.append(f'{where}: не заполнено название цвета')
-            if price is None or hx is None or not name:
+            if price is None or not name:
                 continue
             cid = cell_str(cid)
             if cid:
@@ -158,9 +197,6 @@ def main():
                 if col['name'] != name:
                     changes.append(f'{title}: «{col["name"]}» переименован в «{name}»')
                     col['name'] = name
-                if col['color'] != hx:
-                    changes.append(f'{title} / {name}: цвет {col["color"]} → {hx}')
-                    col['color'] = hx
                 if texture:
                     if col.get('texture') != texture:
                         changes.append(f'{title} / {name}: текстура → {texture}')
@@ -180,11 +216,12 @@ def main():
                     producers.append(prod)
                     prod_by_name[pn.lower()] = prod
                     changes.append(f'{title}: создан производитель «{pn}»')
-                col = {'id': new_id(group[0]), 'name': name, 'color': hx, 'pricePerM2': price}
+                col = {'id': new_id(group[0]), 'name': name, 'pricePerM2': price}
                 if texture:
                     col['texture'] = texture
                 prod['colors'].append(col)
-                changes.append(f'{title}: добавлен цвет «{name}» ({prod["name"]}, {price} ₽/м²)')
+                changes.append(f'{title}: добавлен цвет «{name}» ({prod["name"]}, {price} ₽/м², '
+                               f'вид — текстура либо коричневая заглушка)')
         missing = set(by_id) - seen
         if missing:
             errors.append(f'«{title}»: удалены строки ({", ".join(sorted(missing))}) — '
@@ -199,7 +236,7 @@ def main():
         if cell_str(cid) in by_id:
             seen.add(cell_str(cid))
         name = cell_str(name)
-        hx = parse_hex(hexv, where)
+        hx = resolve_color(hexv, where)
         if not name:
             errors.append(f'{where}: не заполнено название')
         if hx is None or not name:
@@ -302,7 +339,7 @@ def main():
             set_price(fills['mirror'], 'pricePerM2', price, 'Зеркало')
             continue
         name = cell_str(name)
-        hx = parse_hex(hexv, where)
+        hx = resolve_color(hexv, where)
         if not name:
             errors.append(f'{where}: не заполнено название')
         if hx is None or not name:
@@ -332,8 +369,14 @@ def main():
         for r, vals in rows_of(wb, title, ncols):
             where = f'«{title}», строка {r}'
             key = cell_str(vals[key_col])
-            if not key or key not in by_key:
-                errors.append(f'{where}: новая или изменённая строка — на этом листе можно менять только цены')
+            if not key:
+                # серые строки-разделители блоков (без ключа и без цены) — просто пропускаем
+                if cell_str(vals[price_col]) == '':
+                    continue
+                errors.append(f'{where}: новая строка — на этом листе можно менять только цены')
+                continue
+            if key not in by_key:
+                errors.append(f'{where}: служебный ключ «{key}» не найден — колонку _key менять нельзя')
                 continue
             price = parse_price(vals[price_col], where)
             if price is not None:
@@ -357,6 +400,8 @@ def main():
     for r, (name, price, key) in rows_of(wb, 'Фурнитура и разное', 3):
         where = f'«Фурнитура и разное», строка {r}'
         key = cell_str(key)
+        if not key and cell_str(price) == '':
+            continue  # серая строка-разделитель блока единиц измерения
         if key not in flat:
             errors.append(f'{where}: новая строка — на этом листе можно менять только цены')
             continue

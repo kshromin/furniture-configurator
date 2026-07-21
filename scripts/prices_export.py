@@ -35,29 +35,44 @@ HELP_TEXT = [
     '   Новый цвет профиля: сначала строка на листе «Цвета профилей», затем строки с ценами',
     '   этого цвета для каждого профиля на листе «Профили купе» (загрузка подскажет, каких нет).',
     '   Новый профиль: просто строки с его именем и ценами на «Профили купе» (по всем цветам).',
-    '3. Листы только с ценами (Направляющие, Сетчатые полки, Корзины, Фурнитура и разное):',
-    '   новые строки добавлять нельзя — только менять цены.',
-    '4. Скрытые колонки (_id и похожие) не трогать — по ним загрузка находит позиции.',
-    '5. Удалять строки нельзя — вывод позиции из ассортимента будет отдельным скриптом.',
-    '6. «Файл текстуры» на листах ЛДСП — задел на будущее: имя jpg-файла из папки data/textures.',
-    '   Пока текстур нет — оставляйте пусто, работает цвет из колонки Hex.',
-    '7. Цвет (hex) — 6 знаков вида #f4f3f0 (можно скопировать из любого пипетки-сервиса).',
-    '8. Когда закончили — сохраните файл и запустите «Загрузить цены.bat».',
+    '3. Цвета выбираются ПО ИМЕНИ из листа «Палитра» (в ячейке цвета есть выпадающий список).',
+    '   Нужен новый цвет — сначала добавьте его строкой на «Палитру» (имя + hex вида #f4f3f0),',
+    '   затем выбирайте по имени. Можно вписать hex и напрямую, если так удобнее.',
+    '4. У ЛДСП цвет не задаётся вовсе: настоящий вид даст текстура («Файл текстуры» — имя jpg',
+    '   из папки data/textures). Пока текстуры нет, плитка в конфигураторе коричневая — это',
+    '   индикатор «текстура не загружена», так и задумано.',
+    '5. Листы только с ценами (Направляющие, Сетчатые полки, Корзины, Фурнитура и разное):',
+    '   новые строки добавлять нельзя — только менять цены. Серые строки-заголовки внутри',
+    '   листа просто разделяют блоки с разными единицами измерения.',
+    '6. Скрытые колонки (_id и похожие) не трогать — по ним загрузка находит позиции.',
+    '7. Удалять строки нельзя — вывод позиции из ассортимента будет отдельным скриптом.',
+    '8. Названия листов и порядок колонок менять нельзя — загрузка ищет данные именно по ним.',
+    '   Правьте файл, который сделала выгрузка, а не собирайте свой с нуля.',
+    '9. Когда закончили — сохраните файл и запустите «Загрузить цены.bat».',
     '   Загрузка сначала всё проверит: при любой ошибке ничего не изменится, будет список ошибок.',
 ]
 
 
 def main():
+    global OUT
+    # Путь можно передать аргументом — для автоматизации/проверок
+    if len(sys.argv) > 1:
+        OUT = sys.argv[1]
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill
     from openpyxl.utils import get_column_letter
+    from openpyxl.worksheet.datavalidation import DataValidation
 
     with open(SRC, encoding='utf-8') as f:
         data = json.load(f)
 
     wb = Workbook()
     bold = Font(bold=True)
-    price_fill = PatternFill('solid', fgColor='FFF6D5')  # жёлтый — редактируемые цены
+    price_fill = PatternFill('solid', fgColor='FFF6D5')   # жёлтый — редактируемые цены
+    section_fill = PatternFill('solid', fgColor='E4E4E8')  # серый — строки-разделители блоков
+
+    palette = data.get('palette', [])
+    pal_by_hex = {p['hex'].lower(): p['name'] for p in palette}
 
     def sheet(title, headers, hidden_cols=(), price_cols=(), widths=()):
         ws = wb.create_sheet(title)
@@ -78,6 +93,24 @@ def main():
         for c in ws._price_cols:
             ws.cell(row=r, column=c).fill = price_fill
 
+    def add_section(ws, title, ncols):
+        # Серый разделитель блока (например, разные единицы измерения на одном листе);
+        # загрузка такие строки пропускает — у них нет ни цены, ни служебного ключа
+        ws.append([title])
+        r = ws.max_row
+        for c in range(1, ncols + 1):
+            ws.cell(row=r, column=c).fill = section_fill
+        ws.cell(row=r, column=1).font = bold
+
+    def color_cell(ws, col_idx, hexv, dv):
+        """Ячейка цвета: имя из палитры (если есть), закрашена своим цветом, с выпадающим списком."""
+        cell = ws.cell(row=ws.max_row, column=col_idx)
+        hx = (hexv or '').lower()
+        cell.value = pal_by_hex.get(hx, hexv)
+        if hx:
+            cell.fill = PatternFill('solid', fgColor=hx.lstrip('#'))
+        dv.add(cell)
+
     # Справка
     ws = wb.active
     ws.title = 'Справка'
@@ -86,14 +119,26 @@ def main():
     ws.column_dimensions['A'].width = 100
     ws['A1'].font = bold
 
-    # ЛДСП: корпус / фасад / наполнение
+    # Палитра — служебный справочник «имя → hex» (просьба 21.07): цвета в остальных листах
+    # выбираются по имени отсюда; новая строка = новый цвет в палитре
+    ws = sheet('Палитра', ['Название', 'Цвет (hex)'], price_cols=(), widths=(22, 12))
+    for p in palette:
+        add_row(ws, [p['name'], p['hex']])
+        ws.cell(row=ws.max_row, column=2).fill = PatternFill('solid', fgColor=p['hex'].lstrip('#'))
+    # выпадающий список для ячеек цвета на других листах (диапазон с запасом на новые строки)
+    def make_color_dv():
+        dv = DataValidation(type='list', formula1='=Палитра!$A$2:$A$200', allow_blank=True,
+                            showErrorMessage=False)
+        return dv
+
+    # ЛДСП: корпус / фасад / наполнение — без цвета (вид задаст текстура, без неё — коричневый)
     for group, title in LDSP_GROUPS:
         ws = sheet(title,
-                   ['Производитель', 'Название цвета', 'Цвет (hex)', 'Цена ₽/м²', 'Файл текстуры', '_id', '_producer'],
-                   hidden_cols=(6, 7), price_cols=(4,), widths=(18, 26, 12, 12, 20, 10, 12))
+                   ['Производитель', 'Название цвета', 'Цена ₽/м²', 'Файл текстуры', '_id', '_producer'],
+                   hidden_cols=(5, 6), price_cols=(3,), widths=(18, 26, 12, 20, 10, 12))
         for prod in data[group]['producers']:
             for col in prod['colors']:
-                add_row(ws, [prod['name'], col['name'], col['color'], col['pricePerM2'],
+                add_row(ws, [prod['name'], col['name'], col['pricePerM2'],
                              col.get('texture', ''), col['id'], prod['id']])
 
     # Профили купе — полный прайс по сочетаниям профиль×цвет (не коэффициенты, просьба 21.07)
@@ -107,21 +152,28 @@ def main():
                      pp['vertPerM'], pp['horizTopPerM'], pp['horizBottomPerM'],
                      f"{pp['profile']}:{pp['color']}"])
 
-    # Цвета профилей (только ассортимент — цены на листе «Профили купе»)
+    # Цвета профилей (только ассортимент — цены на листе «Профили купе»); цвет — по имени
+    # из «Палитры», ячейка закрашена и с выпадающим списком
     ws = sheet('Цвета профилей',
-               ['Название', 'Цвет (hex)', '_id'],
-               hidden_cols=(3,), price_cols=(), widths=(20, 12, 10))
+               ['Название', 'Цвет (из палитры)', '_id'],
+               hidden_cols=(3,), price_cols=(), widths=(20, 18, 10))
+    dv = make_color_dv()
+    ws.add_data_validation(dv)
     for c in data['slidingDoor']['colors']:
-        add_row(ws, [c['name'], c['hex'], c['id']])
+        add_row(ws, [c['name'], None, c['id']])
+        color_cell(ws, 2, c['hex'], dv)
 
     # Наполнение дверей: зеркало (только цена) + стёкла (ассортимент)
     ws = sheet('Наполнение дверей',
-               ['Тип', 'Название', 'Цвет (hex)', 'Цена ₽/м²', '_id'],
-               hidden_cols=(5,), price_cols=(4,), widths=(12, 22, 12, 12, 10))
+               ['Тип', 'Название', 'Цвет (из палитры)', 'Цена ₽/м²', '_id'],
+               hidden_cols=(5,), price_cols=(4,), widths=(12, 22, 18, 12, 10))
+    dv = make_color_dv()
+    ws.add_data_validation(dv)
     fills = data['slidingDoor']['fills']
     add_row(ws, ['Зеркало', fills['mirror'].get('name', 'Зеркало'), '', fills['mirror']['pricePerM2'], 'mirror'])
     for c in fills.get('glass', {}).get('colors', []):
-        add_row(ws, ['Стекло', c['name'], c['color'], c['pricePerM2'], c['id']])
+        add_row(ws, ['Стекло', c['name'], None, c['pricePerM2'], c['id']])
+        color_cell(ws, 3, c['color'], dv)
 
     # Направляющие (только цены, размерная сетка фиксирована)
     ws = sheet('Направляющие',
@@ -145,18 +197,21 @@ def main():
         add_row(ws, [b['width'], b['depth'], b['height'], b['color'], b['price'],
                      f"{b['width']}:{b['depth']}:{b['height']}:{b['color']}"])
 
-    # Фурнитура и разное (только цены, общий лист со скрытым ключом-путём)
+    # Фурнитура и разное (только цены): блоки по единицам измерения с серыми
+    # строками-разделителями (просьба 21.07 — не смешивать разные единицы в одной таблице)
     ws = sheet('Фурнитура и разное',
                ['Позиция', 'Цена ₽', '_key'],
                hidden_cols=(3,), price_cols=(2,), widths=(44, 12, 20))
+    sd = data['slidingDoor']
+    add_section(ws, '— За штуку / комплект —', 2)
     for it in data['fittings']:
         add_row(ws, [it['name'], it['price'], f"fittings:{it['id']}"])
     add_row(ws, [data['swingDoorHardware']['name'], data['swingDoorHardware']['pricePerDoor'], 'swing'])
-    sd = data['slidingDoor']
     add_row(ws, [sd['rollers']['name'], sd['rollers']['pricePerSet'], 'rollers'])
+    add_section(ws, '— За погонный метр —', 2)
     add_row(ws, [sd['track']['name'], sd['track']['pricePerM'], 'track'])
     add_row(ws, [sd['divider']['name'], sd['divider']['pricePerM'], 'divider'])
-    add_row(ws, ['Кромка (за пог. м)', data['edgeBanding']['pricePerM'], 'edge'])
+    add_row(ws, ['Кромка', data['edgeBanding']['pricePerM'], 'edge'])
 
     # Услуги (extras) — ассортимент расширяемый
     ws = sheet('Услуги',
