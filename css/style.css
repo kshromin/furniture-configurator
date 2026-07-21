@@ -834,6 +834,8 @@ html, body {
 .door-editor-divider-row { display: flex; gap: 6px; align-items: center; }
 .door-editor-fill-row { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 .door-editor-fill-row .el-row-label { min-width: 86px; }
+.door-editor-footer { flex-shrink: 0; display: flex; justify-content: flex-end; padding-top: 4px; }
+.door-editor-footer .btn-primary { min-width: 160px; padding: 9px 18px; border-radius: 8px; }
 
 .profile-btn {
   display: flex;

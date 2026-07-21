@@ -6,11 +6,16 @@ import { syncFasadUI } from './tabs.js';
 import { getActiveDoorIndex } from './itemDrag.js';
 import { doorCustomSegments, lastBuildDoorLayout } from '../types/_wardrobe-shared.js';
 
-// Окно «Комбинированная дверь» (задание «двери-начали 20,07»): показывает ОДНУ дверь (выделенную
+// Окно «Редактировать дверь» (задание «двери-начали 20,07»): показывает ОДНУ дверь (выделенную
 // в 3D или выбранную кнопками в шапке) схемой SVG + редактор. Профиль и цвет здесь — те же
 // глобальные state.profile/profileColor, что и на «Фасаде» (меняются синхронно на весь шкаф —
 // решение пользователя); индивидуальны для двери только горизонтальные перемычки и наполнение
 // получившихся секций полотна (state.doorCustom[i], см. state.js).
+//
+// Правки применяются к 3D/цене сразу (наглядно), но окно транзакционное: на открытии снимается
+// снапшот всего, что окно умеет менять, — «Сохранить» закрывает с сохранением, закрытие
+// крестиком/кликом мимо/Escape откатывает к снапшоту (просьба пользователя — явная кнопка
+// сохранения после редактирования).
 //
 // SVG — схема, не 3D: рамка и перемычки цветом профиля, секции полотна цветом наполнения
 // (ЛДСП — цвет фасада, зеркало — голубоватое, спеццвет — розоватый), те же цвета, что и в
@@ -207,22 +212,47 @@ function render() {
   }
 }
 
+// Снапшот на открытии — всё, что окно умеет менять (в т.ч. глобальные профиль/цвет/цену
+// спеццвета): закрытие без «Сохранить» возвращает ровно это состояние.
+let openSnapshot = null;
+
 export function openDoorEditor() {
   if (state.fasadDoorType !== 'sliding' || doorCount() === 0) {
-    showToast('Комбинированная дверь настраивается только у дверей-купе.');
+    showToast('Редактирование двери доступно только у дверей-купе.');
     return;
   }
   currentDoor = getActiveDoorIndex() ?? 0;
+  openSnapshot = JSON.stringify({
+    doorCustom: state.doorCustom || {},
+    profile: state.profile,
+    profileColor: state.profileColor,
+    doorFill: state.doorFill,
+    specialFillPrice: state.specialFillPrice,
+  });
   document.getElementById('doorEditorOverlay').classList.add('visible');
   render();
 }
 
+// «Сохранить» — правки уже в state (применялись живьём), просто фиксируем и закрываем.
+function saveDoorEditor() {
+  openSnapshot = null;
+  document.getElementById('doorEditorOverlay').classList.remove('visible');
+}
+
+// Закрытие крестиком/кликом мимо/Escape — откат к снапшоту открытия.
 export function closeDoorEditor() {
+  if (openSnapshot) {
+    Object.assign(state, JSON.parse(openSnapshot));
+    openSnapshot = null;
+    buildFurniture();
+    syncFasadUI();
+  }
   document.getElementById('doorEditorOverlay').classList.remove('visible');
 }
 
 export function bindDoorEditor() {
   document.getElementById('comboDoorBtn').addEventListener('click', openDoorEditor);
+  document.getElementById('doorEditorSave').addEventListener('click', saveDoorEditor);
   const overlay = document.getElementById('doorEditorOverlay');
   document.getElementById('doorEditorClose').addEventListener('click', closeDoorEditor);
   overlay.addEventListener('click', e => { if (e.target === overlay) closeDoorEditor(); });
