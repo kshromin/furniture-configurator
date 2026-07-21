@@ -176,10 +176,7 @@ function describeActive() {
         `Рельса: ${L?.rails[active.doorIndex] === 'front' ? 'передняя' : 'задняя'}`,
         ...(L ? [`Ширина: ${Math.round(L.doorW)} мм`] : []),
         `Профиль: ${profName}, ${profColor.toLowerCase()}`,
-        ...(p ? [
-          `<b>Цена двери: ${fmt(Math.round(p.total))}</b>`,
-          `профиль ${fmt(Math.round(p.profile))} · ролики ${fmt(Math.round(p.rollers))} · наполнение ${fmt(Math.round(p.fill))}`,
-        ] : []),
+        ...(p ? [`<b>Цена двери: ${fmt(Math.round(p.total))}</b>`] : []),
       ],
     };
   }
