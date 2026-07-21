@@ -55,9 +55,11 @@ export default {
     // здесь (та же схема, что и drawerSlidePrice). Фасады ящиков — всегда ЛДСП по цвету фасада.
     // «Без дверей»: конструктив под купе, но двери в стоимость не входят вообще.
     const mirrorRate = materials.slidingDoor?.fills?.mirror?.pricePerM2 || 0;
-    const fillRate = f =>
+    // sp — индивидуальные {name, price} спеццвета секции двери (segment.special из
+    // doorCustomSegments): в одной двери могут быть разные спеццвета, без sp — глобальная цена.
+    const fillRate = (f, sp) =>
       f === 'mirror'  ? mirrorRate :
-      f === 'special' ? (state.specialFillPrice || 0) :
+      f === 'special' ? (sp?.price ?? state.specialFillPrice ?? 0) :
       getColor('fasad').pricePerM2;
     let fasadM2 = 0;
     let doorFillPrice = 0;
@@ -78,7 +80,7 @@ export default {
         if (custom?.dividers?.length) {
           const { segments, dividers } = doorCustomSegments(custom, doorH);
           const totalH = segments.reduce((s, x) => s + x.hMm, 0) || 1;
-          segments.forEach(sgm => { doorFillPrice += oneDoorM2 * (sgm.hMm / totalH) * fillRate(sgm.fill || globalFill); });
+          segments.forEach(sgm => { doorFillPrice += oneDoorM2 * (sgm.hMm / totalH) * fillRate(sgm.fill || globalFill, sgm.special); });
           dividerM += (dividers.length * dw) / 1000;
         } else {
           doorFillPrice += oneDoorM2 * fillRate(globalFill);

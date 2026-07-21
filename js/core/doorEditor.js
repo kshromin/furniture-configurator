@@ -1,6 +1,7 @@
 import { state, materials } from './state.js';
 import { buildFurniture } from './build.js';
 import { getColor } from './materials.js';
+import { fmt } from './pricing.js';
 import { showToast } from './toast.js';
 import { syncFasadUI } from './tabs.js';
 import { getActiveDoorIndex } from './itemDrag.js';
@@ -29,6 +30,9 @@ const SVG_H = 380; // высота схемы двери в px, ширина м�
 const MIN_GAP = 70;
 
 let currentDoor = 0;
+// Выделенная строка «Наполнения секций» (индекс секции снизу вверх, как fills) — у выделенного
+// спеццвета показываются цена за м² и стоимость секции. Сбрасывается при смене двери/открытии.
+let selectedFillRow = null;
 
 const doorCount = () => lastBuildDoorLayout?.xs.length || 0;
 
@@ -39,6 +43,15 @@ function ensureCustom(i) {
   if (!state.doorCustom) state.doorCustom = {};
   if (!state.doorCustom[i]) state.doorCustom[i] = { dividers: [], fills: [state.doorFill] };
   return state.doorCustom[i];
+}
+
+// specialInfo — параллельный fills массив {name, price}|null (индивидуальные спеццвета секций,
+// задание 21.07); создаётся лениво и добивается null до нужной длины (старые сохранённые
+// проекты его не имеют вовсе).
+function ensureSpecialInfo(c, len) {
+  if (!c.specialInfo) c.specialInfo = [];
+  while (c.specialInfo.length < len) c.specialInfo.push(null);
+  return c.specialInfo;
 }
 
 function fillColor(fill) {
@@ -68,7 +81,7 @@ function render() {
     const b = document.createElement('button');
     b.className = 'opt-btn' + (i === currentDoor ? ' active' : '');
     b.textContent = `Дверь ${i + 1}`;
-    b.addEventListener('click', () => { currentDoor = i; render(); });
+    b.addEventListener('click', () => { currentDoor = i; selectedFillRow = null; render(); });
     doorBtns.appendChild(b);
   }
 
@@ -188,6 +201,8 @@ function render() {
       const c = ensureCustom(currentDoor);
       c.dividers = dividers.filter((_, k) => k !== j);
       c.fills.splice(j + 1, 1); // верхняя из двух объединяемых секций исчезает, нижняя остаётся
+      if (c.specialInfo) c.specialInfo.splice(j + 1, 1);
+      selectedFillRow = null; // индексы секций съехали
       rerender();
     });
     row.appendChild(inp);
@@ -210,16 +225,27 @@ function render() {
     c.dividers = [...dividers, pos].sort((a, b) => a - b);
     const at = c.dividers.indexOf(pos);
     c.fills.splice(at + 1, 0, c.fills[at] ?? state.doorFill);
+    if (c.specialInfo) c.specialInfo.splice(at + 1, 0, c.specialInfo[at] ?? null);
+    selectedFillRow = null; // индексы секций съехали
     rerender();
   });
   ctrl.appendChild(addBtn);
 
   addTitle('Наполнение секций');
   addNote(segments.length > 1 ? 'Секции — сверху вниз' : 'Одна секция (без перемычек)');
+  // Строки выделяются кликом (задание 21.07): справа от селекта — цвет/название (для спеццвета —
+  // название, которое ввёл пользователь: спеццветов в одной двери может быть несколько разных);
+  // у выделенной строки со спеццветом появляется поле цены за м² и стоимость секции ниже списка.
+  const totalH = segments.reduce((s, x) => s + x.hMm, 0) || 1;
   [...segments].reverse().forEach((sgm, revIdx) => {
     const j = segments.length - 1 - revIdx; // индекс снизу вверх, как в fills
+    const fill = sgm.fill || globalFill;
+    const sp = sgm.special;
     const row = document.createElement('div');
-    row.className = 'door-editor-fill-row';
+    row.className = 'door-editor-fill-row' + (selectedFillRow === j ? ' active' : '');
+    row.addEventListener('click', () => {
+      if (selectedFillRow !== j) { selectedFillRow = j; render(); }
+    });
     const label = document.createElement('span');
     label.className = 'el-row-label';
     label.textContent = segments.length > 1 ? `${revIdx + 1} (${Math.round(sgm.hMm)} мм)` : 'Вся дверь';
@@ -234,27 +260,77 @@ function render() {
       o.textContent = name;
       sel.appendChild(o);
     });
-    sel.value = sgm.fill || globalFill;
+    sel.value = fill;
     sel.addEventListener('change', () => {
       const f = sel.value;
       const c = ensureCustom(currentDoor);
       while (c.fills.length < segments.length) c.fills.push(globalFill);
       c.fills[j] = f;
+      selectedFillRow = j;
       if (f === 'special') {
-        // название и цена — пользователь забивает сам (название выходит в смету)
-        const n = window.prompt('Название спец. цвета:', state.specialFillName || '');
-        if (n !== null) state.specialFillName = n.trim();
-        const v = window.prompt('Цена спец. цвета, ₽/м²:', String(state.specialFillPrice));
-        if (v !== null && !isNaN(Number(v)) && Number(v) >= 0) state.specialFillPrice = Number(v);
+        // название и цена — индивидуальные для секции (в одной двери разные спеццвета);
+        // подсказки стартуют с прежних значений секции либо глобальных с «Фасада»
+        const info = ensureSpecialInfo(c, segments.length);
+        const prev = info[j];
+        const n = window.prompt('Название спец. цвета:', prev?.name ?? state.specialFillName ?? '');
+        const v = window.prompt('Цена спец. цвета, ₽/м²:', String(prev?.price ?? state.specialFillPrice));
+        info[j] = {
+          name: n !== null ? n.trim() : (prev?.name || ''),
+          price: v !== null && !isNaN(Number(v)) && Number(v) >= 0 ? Number(v) : (prev?.price ?? state.specialFillPrice),
+        };
       }
       rerender();
     });
     row.appendChild(sel);
+    // Справа: для ЛДСП — цвет фасада, для спеццвета — название (клик — переименовать)
+    const info = document.createElement('span');
+    info.className = 'door-editor-fill-info';
+    if (fill === 'ldsp') info.textContent = getColor('fasad').name || '';
+    if (fill === 'special') {
+      info.textContent = sp?.name || state.specialFillName || 'без названия';
+      info.classList.add('renamable');
+      info.title = 'Изменить название';
+      info.addEventListener('click', e => {
+        e.stopPropagation();
+        const c = ensureCustom(currentDoor);
+        const arr = ensureSpecialInfo(c, segments.length);
+        const cur = arr[j] || { name: state.specialFillName || '', price: state.specialFillPrice };
+        const n = window.prompt('Название спец. цвета:', cur.name);
+        if (n !== null) { arr[j] = { ...cur, name: n.trim() }; selectedFillRow = j; render(); }
+      });
+    }
+    row.appendChild(info);
+    // Цена за м² — редактируется прямо здесь у выделенной строки со спеццветом
+    if (selectedFillRow === j && fill === 'special') {
+      const priceInp = document.createElement('input');
+      priceInp.type = 'number';
+      priceInp.className = 'dim-input door-editor-fill-price';
+      priceInp.autocomplete = 'off';
+      priceInp.min = 0; priceInp.step = 100;
+      priceInp.value = sp?.price ?? state.specialFillPrice;
+      priceInp.title = 'Цена, ₽/м²';
+      priceInp.addEventListener('click', e => e.stopPropagation());
+      priceInp.addEventListener('change', () => {
+        const v = Math.max(0, Number(priceInp.value) || 0);
+        const c = ensureCustom(currentDoor);
+        const arr = ensureSpecialInfo(c, segments.length);
+        arr[j] = { name: arr[j]?.name ?? state.specialFillName ?? '', price: v };
+        rerender();
+      });
+      row.appendChild(priceInp);
+    }
     ctrl.appendChild(row);
   });
-  if (segments.some(s => (s.fill || globalFill) === 'special')) {
-    const nm = state.specialFillName ? `«${state.specialFillName}», ` : '';
-    addNote(`Спец. цвет: ${nm}${state.specialFillPrice} ₽/м² (общие название и цена, меняются на «Фасаде» или при выборе)`);
+  // Посчитанная стоимость именно этого наполнения (той же формулой, что и в цене — wardrobe.js
+  // areas): доля высоты секции от полотна × площадь двери × цена за м²
+  if (selectedFillRow !== null && segments[selectedFillRow]) {
+    const sgm = segments[selectedFillRow];
+    if ((sgm.fill || globalFill) === 'special') {
+      const price = sgm.special?.price ?? state.specialFillPrice ?? 0;
+      const nm = sgm.special?.name || state.specialFillName || 'без названия';
+      const cost = (L.doorW * L.doorH / 1e6) * (sgm.hMm / totalH) * price;
+      addNote(`Стоимость за «${nm}»: ${fmt(Math.round(cost))}`);
+    }
   }
 }
 
@@ -309,6 +385,7 @@ export function openDoorEditor() {
     return;
   }
   currentDoor = getActiveDoorIndex() ?? 0;
+  selectedFillRow = null;
   openSnapshot = JSON.stringify({
     doorCustom: state.doorCustom || {},
     profile: state.profile,

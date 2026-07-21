@@ -59,14 +59,26 @@ export function describeConfig() {
   let s = `${type?.name || state.type}, ${state.width}×${state.height}×${state.depth} мм`;
   s += `, корпус: ${kName}, фасад: ${fName}`;
   s += type.describe();
-  // Спец. цвет наполнения дверей: название вводит пользователь (задание 21.07), в смете должно
-  // быть видно, какой именно материал имелся в виду — глобально или в любой секции любой двери.
+  // Спец. цвета наполнения дверей: названия вводит пользователь (задание 21.07), в смете должно
+  // быть видно, какие именно материалы имелись в виду. Спеццветов может быть несколько разных —
+  // глобальный (doorFill с «Фасада») и индивидуальные по секциям дверей (doorCustom.specialInfo);
+  // перечисляем без повторов.
   if (type?.ctx?.fasad?.available) {
-    const specialUsed = state.doorFill === 'special' ||
-      Object.values(state.doorCustom || {}).some(c => (c?.fills || []).includes('special'));
-    if (specialUsed) {
-      s += `, спец. цвет: «${state.specialFillName || 'без названия'}» ${state.specialFillPrice} ₽/м²`;
+    const specials = [];
+    if (state.doorFill === 'special') {
+      specials.push({ name: state.specialFillName || 'без названия', price: state.specialFillPrice });
     }
+    Object.values(state.doorCustom || {}).forEach(c => (c?.fills || []).forEach((f, j) => {
+      if (f !== 'special') return;
+      const sp = c.specialInfo?.[j];
+      specials.push({
+        name: sp?.name || state.specialFillName || 'без названия',
+        price: sp?.price ?? state.specialFillPrice,
+      });
+    }));
+    const seen = new Set();
+    const uniq = specials.filter(x => { const k = x.name + '|' + x.price; if (seen.has(k)) return false; seen.add(k); return true; });
+    if (uniq.length) s += ', спец. цвет: ' + uniq.map(x => `«${x.name}» ${x.price} ₽/м²`).join(', ');
   }
   s += `. Итого: ${fmt(state.lastTotal || 0)}`;
   return s;
