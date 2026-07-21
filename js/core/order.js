@@ -8,7 +8,7 @@ import { buildFurniture } from './build.js';
 import { resetHistory } from './history.js';
 import { supabase } from './supabaseClient.js';
 import { auth } from './auth.js';
-import { showToast } from './toast.js';
+import { showToast, showChoiceDialog } from './toast.js';
 import { scene, camera, renderer } from './scene.js';
 
 // Вкладка «Прорисовки» — локальный рабочий комплект (несколько изделий/услуг), без адресного
@@ -130,13 +130,37 @@ export function loadItemForEdit(id) {
   resetHistory(); // другая прорисовка — не откатываться в историю прежней (см. history.js)
 }
 
-// Открыть сохранённый комплект из вкладки «Проекты». Если в «Прорисовках» лежит несохранённый
-// комплект — предупреждаем, что он будет утерян.
-export function openProject(project) {
-  if (orderItems.length > 0 && !itemsSavedToProject) {
-    const ok = window.confirm('Текущие прорисовки не сохранены и будут утеряны. Открыть проект?');
-    if (!ok) return;
+// Продолжение, отложенное до успешного сохранения (задание «сохранение заказа 21,07»): guard
+// ниже предлагает сохранить несохранённые прорисовки перед действием, которое их затирает
+// (открытие проекта/заказа, новый комплект). Выбрал «Сохранить» → открывается обычная модалка
+// сохранения, а само действие выполняется после успешного «Сохранить» в ней (см. orderSubmit);
+// закрыл модалку без сохранения — действие отменяется.
+let pendingAfterSave = null;
+
+async function guardUnsavedItems(discardLabel, proceed) {
+  if (orderItems.length === 0 || itemsSavedToProject) { proceed(); return; }
+  const choice = await showChoiceDialog(
+    'Текущие прорисовки не сохранены и будут утеряны.',
+    [
+      { label: 'Отмена', value: null },
+      { label: discardLabel, value: 'discard' },
+      { label: 'Сохранить прорисовки', value: 'save', primary: true },
+    ],
+  );
+  if (choice === 'discard') { proceed(); return; }
+  if (choice === 'save') {
+    pendingAfterSave = proceed;
+    openSaveModal(editingProjectKind || 'project');
   }
+}
+
+// Открыть сохранённый комплект из вкладки «Проекты». Если в «Прорисовках» лежит несохранённый
+// комплект — предложение сохранить (не просто предупреждение о потере).
+export function openProject(project) {
+  guardUnsavedItems('Открыть без сохранения', () => doOpenProject(project));
+}
+
+function doOpenProject(project) {
   editingProjectId = project.id;
   editingProjectClient = {
     name: project.client_name || '', phone: project.client_phone || '', address: project.client_address || '',
@@ -257,9 +281,10 @@ export function orderSummaryFull() {
 
 // Сброс рабочего комплекта — начать с чистого листа (новый клиент/новый проект).
 export function startNewKit() {
-  if (orderItems.length > 0 && !itemsSavedToProject) {
-    if (!window.confirm('Текущие прорисовки не сохранены и будут утеряны. Начать новый комплект?')) return;
-  }
+  guardUnsavedItems('Начать новый без сохранения', doStartNewKit);
+}
+
+function doStartNewKit() {
   orderItems = [];
   editingItemId = null;
   editingProjectId = null;
@@ -319,8 +344,15 @@ export function bindOrderForm() {
   document.getElementById('saveProjectBtn').addEventListener('click', () => openSaveModal('project'));
   document.getElementById('saveOrderBtn').addEventListener('click', () => openSaveModal('order'));
   document.getElementById('newKitBtn').addEventListener('click', startNewKit);
-  document.getElementById('orderCancel').addEventListener('click', () => overlay.classList.remove('visible'));
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('visible'); });
+  // Закрытие модалки без сохранения отменяет и отложенное действие (см. guardUnsavedItems) —
+  // прорисовки не сохранены, затирать их молча нельзя.
+  document.getElementById('orderCancel').addEventListener('click', () => {
+    pendingAfterSave = null;
+    overlay.classList.remove('visible');
+  });
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) { pendingAfterSave = null; overlay.classList.remove('visible'); }
+  });
 
   document.getElementById('orderSubmit').addEventListener('click', async () => {
     const title   = document.getElementById('orderTitle').value.trim();
@@ -392,6 +424,15 @@ export function bindOrderForm() {
     renderOrderCards();
     // обновить список на вкладке «Проекты» (projects.js слушает; прямой импорт дал бы цикл)
     window.dispatchEvent(new CustomEvent('projects-changed'));
-    setTimeout(() => overlay.classList.remove('visible'), 1200);
+    setTimeout(() => {
+      overlay.classList.remove('visible');
+      // Сохранение было шагом перед другим действием (открытие проекта/новый комплект,
+      // см. guardUnsavedItems) — теперь прорисовки в безопасности, выполняем его.
+      if (pendingAfterSave) {
+        const go = pendingAfterSave;
+        pendingAfterSave = null;
+        go();
+      }
+    }, 1200);
   });
 }
