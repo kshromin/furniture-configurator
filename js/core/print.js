@@ -1,4 +1,7 @@
 import { scene, camera, renderer } from './scene.js';
+import { state, materials } from './state.js';
+import { getColor } from './materials.js';
+import { TYPES } from '../types/registry.js';
 import { fmt } from './pricing.js';
 import { getPrintData } from './order.js';
 
@@ -73,6 +76,27 @@ async function captureViewImage() {
 
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+// Подпись под чертежом (правило 21.07): номер из сметы, тип, размер, цвет, профиль и цвет
+// дверей — только то, что реально есть, ничего пустого/нулевого.
+function drawingCaption(displayedIndex) {
+  const parts = [];
+  if (displayedIndex !== null) parts.push(`Позиция ${displayedIndex} из сметы`);
+  const typeName = TYPES[state.type]?.name;
+  if (typeName) parts.push(typeName);
+  parts.push(`${state.width}×${state.height}×${state.depth} мм`);
+  const k = getColor('korpus').name || '';
+  const f = getColor('fasad').name || '';
+  if (k && f && k !== f) parts.push(`корпус ${k}, фасад ${f}`);
+  else if (k || f) parts.push(`цвет ${k || f}`);
+  if (state.fasadDoorType === 'sliding') {
+    const cat = materials.slidingDoor || {};
+    const prof = (cat.profiles || []).find(p => p.id === state.profile)?.name;
+    const pc = (cat.colors || []).find(c => c.id === state.profileColor)?.name;
+    if (prof) parts.push(`профиль ${prof}${pc ? ', ' + pc.toLowerCase() : ''}`);
+  }
+  return parts.map(esc).join(' · ');
+}
+
 export async function openPrintPreview() {
   const d = getPrintData();
   const kindLabel = d.kind === 'order' ? 'Заказ' : 'Проект';
@@ -85,17 +109,15 @@ export async function openPrintPreview() {
     : '';
   const img = await captureViewImage();
 
-  // Картинка соответствует одной позиции состава (просьба 21.07): подпись под изображением
-  // + подсветка её строки в таблице. displayedIndex null — на экране несохранённая работа.
+  // Картинка соответствует одной позиции состава (просьба 21.07): строка подсвечивается в
+  // таблице, под чертежом — структурная подпись (номер/тип/размер/цвет/профиль, только что есть).
   const rows = d.items.map((it, i) => `
     <tr${d.displayedIndex === i + 1 ? ' class="print-row-shown"' : ''}>
       <td class="print-num">${i + 1}</td>
       <td>${esc(it.label)}</td>
       <td class="print-price">${fmt(it.total)}</td>
     </tr>`).join('');
-  const caption = d.displayedIndex !== null
-    ? `На изображении — позиция ${d.displayedIndex} (выделена в таблице)`
-    : (d.items.length > 1 ? 'На изображении — текущий вид (не сохранён в состав)' : '');
+  const caption = drawingCaption(d.displayedIndex);
 
   document.getElementById('printSheet').innerHTML = `
     <div class="print-head">${head}</div>

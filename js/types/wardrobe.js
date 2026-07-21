@@ -374,6 +374,16 @@ export default {
     const totalRod = sections.reduce((s, sec) => s + countOf(sec, 'rod'), 0);
     const totalMesh = sections.reduce((s, sec) => s + countOf(sec, 'mesh'), 0);
     const totalValet = sections.reduce((s, sec) => s + (sec.valet ? 1 : 0), 0);
-    return `, секций: ${sections.length}, полок: ${totalShelves}, ящиков: ${totalDrawers}, штанг: ${totalRod}, сетчатых полок: ${totalMesh}, торцевых вешал: ${totalValet}, корзин: ${totalBaskets}`;
+    // Нулевые количества не пишем вовсе (правило 21.07): «корзин: 0» — шум, пусто = нет.
+    const parts = [
+      ['секций', sections.length],
+      ['полок', totalShelves],
+      ['ящиков', totalDrawers],
+      ['штанг', totalRod],
+      ['сетчатых полок', totalMesh],
+      ['торцевых вешал', totalValet],
+      ['корзин', totalBaskets],
+    ].filter(([, n]) => n > 0);
+    return parts.length ? ', ' + parts.map(([l, n]) => `${l}: ${n}`).join(', ') : '';
   },
 };

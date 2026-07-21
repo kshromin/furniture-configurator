@@ -90,7 +90,9 @@ function buildQuery(cfg) {
 function renderCard(p, cfg, container) {
   const created = new Date(p.created_at).toLocaleDateString('ru-RU');
   const client = [p.client_name, p.client_phone].filter(Boolean).join(', ') || 'Без клиента';
+  // «Прорисовок: 0» не пишем (правило 21.07) — пусто значит нет
   const n = p.item_count ?? 0;
+  const nLine = n > 0 ? `<br>Прорисовок: ${n}` : '';
   const thumb = p.thumbnail ? `<img class="order-card-thumb" src="${p.thumbnail}" alt="">` : '';
   const card = document.createElement('div');
   card.className = 'order-card';
@@ -99,7 +101,7 @@ function renderCard(p, cfg, container) {
     <div class="order-card-header">
       <div class="order-card-info">
         <span class="order-card-num">${p.project_code ? `${p.project_code} · ` : ''}${created}</span>
-        <span class="order-card-name">${p.title ? `<b>${p.title}</b><br>` : ''}${client}<br>Прорисовок: ${n}</span>
+        <span class="order-card-name">${p.title ? `<b>${p.title}</b><br>` : ''}${client}${nLine}</span>
       </div>
       <button class="order-card-remove" title="Удалить">×</button>
     </div>

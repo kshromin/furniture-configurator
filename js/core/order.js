@@ -60,7 +60,9 @@ export function describeConfig() {
   const kName = getColor('korpus').name || '';
   const fName = getColor('fasad').name  || '';
   let s = `${type?.name || state.type}, ${state.width}×${state.height}×${state.depth} мм`;
-  s += `, корпус: ${kName}, фасад: ${fName}`;
+  // Пустое не пишем (правило 21.07): нет названия цвета — нет и строки про него
+  if (kName) s += `, корпус: ${kName}`;
+  if (fName) s += `, фасад: ${fName}`;
   s += type.describe();
   // Спец. цвета наполнения дверей: названия вводит пользователь (задание 21.07), в смете должно
   // быть видно, какие именно материалы имелись в виду. Спеццветов может быть несколько разных —
