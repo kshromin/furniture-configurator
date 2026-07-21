@@ -339,9 +339,8 @@ function openSaveModal(kind) {
   document.getElementById('orderModalTitle').textContent =
     kind === 'order' ? 'Добавить в заказ' : 'Сохранить в проект';
   document.getElementById('orderAddressField').style.display = kind === 'order' ? 'block' : 'none';
-  // Если открыт сохранённый комплект — даём выбор: обновить его или сохранить как новый
-  document.getElementById('saveAsNewField').style.display = editingProjectId !== null ? 'block' : 'none';
-  document.getElementById('saveAsNew').checked = false;
+  // Открыт сохранённый комплект — вопрос «перезаписать или сохранить новым» задаётся при
+  // нажатии «Сохранить» (см. orderSubmit), отдельной галочки в форме больше нет.
   document.getElementById('orderSummary').textContent = orderSummaryFull();
   document.getElementById('orderResult').textContent = '';
   document.getElementById('orderTitle').value   = editingProjectTitle || '';
@@ -405,9 +404,25 @@ export function bindOrderForm() {
       updated_at: new Date().toISOString(),
     };
 
-    const saveAsNew = document.getElementById('saveAsNew').checked;
+    // Открыт сохранённый проект/заказ — явный вопрос вместо прежней галочки «Сохранить как
+    // новый» (её легко не заметить: пользователь менял название и удивлялся, что старый проект
+    // перезаписан — просьба 21.07).
+    let overwrite = false;
+    if (editingProjectId !== null) {
+      const kindLabel = editingProjectKind === 'order' ? 'заказ' : 'проект';
+      const choice = await showChoiceDialog(
+        `Открыт ${kindLabel}${editingProjectCode ? ' № ' + editingProjectCode : ''}. Перезаписать его или сохранить новым?`,
+        [
+          { label: 'Отмена', value: null },
+          { label: 'Перезаписать', value: 'update' },
+          { label: 'Сохранить новым', value: 'insert', primary: true },
+        ],
+      );
+      if (!choice) { result.textContent = ''; return; }
+      overwrite = choice === 'update';
+    }
     let error;
-    if (editingProjectId !== null && !saveAsNew) {
+    if (overwrite) {
       ({ error } = await supabase.from('projects').update(row).eq('id', editingProjectId));
     } else {
       let data;
