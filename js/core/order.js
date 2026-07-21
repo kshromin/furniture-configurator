@@ -17,6 +17,9 @@ import { scene, camera, renderer } from './scene.js';
 // kind='order' (клиент заключает договор — расширенные поля, адрес обязателен).
 let orderItems = []; // текущие прорисовки: { id, kind?: 'extra', label, total, snapshot|null }
 let editingItemId = null; // id локально редактируемой прорисовки
+// Какая прорисовка сейчас показана в 3D (последний загруженный/добавленный снапшот) — для
+// печати: подпись «на изображении — позиция N» и подсветка строки в смете (print.js).
+let displayedItemId = null;
 
 // Открытый проект из вкладки «Проекты»: «Сохранить в проект»/«Добавить в заказ» обновляют
 // именно эту строку projects, а не создают новую.
@@ -92,11 +95,14 @@ export function addCurrentToOrder() {
       orderItems[idx].label    = describeConfig();
       orderItems[idx].total    = state.lastTotal || 0;
       orderItems[idx].snapshot = snap;
+      displayedItemId = editingItemId;
     }
     editingItemId = null;
     document.getElementById('addItemBtn').textContent = '+ Добавить в прорисовки';
   } else {
-    orderItems.push({ id: Date.now(), label: describeConfig(), total: state.lastTotal || 0, snapshot: snap });
+    const id = Date.now();
+    orderItems.push({ id, label: describeConfig(), total: state.lastTotal || 0, snapshot: snap });
+    displayedItemId = id;
   }
   itemsSavedToProject = false;
   markStateSafe();
@@ -114,6 +120,7 @@ export function loadItemForEdit(id) {
   const item = orderItems.find(it => it.id === id);
   if (!item || !item.snapshot) return;
   editingItemId = id;
+  displayedItemId = id;
   Object.assign(state, JSON.parse(JSON.stringify(item.snapshot)));
   syncUIFromState();
   ['korpus', 'fasad', 'fill'].forEach(g => {
@@ -169,8 +176,12 @@ export function getPrintData() {
   const items = orderItems.length > 0
     ? orderItems.map(it => ({ label: it.label, total: it.total }))
     : [{ label: describeConfig(), total: state.lastTotal || 0 }];
+  // Номер позиции (1-based), чей снапшот сейчас показан в 3D, — картинка в печати соответствует
+  // именно ей; null — на экране несохранённая конфигурация либо позиция не определена.
+  const idx = orderItems.findIndex(it => it.id === displayedItemId);
   return {
     items,
+    displayedIndex: orderItems.length > 0 && idx !== -1 && !hasUnsavedChanges() ? idx + 1 : null,
     grandTotal: items.reduce((s, it) => s + it.total, 0),
     client: editingProjectClient ? { ...editingProjectClient } : null,
     title: editingProjectTitle,
@@ -199,6 +210,7 @@ function doOpenProject(project) {
   renderOrderCards();
   // первую прорисовку с 3D сразу показываем на модели
   const first = orderItems.find(it => it.snapshot);
+  displayedItemId = first ? first.id : null;
   if (first) {
     Object.assign(state, JSON.parse(JSON.stringify(first.snapshot)));
     syncUIFromState();
@@ -314,6 +326,7 @@ export function startNewKit() {
 function doStartNewKit() {
   orderItems = [];
   editingItemId = null;
+  displayedItemId = null;
   editingProjectId = null;
   editingProjectClient = null;
   editingProjectTitle = '';

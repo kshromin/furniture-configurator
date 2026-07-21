@@ -1405,8 +1405,10 @@ html, body {
   width: 100%;
   border: 1px solid #e2e2e2;
   border-radius: 6px;
-  margin-bottom: 16px;
+  margin-bottom: 4px;
 }
+.print-caption { color: #666; font-size: 12px; margin-bottom: 14px; }
+.print-table .print-row-shown td { background: #eef3ff; font-weight: 600; }
 .print-table { width: 100%; border-collapse: collapse; }
 .print-table th, .print-table td {
   border: 1px solid #d8d8d8;
