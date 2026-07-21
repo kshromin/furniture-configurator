@@ -221,28 +221,37 @@ function render() {
     label.className = 'el-row-label';
     label.textContent = segments.length > 1 ? `${revIdx + 1} (${Math.round(sgm.hMm)} мм)` : 'Вся дверь';
     row.appendChild(label);
-    ['ldsp', 'mirror', 'special'].forEach(f => {
-      const b = document.createElement('button');
-      const cur = sgm.fill || globalFill;
-      b.className = 'opt-btn' + (cur === f ? ' active' : '');
-      b.textContent = FILL_LABELS[f];
-      b.addEventListener('click', () => {
-        const c = ensureCustom(currentDoor);
-        while (c.fills.length < segments.length) c.fills.push(globalFill);
-        c.fills[j] = f;
-        if (f === 'special') {
-          // «цена, которую пользователь забивает сам руками в вылезшем окошке»
-          const v = window.prompt('Цена спец. цвета, ₽/м²:', String(state.specialFillPrice));
-          if (v !== null && !isNaN(Number(v)) && Number(v) >= 0) state.specialFillPrice = Number(v);
-        }
-        rerender();
-      });
-      row.appendChild(b);
+    // Выпадающий список вместо ряда кнопок (задание 21.07): вариантов наполнения будет больше
+    // (стёкла и т.п.), ряд кнопок в строке секции не масштабируется.
+    const sel = document.createElement('select');
+    sel.className = 'mini-select-wide';
+    Object.entries(FILL_LABELS).forEach(([f, name]) => {
+      const o = document.createElement('option');
+      o.value = f;
+      o.textContent = name;
+      sel.appendChild(o);
     });
+    sel.value = sgm.fill || globalFill;
+    sel.addEventListener('change', () => {
+      const f = sel.value;
+      const c = ensureCustom(currentDoor);
+      while (c.fills.length < segments.length) c.fills.push(globalFill);
+      c.fills[j] = f;
+      if (f === 'special') {
+        // название и цена — пользователь забивает сам (название выходит в смету)
+        const n = window.prompt('Название спец. цвета:', state.specialFillName || '');
+        if (n !== null) state.specialFillName = n.trim();
+        const v = window.prompt('Цена спец. цвета, ₽/м²:', String(state.specialFillPrice));
+        if (v !== null && !isNaN(Number(v)) && Number(v) >= 0) state.specialFillPrice = Number(v);
+      }
+      rerender();
+    });
+    row.appendChild(sel);
     ctrl.appendChild(row);
   });
   if (segments.some(s => (s.fill || globalFill) === 'special')) {
-    addNote(`Спец. цвет: ${state.specialFillPrice} ₽/м² (общая цена, меняется на «Фасаде» или при выборе)`);
+    const nm = state.specialFillName ? `«${state.specialFillName}», ` : '';
+    addNote(`Спец. цвет: ${nm}${state.specialFillPrice} ₽/м² (общие название и цена, меняются на «Фасаде» или при выборе)`);
   }
 }
 
@@ -303,6 +312,7 @@ export function openDoorEditor() {
     profileColor: state.profileColor,
     doorFill: state.doorFill,
     specialFillPrice: state.specialFillPrice,
+    specialFillName: state.specialFillName,
   });
   document.getElementById('doorEditorOverlay').classList.add('visible');
   render();

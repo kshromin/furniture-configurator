@@ -175,6 +175,7 @@ export const state = {
   profileColor: 'silver',    // silver | black | white | gold | bronze
   doorFill: 'ldsp',          // ldsp | mirror | special
   specialFillPrice: 3000,    // ₽/м² «цвета специального» — пользователь вводит сам
+  specialFillName: '',       // название спеццвета (вводит пользователь, выходит в смету)
   // Индивидуальная разбивка двери (окно «Комбинированная дверь»): ключ — индекс двери,
   // значение — { dividers: [мм от низа двери], fills: ['ldsp'|'mirror'|'special', ...] } —
   // fills на одну длиннее dividers (секции снизу вверх). Двери без записи — сплошное полотно

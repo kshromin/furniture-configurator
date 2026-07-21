@@ -401,13 +401,14 @@
 
         <div class="field-group">
           <div class="field-group-title">Наполнение дверей</div>
-          <!-- ЛДСП / Зеркало (2000₽/м², заглушка) / «Цвет специальный» (розоватый, цена вручную).
-               Стекло убрано по заданию «двери-начали 20,07». -->
-          <div class="door-fill-btns">
-            <button class="door-fill-btn active" data-fill="ldsp">ЛДСП</button>
-            <button class="door-fill-btn" data-fill="mirror">Зеркало</button>
-            <button class="door-fill-btn" data-fill="special">Спец. цвет</button>
-          </div>
+          <!-- Выпадающий список вместо ряда кнопок (задание 21.07): вариантов будет больше
+               (стекло прозрачное/ультрапрозрачное/с плёнкой и т.д.) — ряд кнопок не масштабируется.
+               Пока: ЛДСП / Зеркало (цена из каталога) / «Цвет специальный» (название+цена вручную). -->
+          <select id="doorFillSelect" class="mini-select-wide" style="width:100%">
+            <option value="ldsp">ЛДСП</option>
+            <option value="mirror">Зеркало</option>
+            <option value="special">Спец. цвет</option>
+          </select>
 
           <!-- ЛДСП -->
           <div class="door-fill-detail" id="fillLdsp">
@@ -427,9 +428,13 @@
             <div class="swatch-name" id="mirrorPriceNote"></div>
           </div>
 
-          <!-- Цвет специальный: цена за м² вводится пользователем вручную -->
+          <!-- Цвет специальный: название и цена за м² вводятся пользователем вручную,
+               название выходит в смету (describeConfig в js/core/order.js) -->
           <div class="door-fill-detail" id="fillSpecial" style="display:none">
             <div style="width:100%;height:80px;background:linear-gradient(135deg,#e8b4c8 0%,#f5dbe6 50%,#e8b4c8 100%);border-radius:6px;border:1px solid #d49ab4;display:flex;align-items:center;justify-content:center;color:#a5607e;font-size:13px;font-weight:600;">Цвет специальный</div>
+            <div class="field" style="margin-top:8px">
+              <div class="dim-label-row"><label>Название</label><input type="text" autocomplete="off" class="dim-input" id="specialFillNameVal" style="text-align:left;width:180px" placeholder="напр. Лакобель белый"></div>
+            </div>
             <div class="field" style="margin-top:8px">
               <div class="dim-label-row"><label>Цена, ₽/м²</label><input type="number" autocomplete="off" class="dim-input" id="specialFillPriceVal" min="0" step="100" value="3000"></div>
             </div>

@@ -59,6 +59,15 @@ export function describeConfig() {
   let s = `${type?.name || state.type}, ${state.width}×${state.height}×${state.depth} мм`;
   s += `, корпус: ${kName}, фасад: ${fName}`;
   s += type.describe();
+  // Спец. цвет наполнения дверей: название вводит пользователь (задание 21.07), в смете должно
+  // быть видно, какой именно материал имелся в виду — глобально или в любой секции любой двери.
+  if (type?.ctx?.fasad?.available) {
+    const specialUsed = state.doorFill === 'special' ||
+      Object.values(state.doorCustom || {}).some(c => (c?.fills || []).includes('special'));
+    if (specialUsed) {
+      s += `, спец. цвет: «${state.specialFillName || 'без названия'}» ${state.specialFillPrice} ₽/м²`;
+    }
+  }
   s += `. Итого: ${fmt(state.lastTotal || 0)}`;
   return s;
 }

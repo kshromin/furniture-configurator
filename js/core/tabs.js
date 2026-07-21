@@ -313,13 +313,16 @@ export function syncFasadUI() {
 
   document.querySelectorAll('.profile-btn').forEach(b => b.classList.toggle('active', b.dataset.profile === state.profile));
   renderProfileColors();
-  document.querySelectorAll('.door-fill-btn').forEach(b => b.classList.toggle('active', b.dataset.fill === state.doorFill));
+  const fillSelect = document.getElementById('doorFillSelect');
+  if (fillSelect) fillSelect.value = state.doorFill;
   ['ldsp', 'mirror', 'special'].forEach(f => {
     const el = document.getElementById('fill' + f.charAt(0).toUpperCase() + f.slice(1));
     if (el) el.style.display = f === state.doorFill ? 'block' : 'none';
   });
   const specialInput = document.getElementById('specialFillPriceVal');
   if (specialInput) specialInput.value = state.specialFillPrice;
+  const specialName = document.getElementById('specialFillNameVal');
+  if (specialName) specialName.value = state.specialFillName || '';
 }
 
 // Откат истории (см. js/core/history.js) подменяет весь state целиком и сам вызывает
@@ -518,18 +521,15 @@ export function bindFasadTab() {
   const mirrorNote = document.getElementById('mirrorPriceNote');
   if (mirrorNote) mirrorNote.textContent = `${materials.slidingDoor?.fills?.mirror?.pricePerM2 ?? '—'} ₽/м²`;
 
-  document.querySelectorAll('.door-fill-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.door-fill-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.doorFill = btn.dataset.fill;
-      showDoorFill(state.doorFill);
-      buildFurniture();
-    });
+  document.getElementById('doorFillSelect').addEventListener('change', e => {
+    state.doorFill = e.target.value;
+    showDoorFill(state.doorFill);
+    buildFurniture();
   });
 
-  // «Цвет специальный» — цена за м² вводится пользователем вручную (окошко появляется при
-  // выборе спеццвета), сохраняется в state и участвует в цене наполнения дверей (pricing.js).
+  // «Цвет специальный» — название и цена за м² вводятся пользователем вручную (блок появляется
+  // при выборе спеццвета), сохраняются в state; цена участвует в цене наполнения (pricing.js),
+  // название выходит в смету (describeConfig в order.js).
   const specialPriceInput = document.getElementById('specialFillPriceVal');
   specialPriceInput.value = state.specialFillPrice;
   specialPriceInput.addEventListener('change', () => {
@@ -537,6 +537,11 @@ export function bindFasadTab() {
     specialPriceInput.value = v;
     state.specialFillPrice = v;
     buildFurniture();
+  });
+  const specialNameInput = document.getElementById('specialFillNameVal');
+  specialNameInput.value = state.specialFillName || '';
+  specialNameInput.addEventListener('change', () => {
+    state.specialFillName = specialNameInput.value.trim();
   });
 
   renderProducerSelect('fasad', 'fasadProducer', 'fasadSwatches');
