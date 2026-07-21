@@ -125,19 +125,33 @@ function render() {
   ctrl.appendChild(colorRow);
 
   addTitle('Перемычки');
-  addNote('Высота в мм от низа двери');
+  // Размеры цепочкой (задание «двери доделка 20,07»): не абсолютная высота каждой перемычки от
+  // низа, а расстояние от низа до 1-й, от 1-й до 2-й и т.д. Хранение не менялось (абсолютные мм,
+  // state.doorCustom[i].dividers) — пересчёт только на показе и на вводе.
+  addNote('Расстояния в мм: от низа двери до 1-й, от 1-й до 2-й и т.д.');
   const lo = 40 + 30, hi = Math.round(L.doorH) - 40 - 30;
+  const MIN_GAP = 70; // 40 профиль перемычки + 30 минимальная видимая секция (как отступ от рамки)
   dividers.forEach((d, j) => {
+    const base = j === 0 ? 0 : dividers[j - 1];
+    // Перемычка двигается между соседями (не перескакивает): цепочные значения соседних полей
+    // при перескоке молча поменялись бы местами после сортировки.
+    const loEff = Math.max(lo, j === 0 ? lo : base + MIN_GAP);
+    const hiEff = Math.min(hi, j < dividers.length - 1 ? dividers[j + 1] - MIN_GAP : hi);
     const row = document.createElement('div');
     row.className = 'door-editor-divider-row';
+    const label = document.createElement('span');
+    label.className = 'el-row-label';
+    label.textContent = j === 0 ? 'низ → 1' : `${j} → ${j + 1}`;
+    row.appendChild(label);
     const inp = document.createElement('input');
     inp.type = 'number';
     inp.className = 'dim-input';
     inp.autocomplete = 'off';
-    inp.value = Math.round(d);
-    inp.min = lo; inp.max = hi; inp.step = 10;
+    inp.value = Math.round(d - base);
+    inp.min = Math.max(1, loEff - base); inp.max = Math.max(1, hiEff - base); inp.step = 10;
     inp.addEventListener('change', () => {
-      const v = Math.max(lo, Math.min(hi, Number(inp.value) || 0));
+      const raw = base + (Number(inp.value) || 0);
+      const v = Math.min(hiEff, Math.max(loEff, raw));
       const c = ensureCustom(currentDoor);
       c.dividers = [...dividers];
       c.dividers[j] = v;
