@@ -8,6 +8,7 @@ import {
   markUnfinishedTypes,
 } from './core/tabs.js';
 import { addCurrentToOrder, renderOrderCards, bindOrderForm } from './core/order.js';
+import { bindPrint } from './core/print.js';
 import { renderExtras, bindExtras } from './core/extras.js';
 import { bindProjectsControls, openProjectsModal } from './core/projects.js';
 import { initAuth, bindLoginForm } from './core/auth.js';
@@ -64,6 +65,7 @@ async function init() {
   bindToggleDoors();
   bindSectionsControls();
   bindOrderForm();
+  bindPrint();
   renderExtras();
   bindExtras();
 

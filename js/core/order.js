@@ -163,6 +163,22 @@ async function guardUnsavedItems(discardLabel, proceed) {
   }
 }
 
+// Данные для печати сметы (js/core/print.js, задание «печать 19,07»): текущий комплект +
+// клиент/№ открытого проекта. Пустой комплект печатает текущую конфигурацию одной позицией.
+export function getPrintData() {
+  const items = orderItems.length > 0
+    ? orderItems.map(it => ({ label: it.label, total: it.total }))
+    : [{ label: describeConfig(), total: state.lastTotal || 0 }];
+  return {
+    items,
+    grandTotal: items.reduce((s, it) => s + it.total, 0),
+    client: editingProjectClient ? { ...editingProjectClient } : null,
+    title: editingProjectTitle,
+    kind: editingProjectKind,
+    code: editingProjectCode,
+  };
+}
+
 // Открыть сохранённый комплект из вкладки «Проекты». Если в «Прорисовках» лежит несохранённый
 // комплект — предложение сохранить (не просто предупреждение о потере).
 export function openProject(project) {

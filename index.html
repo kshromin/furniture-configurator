@@ -520,6 +520,7 @@
       <button id="saveProjectBtn" class="order-btn" style="margin-top:12px">Сохранить в проект</button>
       <button id="saveOrderBtn" class="order-btn order-btn-accent" style="margin-top:8px">Добавить в заказ</button>
       <button id="newKitBtn" class="btn-secondary" style="width:100%;margin-top:8px;padding:10px;border-radius:8px">Начать новый комплект</button>
+      <button id="printBtn" class="btn-secondary" style="width:100%;margin-top:8px;padding:10px;border-radius:8px">Печать</button>
     </div>
 
 
@@ -642,6 +643,22 @@
       <div class="door-editor-footer">
         <button id="doorEditorSave" class="btn-primary" type="button">Сохранить</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Предпросмотр печати (задание «печать 19,07», js/core/print.js) — белый лист со сметой:
+       шапка проекта/клиента, снимок 3D, таблица прорисовок, итого. Кнопка «Печать» зовёт
+       window.print(); @media print в style.css печатает только лист. -->
+  <div id="printOverlay" class="overlay projects-modal-overlay">
+    <div class="print-modal-box">
+      <div class="projects-modal-header">
+        <div class="pane-title" style="margin:0">Предпросмотр печати</div>
+        <div class="print-actions">
+          <button id="printDoPrint" class="btn-primary" type="button">Печать</button>
+          <button id="printClose" class="projects-modal-close" title="Закрыть">×</button>
+        </div>
+      </div>
+      <div class="print-scroll"><div id="printSheet" class="print-sheet"></div></div>
     </div>
   </div>
 

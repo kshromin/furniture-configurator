@@ -1370,6 +1370,69 @@ html, body {
    auto по умолчанию защищает его от сжатия), поэтому «Мои конфигурации»/«Выйти» всегда видны. */
 .cabinet-modal-footer { flex-shrink: 0; }
 
+/* ── Предпросмотр печати (js/core/print.js, задание «печать 19,07») — тот же оверлей, что и у
+   «Проекты», внутри серый фон с белым «листом» по центру ── */
+.print-modal-box {
+  width: min(860px, 94vw);
+  height: min(92vh, 1040px);
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.3);
+}
+.print-actions { display: flex; align-items: center; gap: 10px; }
+.print-actions .btn-primary { padding: 8px 22px; border-radius: 8px; }
+.print-scroll {
+  flex: 1; min-height: 0; overflow-y: auto;
+  background: #e9e9ec; border-radius: 8px; padding: 16px;
+}
+.print-sheet {
+  background: #fff;
+  max-width: 794px; /* ширина A4 при 96dpi — предпросмотр близок к тому, что выйдет на бумаге */
+  margin: 0 auto;
+  padding: 36px 40px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+  font-size: 13px;
+  color: #222;
+  line-height: 1.5;
+}
+.print-head { font-size: 19px; font-weight: 700; margin-bottom: 4px; }
+.print-meta { color: #666; margin-bottom: 14px; }
+.print-img {
+  display: block;
+  width: 100%;
+  border: 1px solid #e2e2e2;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+.print-table { width: 100%; border-collapse: collapse; }
+.print-table th, .print-table td {
+  border: 1px solid #d8d8d8;
+  padding: 6px 9px;
+  text-align: left;
+  vertical-align: top;
+}
+.print-table th { background: #f4f4f6; font-size: 12px; }
+.print-table .print-num { width: 26px; text-align: center; }
+.print-table .print-price { width: 110px; text-align: right; white-space: nowrap; }
+.print-total { text-align: right; font-size: 16px; font-weight: 700; margin-top: 12px; }
+
+/* Печать: виден только лист. Класс printing вешается на body на время window.print()
+   (js/core/print.js) — всё приложение прячется, оверлей и лист теряют рамки/фоны/скроллы. */
+@media print {
+  body.printing > *:not(#printOverlay) { display: none !important; }
+  body.printing #printOverlay { position: static; display: block; padding: 0; background: none; }
+  body.printing .print-modal-box {
+    width: auto; height: auto; padding: 0;
+    box-shadow: none; border-radius: 0; display: block;
+  }
+  body.printing .projects-modal-header { display: none; }
+  body.printing .print-scroll { overflow: visible; background: none; padding: 0; border-radius: 0; }
+  body.printing .print-sheet { max-width: none; box-shadow: none; padding: 0; }
+}
+
 .order-card-thumb {
   display: block;
   width: 100%;
