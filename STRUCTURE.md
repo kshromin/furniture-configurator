@@ -17,4 +17,4 @@
 
 ## Прочее
 
-`DEVLOG.md` — журнал сессий. `CLAUDE.md` — инструкции для Claude. `scripts/dev-server.py` — локальный сервер для превью без кэша.
+`DEVLOG.md` — журнал сессий. `CLAUDE.md` — инструкции для Claude. `scripts/dev-server.py` — локальный сервер для превью без кэша. `CNAME` — привязка домена GitHub Pages (`config.komandor-nsk.ru`).
