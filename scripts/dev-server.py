@@ -17,10 +17,11 @@ class NoCacheHandler(SimpleHTTPRequestHandler):
 
 if __name__ == '__main__':
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8723
-    # Необязательный 2-й аргумент — папка для раздачи (иначе текущая): нужен, когда превью
-    # запускается из другой рабочей папки и launch.json не может задать cwd вне проекта.
-    if len(sys.argv) > 2:
-        os.chdir(sys.argv[2])
+    # Раздаём корень программы (папку над scripts/) независимо от того, откуда запустили:
+    # после систематизации папок (21.07) программа живёт в Config/config, а превью может
+    # стартовать из Config. Необязательный 2-й аргумент — раздать другую папку.
+    os.chdir(sys.argv[2] if len(sys.argv) > 2
+             else os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     # ThreadingHTTPServer — не plain HTTPServer: страница на загрузке шлёт ~30 параллельных
     # запросов ES-модулей, однопоточный сервер обслуживает их по очереди и под такой нагрузкой
     # браузер может оборвать соединение по таймауту (страница падает в chrome-error). Тот же

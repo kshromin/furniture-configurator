@@ -25,8 +25,9 @@ sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'data', 'materials.json')
-XLSX = os.path.join(ROOT, 'для работы', 'цены.xlsx')
-BACKUP_DIR = os.path.join(ROOT, 'для работы', 'бэкапы цен')
+# Папки систематизированы (21.07): выгрузки — Config/Выгрузки, бэкапы — Config/Бэкапы
+XLSX = os.path.normpath(os.path.join(ROOT, '..', 'Выгрузки', 'цены.xlsx'))
+BACKUP_DIR = os.path.normpath(os.path.join(ROOT, '..', 'Бэкапы'))
 
 LDSP_GROUPS = {'ЛДСП корпус': 'korpus', 'ЛДСП фасад': 'fasad', 'ЛДСП наполнение': 'fill'}
 

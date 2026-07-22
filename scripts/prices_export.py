@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # Выгрузка цен и ассортимента конфигуратора в Excel (задание «скрипт для цен 18,07»).
-# Читает data/materials.json → пишет «для работы/цены.xlsx» (по листу на категорию).
+# Читает data/materials.json → пишет xlsx по листу на категорию; куда сохранить — спрашивает
+# окном (по умолчанию Config/Выгрузки/цены.xlsx), путь можно передать и аргументом.
 # Правки вносятся в Excel, обратно — скриптом prices_import.py («Загрузить цены.bat»).
 #
 # Устройство файла:
@@ -18,7 +19,8 @@ sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'data', 'materials.json')
-OUT_DIR = os.path.join(ROOT, 'для работы')
+# Папки систематизированы (21.07): программа в Config/config, выгрузки — в Config/Выгрузки
+OUT_DIR = os.path.normpath(os.path.join(ROOT, '..', 'Выгрузки'))
 OUT = os.path.join(OUT_DIR, 'цены.xlsx')
 
 SLIDE_TYPES = {'ball': 'Шариковые', 'soft': 'С доводчиком', 'push': 'Push-to-open', 'blum': 'BLUM'}
@@ -53,11 +55,39 @@ HELP_TEXT = [
 ]
 
 
+def pick_save_path():
+    """Окно «куда сохранить» (просьба 21.07 — универсальные скрипты с выбором пути):
+    по умолчанию Config/Выгрузки/цены.xlsx, но можно выбрать любое место и имя."""
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+        os.makedirs(OUT_DIR, exist_ok=True)
+        path = filedialog.asksaveasfilename(
+            title='Куда сохранить выгрузку цен?',
+            initialdir=OUT_DIR,
+            initialfile=os.path.basename(OUT),
+            defaultextension='.xlsx',
+            filetypes=[('Excel', '*.xlsx')])
+        root.destroy()
+        return path or None  # закрыл окно = отмена
+    except Exception:
+        return OUT  # без графики (автоматизация) — путь по умолчанию
+
+
 def main():
     global OUT
-    # Путь можно передать аргументом — для автоматизации/проверок
+    # Путь можно передать аргументом (без окна) — для автоматизации/проверок
     if len(sys.argv) > 1:
         OUT = sys.argv[1]
+    else:
+        picked = pick_save_path()
+        if not picked:
+            print('Выгрузка отменена — путь не выбран.')
+            return 1
+        OUT = picked
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill
     from openpyxl.utils import get_column_letter
@@ -221,11 +251,11 @@ def main():
         for it in grp['items']:
             add_row(ws, [grp['name'], it['name'], it['price'], grp['id'], it['id']])
 
-    os.makedirs(OUT_DIR, exist_ok=True)
+    os.makedirs(os.path.dirname(os.path.abspath(OUT)) or '.', exist_ok=True)
     try:
         wb.save(OUT)
     except PermissionError:
-        print('ОШИБКА: файл «цены.xlsx» открыт в Excel — закройте его и запустите выгрузку ещё раз.')
+        print(f'ОШИБКА: файл «{os.path.basename(OUT)}» открыт в Excel — закройте его и запустите выгрузку ещё раз.')
         return 1
     print(f'Готово: {OUT}')
     print('Листы: ' + ', '.join(wb.sheetnames))
