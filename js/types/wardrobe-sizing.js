@@ -1,6 +1,6 @@
-import { state, PANEL_THICKNESS, detailT } from '../core/state.js';
+import { state, materials, PANEL_THICKNESS, detailT } from '../core/state.js';
 import {
-  DOOR_DEPTH_ZONE, DOOR_OVERLAP, DOOR_MIN_W, DOOR_MAX_W, MESH_DEPTHS, VALET_LENGTHS, BASKET_WIDTHS, BASKET_DEPTHS_BY_WIDTH,
+  DOOR_DEPTH_ZONE, DOOR_OVERLAP, DOOR_MIN_W, DOOR_MAX_W, meshDepths, valetLengths, basketWidths, basketDepthsFor,
   MIN_DRAWER_OFFSET_WIDTH, MIN_DRAWER_REMAINING_WIDTH,
 } from './wardrobe-constants.js';
 
@@ -322,7 +322,7 @@ export function maxDrawerDepth(depth) {
 
 export function availableMeshDepths(depth) {
   const innerDepth = depth - DOOR_DEPTH_ZONE - backWallClearance();
-  return MESH_DEPTHS.filter(d => d <= innerDepth);
+  return meshDepths().filter(d => d <= innerDepth);
 }
 
 // Толщина самой задней стенки (ЛДСП — та же панель, что и корпус, ХДФ — тонкая накладка, см.
@@ -348,14 +348,18 @@ export function valetBackClearance() {
 
 export function availableValetLengths(depth) {
   const innerDepth = depth - DOOR_DEPTH_ZONE;
-  return VALET_LENGTHS.filter(v => v <= innerDepth - valetBackClearance() - backWallClearance());
+  return valetLengths().filter(v => v <= innerDepth - valetBackClearance() - backWallClearance());
 }
 
 // Сетчатые корзины — реальный типоразмерный ряд (не параметрический): ширина (поперёк секции)
 // жёстко определяет набор допустимых глубин (в шкаф) и обязательный проём (реальную ширину
 // секции) = ширина + 23мм (зазор под направляющие каждой стороны). Если ширина секции не равна
 // этому значению — корзина физически не встанет, включать её нельзя.
-export const BASKET_HEIGHTS = [120, 190];
+// Высоты корзин — тоже из каталога (какие есть в прайсе для данного размера — те и доступны)
+export function basketHeightsFor(w, d) {
+  const hs = [...new Set((materials.basket || []).filter(b => b.width === w && b.depth === d).map(b => b.height))].sort((a, b) => a - b);
+  return hs.length ? hs : [120, 190];
+}
 export const BASKET_PROYOM_GAP = 23; // обязательный проём = basketWidth + этот зазор (кроме исключений ниже)
 // 600мм — зазор под направляющие шире обычного (не 23, а 27мм), проём 627 — цифра от
 // поставщика (МДМ-Комплект), не по общей формуле остальных ширин.
@@ -371,7 +375,7 @@ export function basketFits(sec) {
 
 export function availableBasketDepths(basketWidth, cabinetDepth) {
   const innerDepth = cabinetDepth - DOOR_DEPTH_ZONE - backWallClearance();
-  return (BASKET_DEPTHS_BY_WIDTH[basketWidth] || []).filter(d => d <= innerDepth);
+  return basketDepthsFor(basketWidth).filter(d => d <= innerDepth);
 }
 
 // Плоский список всех валидных сочетаний ширина/глубина/высота корзины при текущей глубине
@@ -384,12 +388,12 @@ export function availableBasketDepths(basketWidth, cabinetDepth) {
 export function basketSizeOptions(cabinetDepth, sectionWidth) {
   const opts = [];
   const fittingWidths = sectionWidth === undefined
-    ? BASKET_WIDTHS
-    : BASKET_WIDTHS.filter(w => Math.round(sectionWidth) === requiredBasketProyom(w));
-  const widths = fittingWidths.length ? fittingWidths : BASKET_WIDTHS;
+    ? basketWidths()
+    : basketWidths().filter(w => Math.round(sectionWidth) === requiredBasketProyom(w));
+  const widths = fittingWidths.length ? fittingWidths : basketWidths();
   widths.forEach(w => {
     availableBasketDepths(w, cabinetDepth).forEach(d => {
-      BASKET_HEIGHTS.forEach(h => opts.push({ w, d, h }));
+      basketHeightsFor(w, d).forEach(h => opts.push({ w, d, h }));
     });
   });
   return opts;

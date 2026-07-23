@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { state, materials, PANEL_THICKNESS, detailT } from '../core/state.js';
 import { addPanel, furnitureGroup } from '../core/scene.js';
 import { getColor } from '../core/materials.js';
-import { DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_SHELF_GAP, MESH_DEPTHS, VALET_LENGTHS, BASKET_WIDTHS, BASKET_DEPTHS_BY_WIDTH } from './wardrobe-constants.js';
+import { DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_SHELF_GAP, meshDepths, valetLengths, basketWidths, basketDepthsFor } from './wardrobe-constants.js';
 import {
   effectiveDoorSpan, rebalanceSections, getDoorCount, SWING_GAP,
   maxDrawerDepth, availableMeshDepths, availableValetLengths, backWallClearance, valetBackClearance,
@@ -30,7 +30,6 @@ import {
 // DOOR_FRAME_WIDTH остаётся дефолтом для формул цены/геометрии, не зависящих от вида.
 export const DOOR_FRAME_WIDTH = 40; // видимая ширина профиля по периметру (дефолт)
 export const DOOR_FRAME_DEPTH = 40; // толщина рамки (она же — толщина двери по Z)
-const PROFILE_FRAME_WIDTHS = { open: 30, closed: 40, slim: 20, slimbox: 26, widebox: 60 };
 const DOOR_FRAME_COLOR = 0xc4c4c8; // fallback, если каталог ещё не загружен
 // Наполнение двери: ЛДСП — цвет фасада, зеркало — голубоватое, «цвет специальный» — розоватый.
 const DOOR_FILL_MIRROR_COLOR  = 0xcfe8ec;
@@ -112,17 +111,17 @@ export function clampSectionSizes(sections, depth) {
     if (meshAvail.length) {
       if (!meshAvail.includes(sec.meshDepth)) sec.meshDepth = meshAvail[meshAvail.length - 1];
     } else {
-      sec.meshDepth = MESH_DEPTHS[0];
+      sec.meshDepth = meshDepths()[0];
       sec.items = sec.items.filter(it => it.type !== 'mesh');
     }
     // Аналогично для вешала — если ни один заявленный размер больше не влезает, гасим галочку.
     if (valetAvail.length) {
       if (!valetAvail.includes(sec.valetLength)) sec.valetLength = valetAvail[valetAvail.length - 1];
     } else {
-      sec.valetLength = VALET_LENGTHS[0];
+      sec.valetLength = valetLengths()[0];
       sec.valet = 0;
     }
-    if (!BASKET_WIDTHS.includes(sec.basketWidth)) sec.basketWidth = BASKET_WIDTHS[0];
+    if (!basketWidths().includes(sec.basketWidth)) sec.basketWidth = basketWidths()[0];
     const basketDepthAvail = availableBasketDepths(sec.basketWidth, depth);
     if (basketDepthAvail.length) {
       // Шкаф стал мельче — уже построенная корзина подрезается до наибольшей ещё влезающей
@@ -132,7 +131,7 @@ export function clampSectionSizes(sections, depth) {
       // Ни один вариант глубины для этой ширины корзины больше не влезает в шкаф вообще —
       // подрезать нечего, корзина физически не влезет ни при какой доступной глубине.
       // Показываем в UI дефолтную глубину (первую из типоразмерного ряда), но убираем из items.
-      sec.basketDepth = BASKET_DEPTHS_BY_WIDTH[sec.basketWidth][0];
+      sec.basketDepth = basketDepthsFor(sec.basketWidth)[0] ?? 400;
       sec.items = sec.items.filter(it => it.type !== 'basket');
     }
     // Тихая защита данных: если ширина секции разошлась с обязательным проёмом (например, из-за
@@ -170,7 +169,9 @@ function doorFillColor(fill, fillColor, colorId) {
 // doorIndex — для индивидуальных перемычек/наполнения секций двери (state.doorCustom[i], окно
 // «Комбинированная дверь»); у распашных не передаётся — кастом не применяется, всегда ЛДСП.
 function buildSlidingDoor(x, y, z, w, h, fillColor, doorIndex) {
-  const fw = PROFILE_FRAME_WIDTHS[state.profile] || DOOR_FRAME_WIDTH;
+  // Ширина рамки — свойство профиля из каталога (data/materials.json, frameWidth); новые
+  // профили, добавленные через эксель, без явного значения получают стандартную.
+  const fw = (materials.slidingDoor?.profiles || []).find(p => p.id === state.profile)?.frameWidth || DOOR_FRAME_WIDTH;
   // Цвет профиля — из каталога (hex вида "#c4c4c8" → число для Three.js).
   const colorEntry = (materials.slidingDoor?.colors || []).find(c => c.id === state.profileColor);
   const frameColor = colorEntry ? parseInt(colorEntry.hex.slice(1), 16) : DOOR_FRAME_COLOR;

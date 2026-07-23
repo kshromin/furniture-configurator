@@ -7,18 +7,19 @@ import { showToast, showChoiceDialog } from './toast.js';
 import { renderStaticDimensions, setSelectedSection } from './dimensions.js';
 import {
   rebalanceSections, MIN_SECTION_WIDTH, maxDrawerDepth, availableMeshDepths, availableValetLengths, clampSectionSizes,
-  basketSizeOptions, basketFits, requiredBasketProyom, canAddSection, canRemoveSection, BASKET_WIDTHS,
+  basketSizeOptions, basketFits, requiredBasketProyom, canAddSection, canRemoveSection, basketWidths,
   sectionVerticalBounds, findFreeSlot, defaultItemsForSection, isSectionWidthLocked, sectionMissingSideSupport, absorbIntoLockedGap,
   sectionBackWallSegments, doorCountOptions, getDoorCount, effectiveDoorSpan, DOOR_MIN_W, DOOR_OVERLAP,
   swingDoorCountOptions, SWING_GAP, SWING_DOOR_MIN_W, SWING_DOOR_MAX_W,
-  mezzanineVerticalBounds, MESH_DEPTHS, clampItemPositions, defaultPinnedShelfY,
+  mezzanineVerticalBounds, meshDepths, clampItemPositions, defaultPinnedShelfY,
   slidingDoorsCanClear, lastBuildSectionCenters, findMinDrawerOffset, clampDrawerOffsetWidth,
 } from '../types/_wardrobe-shared.js';
 
 // Общий список допустимых проёмов под корзины (не привязан к конкретной выбранной ширине) —
 // добавляется в тосты о несовпадении, чтобы пользователь сразу видел все варианты, а не только
 // требование текущей корзины.
-const BASKET_PROYOMS_HINT = `Допустимые проёмы для корзин: ${BASKET_WIDTHS.map(requiredBasketProyom).join(', ')}мм.`;
+// Функция, не константа: сетка ширин корзин теперь из каталога, который грузится позже модулей
+const basketProyomsHint = () => `Допустимые проёмы для корзин: ${basketWidths().map(requiredBasketProyom).join(', ')}мм.`;
 
 // Свёрнутость карточки секции — чисто UI-состояние (не часть state, не сохраняется в заказ/
 // конфигурацию), поэтому живёт локально в модуле, а не в state.sections[i]. WeakSet по ссылке
@@ -879,7 +880,7 @@ export function renderSectionsList() {
       const type = btn.dataset.type;
       const sec = state.sections[i];
       if (type === 'basket' && !basketFits(sec)) {
-        showToast(`Корзина ${sec.basketWidth}мм требует проём секции ровно ${requiredBasketProyom(sec.basketWidth)}мм (сейчас ${Math.round(sec.width)}мм). Измените ширину секции. ${BASKET_PROYOMS_HINT}`);
+        showToast(`Корзина ${sec.basketWidth}мм требует проём секции ровно ${requiredBasketProyom(sec.basketWidth)}мм (сейчас ${Math.round(sec.width)}мм). Измените ширину секции. ${basketProyomsHint()}`);
         return;
       }
       if ((type === 'drawer' || type === 'basket') && sectionMissingSideSupport(state.sections, i)) {
@@ -1005,7 +1006,7 @@ export function renderSectionsList() {
       // друг с другом, поэтому при несовпадении проёма убираем их все явно, с тостом.
       const hasBaskets = sec.items.some(it => it.type === 'basket');
       if (hasBaskets && !basketFits(sec)) {
-        showToast(`Корзина ${w}мм требует проём секции ровно ${requiredBasketProyom(w)}мм (сейчас ${Math.round(sec.width)}мм). Корзины в этой секции отключены. ${BASKET_PROYOMS_HINT}`);
+        showToast(`Корзина ${w}мм требует проём секции ровно ${requiredBasketProyom(w)}мм (сейчас ${Math.round(sec.width)}мм). Корзины в этой секции отключены. ${basketProyomsHint()}`);
         sec.items = sec.items.filter(it => it.type !== 'basket');
         renderSectionsList();
       }
@@ -1106,7 +1107,7 @@ function renderMezzanineList() {
     if (meshDepths.length) {
       if (!meshDepths.includes(sec.meshDepth)) sec.meshDepth = meshDepths[meshDepths.length - 1];
     } else {
-      sec.meshDepth = MESH_DEPTHS[0];
+      sec.meshDepth = meshDepths()[0];
       sec.items = sec.items.filter(it => it.type !== 'mesh');
     }
     clampItemPositions(sec, mezzFillBottom, mezzFillTop);

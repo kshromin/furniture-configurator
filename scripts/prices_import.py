@@ -385,10 +385,89 @@ def main():
 
     price_only('Направляющие', data['drawerSlide'], lambda s: f"{s['type']}:{s['length']}",
                lambda s: f"Направляющие {s['type']} {s['length']}мм", 'price', 3, 2, 4)
-    price_only('Сетчатые полки', data['meshShelf'], lambda m: f"{m['depth']}:{m['color']}",
-               lambda m: f"Сетчатая полка {m['name']}", 'pricePerM', 2, 1, 3)
-    price_only('Корзины', data['basket'], lambda b: f"{b['width']}:{b['depth']}:{b['height']}:{b['color']}",
-               lambda b: f"Корзина {b['width']}×{b['depth']}×{b['height']} {b['color']}", 'price', 5, 4, 6)
+
+    # ── Сетчатые полки и Корзины — размерные сетки теперь живут в каталоге (разделение
+    # «как строим»/«из чего строим», 21.07): новая строка без ключа = новый размер/цвет,
+    # конфигуратор подхватывает сетки из данных сам. Цвета — фиксированный набор (3D-материалы).
+    METAL_COLORS = {'белый': 'white', 'серебро': 'silver', 'чёрный': 'black', 'черный': 'black',
+                    'white': 'white', 'silver': 'silver', 'black': 'black'}
+
+    def parse_metal_color(v, where):
+        c = METAL_COLORS.get(cell_str(v).lower())
+        if not c:
+            errors.append(f'{where}: цвет «{v}» — допустимы Белый, Серебро, Чёрный')
+        return c
+
+    def parse_size(v, where, label):
+        try:
+            n = int(float(str(v).replace(',', '.')))
+            if n <= 0:
+                raise ValueError
+            return n
+        except (ValueError, TypeError):
+            errors.append(f'{where}: {label} «{v}» — не целое число миллиметров')
+            return None
+
+    mesh_by_key = {f"{m['depth']}:{m['color']}": m for m in data['meshShelf']}
+    for r, (name, depth, colorv, price, key) in rows_of(wb, 'Сетчатые полки', 5):
+        where = f'«Сетчатые полки», строка {r}'
+        price = parse_price(price, where)
+        key = cell_str(key)
+        if key:
+            if key not in mesh_by_key:
+                errors.append(f'{where}: служебный ключ «{key}» не найден — колонку _key менять нельзя')
+                continue
+            m = mesh_by_key[key]
+            if price is not None:
+                set_price(m, 'pricePerM', price, f'Сетчатая полка {m["name"]}')
+            nm = cell_str(name)
+            if nm and m['name'] != nm:
+                changes.append(f'Сетчатая полка «{m["name"]}» переименована в «{nm}»')
+                m['name'] = nm
+        else:
+            depth = parse_size(depth, where, 'глубина')
+            color = parse_metal_color(colorv, where)
+            nm = cell_str(name)
+            if not nm:
+                errors.append(f'{where}: не заполнено название')
+            if None in (depth, color, price) or not nm:
+                continue
+            k = f'{depth}:{color}'
+            if k in mesh_by_key:
+                errors.append(f'{where}: сетчатая полка {depth}мм/{cell_str(colorv)} уже есть выше')
+                continue
+            m = {'depth': depth, 'color': color, 'name': nm, 'pricePerM': price}
+            data['meshShelf'].append(m)
+            mesh_by_key[k] = m
+            changes.append(f'Сетчатые полки: добавлена «{nm}» ({depth}мм, {price} ₽/пог.м)')
+
+    basket_by_key = {f"{b['width']}:{b['depth']}:{b['height']}:{b['color']}": b for b in data['basket']}
+    for r, (w, dp, h, colorv, price, key) in rows_of(wb, 'Корзины', 6):
+        where = f'«Корзины», строка {r}'
+        price = parse_price(price, where)
+        key = cell_str(key)
+        if key:
+            if key not in basket_by_key:
+                errors.append(f'{where}: служебный ключ «{key}» не найден — колонку _key менять нельзя')
+                continue
+            b = basket_by_key[key]
+            if price is not None:
+                set_price(b, 'price', price, f'Корзина {b["width"]}×{b["depth"]}×{b["height"]} {b["color"]}')
+        else:
+            w = parse_size(w, where, 'ширина')
+            dp = parse_size(dp, where, 'глубина')
+            h = parse_size(h, where, 'высота')
+            color = parse_metal_color(colorv, where)
+            if None in (w, dp, h, color, price):
+                continue
+            k = f'{w}:{dp}:{h}:{color}'
+            if k in basket_by_key:
+                errors.append(f'{where}: корзина {w}×{dp}×{h} {cell_str(colorv)} уже есть выше')
+                continue
+            b = {'width': w, 'depth': dp, 'height': h, 'color': color, 'price': price}
+            data['basket'].append(b)
+            basket_by_key[k] = b
+            changes.append(f'Корзины: добавлена {w}×{dp}×{h} {cell_str(colorv)} ({price} ₽)')
 
     # ── Фурнитура и разное (общий лист, ключ-путь) ──
     sd = data['slidingDoor']

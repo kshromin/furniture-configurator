@@ -3,14 +3,31 @@
 // друга по кругу (geometry уже импортирует sizing и items, а не наоборот). Константы, нужные
 // только одному модулю, остаются локальными (часто приватными) в нём же — см. соответствующий
 // файл, а не этот.
+import { materials } from '../core/state.js';
+
 export const DOOR_DEPTH_ZONE = 90; // дверная зона (см. wardrobe-geometry.js/wardrobe-sizing.js)
 export const TOP_SHELF_GAP = 550;  // от верхней границы наполнения до верхней (pinned) полки
-export const MESH_DEPTHS = [300, 400, 500];
-export const VALET_LENGTHS = [250, 300, 350, 400, 450, 500, 550];
-export const BASKET_WIDTHS = [300, 400, 500, 600];
-// 600мм — типоразмерный ряд у же, чем у остальных (только 2 глубины), см. прайс МДМ-Комплект
-// (номенклатура и цены/BASE_корзины_МДМ.xlsx), сессия 2026-07-18.
-export const BASKET_DEPTHS_BY_WIDTH = { 300: [400], 400: [400, 450, 500, 550, 600], 500: [500, 550, 600], 600: [550, 600] };
+
+// ── Размерные сетки ассортимента — из каталога (data/materials.json), не из кода (разделение
+// «как строим»/«из чего строим», 21.07): сетки сеток/корзин выводятся из самих позиций каталога
+// (какие размеры есть в прайсе — те и доступны), длины вешал — отдельный список в каталоге.
+// Функции, не константы: каталог загружается асинхронно после импорта модулей. Фолбэки — на
+// случай пустого каталога (не должно случаться, но геометрия не должна падать). ──
+export function meshDepths() {
+  const ds = [...new Set((materials.meshShelf || []).map(m => m.depth))].sort((a, b) => a - b);
+  return ds.length ? ds : [300, 400, 500];
+}
+export function valetLengths() {
+  const ls = materials.valetLengths || [];
+  return ls.length ? ls : [250, 300, 350, 400, 450, 500, 550];
+}
+export function basketWidths() {
+  const ws = [...new Set((materials.basket || []).map(b => b.width))].sort((a, b) => a - b);
+  return ws.length ? ws : [300, 400, 500, 600];
+}
+export function basketDepthsFor(width) {
+  return [...new Set((materials.basket || []).filter(b => b.width === width).map(b => b.depth))].sort((a, b) => a - b);
+}
 
 // Двери купе: соседние двери заходят друг на друга внахлёст (щели нет), крайние не вылезают
 // за стойки. Ширина одной двери ограничена конструктивом системы — из этого допуска считаются
