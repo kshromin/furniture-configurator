@@ -9,31 +9,41 @@
             "id": "w980",
             "name": "Белый альпийский",
             "color": "#f4f3f0",
-            "pricePerM2": 900
+            "pricePerM2": 900,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           },
           {
             "id": "u727",
             "name": "Серый камень",
             "color": "#9a9a9a",
-            "pricePerM2": 950
+            "pricePerM2": 950,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           },
           {
             "id": "u961",
             "name": "Графит",
             "color": "#4a4a4a",
-            "pricePerM2": 950
+            "pricePerM2": 950,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           },
           {
             "id": "h3840",
             "name": "Дуб Сонома",
             "color": "#c8a97a",
-            "pricePerM2": 1050
+            "pricePerM2": 1050,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           },
           {
             "id": "h1334",
             "name": "Орех Термо",
             "color": "#7a5c3a",
-            "pricePerM2": 1100
+            "pricePerM2": 1100,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           }
         ]
       },
@@ -45,30 +55,40 @@
             "id": "t01",
             "name": "Белый",
             "color": "#f2f2f0",
-            "pricePerM2": 650
+            "pricePerM2": 650,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           },
           {
             "id": "t02",
             "name": "Серый",
             "color": "#b0b0b0",
-            "pricePerM2": 650
+            "pricePerM2": 650,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           },
           {
             "id": "t03",
             "name": "Венге",
             "color": "#3b2a1a",
-            "pricePerM2": 700
+            "pricePerM2": 700,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           },
           {
             "id": "t04",
             "name": "Бук",
             "color": "#d4a96a",
-            "pricePerM2": 700
+            "pricePerM2": 700,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           },
           {
             "id": "k1784630235_1",
             "name": "тест",
-            "pricePerM2": 1000
+            "pricePerM2": 1000,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           }
         ]
       }
@@ -84,25 +104,33 @@
             "id": "fw980",
             "name": "Белый альпийский",
             "color": "#f4f3f0",
-            "pricePerM2": 900
+            "pricePerM2": 900,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           },
           {
             "id": "fu727",
             "name": "Серый камень",
             "color": "#9a9a9a",
-            "pricePerM2": 950
+            "pricePerM2": 950,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           },
           {
             "id": "fu961",
             "name": "Графит",
             "color": "#4a4a4a",
-            "pricePerM2": 950
+            "pricePerM2": 950,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           },
           {
             "id": "fmirror",
             "name": "Зеркало",
             "color": "#cfe8ec",
-            "pricePerM2": 1200
+            "pricePerM2": 1200,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           }
         ]
       },
@@ -114,19 +142,25 @@
             "id": "ft01",
             "name": "Белый",
             "color": "#f2f2f0",
-            "pricePerM2": 650
+            "pricePerM2": 650,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           },
           {
             "id": "ft02",
             "name": "Серый",
             "color": "#b0b0b0",
-            "pricePerM2": 650
+            "pricePerM2": 650,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           },
           {
             "id": "ft03",
             "name": "Венге",
             "color": "#3b2a1a",
-            "pricePerM2": 700
+            "pricePerM2": 700,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           }
         ]
       }
@@ -142,13 +176,17 @@
             "id": "nw980",
             "name": "Белый альпийский",
             "color": "#f4f3f0",
-            "pricePerM2": 900
+            "pricePerM2": 900,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           },
           {
             "id": "nh3840",
             "name": "Дуб Сонома",
             "color": "#c8a97a",
-            "pricePerM2": 1050
+            "pricePerM2": 1050,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           }
         ]
       },
@@ -160,13 +198,17 @@
             "id": "nt01",
             "name": "Белый",
             "color": "#f2f2f0",
-            "pricePerM2": 650
+            "pricePerM2": 650,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           },
           {
             "id": "nt04",
             "name": "Бук",
             "color": "#d4a96a",
-            "pricePerM2": 700
+            "pricePerM2": 700,
+            "edgePerM16": 150,
+            "edgePerM32": 450
           }
         ]
       }
