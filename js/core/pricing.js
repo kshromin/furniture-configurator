@@ -43,17 +43,17 @@ export function updatePrice(counts) {
   const {
     korpusM2 = 0, fasadM2 = 0, doorFillPrice = 0, doorHardwarePrice = 0,
     fillM2 = 0, backWallM2 = 0, backWallType = state.backWall,
-    meshPrice = 0, basketPrice = 0, drawerSlidePrice = 0, edgeLengthM = 0, mountPrice = 0,
+    meshPrice = 0, basketPrice = 0, drawerSlidePrice = 0, edgeMm = null, mountPrice = 0,
   } = type.areas(counts);
 
   const kMat = getColor('korpus');
   const fMat = getColor('fasad');
   const nMat = getColor('fill');
 
-  // Детали 32мм («в две плиты», state.panel32): материал ×2, кромка (толще лента) ×3.
-  // Не касается фурнитуры, сеток/корзин (готовые изделия), крепежа и коробов/выравнивателей.
+  // Детали 32мм («в две плиты», state.panel32): материал ×2. Не касается фурнитуры,
+  // сеток/корзин (готовые изделия), крепежа и коробов/выравнивателей. Кромка при 32мм —
+  // больше не множитель ×3, а отдельная цена ленты «на 32» у цвета (см. kromkaPrice ниже).
   const thickMul  = state.panel32 ? 2 : 1;
-  const kromkaMul = state.panel32 ? 3 : 1;
 
   // mountPrice — скрытые крепёж (100₽/деталь ЛДСП) и встройка (300₽/деталь без боковой опоры):
   // отдельной строки в смете нет по заданию, суммы входят в «Корпус»; количества
@@ -86,9 +86,18 @@ export function updatePrice(counts) {
   // на распашные не начисляются, см. counts в wardrobe-geometry.js). 500₽/дверь — заглушка,
   // реальная цена будет уточнена.
   const swingHwPrice = (counts.swingDoor || 0) * (materials.swingDoorHardware?.pricePerDoor || 0);
-  // Кромка — ПВХ-лента по видимому переднему торцу ЛДСП, за погонный метр (см.
-  // data/materials.json edgeBanding, длина считается в js/types/wardrobe.js areas()).
-  const kromkaPrice = edgeLengthM * (materials.edgeBanding?.pricePerM || 0) * kromkaMul;
+  // Кромка — индивидуальна по цвету плиты и толщине (сессия 39): длины по вёдрам
+  // «материал × 16/32» приходят из wardrobe.js areas() (edgeMm, мм), цена — лента выбранного
+  // цвета (edgePerM16/edgePerM32 у цвета в materials.json). «Кромка на 32» — отдельная
+  // позиция, не множитель. Фолбэк — старая общая цена edgeBanding.pricePerM (и ×3 для 32),
+  // если у цвета цен ленты нет (старый каталог/выгрузка).
+  const edgeRate = (mat, t) => mat?.[t === 32 ? 'edgePerM32' : 'edgePerM16']
+    ?? (materials.edgeBanding?.pricePerM || 0) * (t === 32 ? 3 : 1);
+  const kromkaPrice = edgeMm ? (
+    edgeMm.korpus16 * edgeRate(kMat, 16) + edgeMm.korpus32 * edgeRate(kMat, 32) +
+    edgeMm.fasad16  * edgeRate(fMat, 16) + edgeMm.fasad32  * edgeRate(fMat, 32) +
+    edgeMm.fill16   * edgeRate(nMat, 16) + edgeMm.fill32   * edgeRate(nMat, 32)
+  ) / 1000 : 0;
 
   const total = korpusPrice + fasadPrice + fillPrice + backWallPrice + fittingsPrice + swingHwPrice + kromkaPrice;
 

@@ -172,23 +172,24 @@ export default {
       (state.alignerTop   ? (width * state.alignerTopH) / 1e6 : 0);
 
     // «Детали 32 мм» точечно (галочки в Опциях + item.thick32 у полок), когда общий режим 16:
-    // материал детали ×2 → её площадь добавляется ещё раз; кромка ×3 → её длина ещё дважды.
-    // При общем panel32 те же коэффициенты применяет pricing.js ко ВСЕМУ сразу — здесь ноль,
-    // иначе был бы двойной счёт. Площади частей — те же формулы, что и в базовом расчёте.
-    let extraKorpusM2 = 0, extraFillM2 = 0, extraEdgeMm = 0;
+    // материал детали ×2 → её площадь добавляется ещё раз. При общем panel32 тот же коэффициент
+    // применяет pricing.js ко ВСЕМУ сразу — здесь ноль, иначе был бы двойной счёт. Площади
+    // частей — те же формулы, что и в базовом расчёте. Кромка деталей 32мм больше не считается
+    // здесь множителем — она уходит в ведро «на 32» при накоплении длины (см. edgeMm ниже).
+    let extraKorpusM2 = 0, extraFillM2 = 0;
     if (!state.panel32) {
       const th = state.thick32 || {};
       const B = 16; // базовая толщина формулы площади короба (см. korpusBoxAreaM2)
-      if (th.bottom && !noBottom)   { extraKorpusM2 += (width * B) / 1e6;    extraEdgeMm += 2 * (width + 2 * depth); }
-      if (th.top && !noCeiling)     { extraKorpusM2 += (width * B) / 1e6;    extraEdgeMm += 2 * (width + 2 * depth); }
-      if (th.left && !noSideLeft)   { extraKorpusM2 += (B * stojkaH) / 1e6;  extraEdgeMm += 2 * stojkaH; }
-      if (th.right && !noSideRight) { extraKorpusM2 += (B * stojkaH) / 1e6;  extraEdgeMm += 2 * stojkaH; }
-      if (th.dividers)              { extraKorpusM2 += ((sections.length - 1) * B * stojkaH) / 1e6; extraEdgeMm += 2 * (sections.length - 1) * stojkaH; }
+      if (th.bottom && !noBottom)   extraKorpusM2 += (width * B) / 1e6;
+      if (th.top && !noCeiling)     extraKorpusM2 += (width * B) / 1e6;
+      if (th.left && !noSideLeft)   extraKorpusM2 += (B * stojkaH) / 1e6;
+      if (th.right && !noSideRight) extraKorpusM2 += (B * stojkaH) / 1e6;
+      if (th.dividers)              extraKorpusM2 += ((sections.length - 1) * B * stojkaH) / 1e6;
       // планка-замена наследует толщину своей стороны (короба не участвуют — по заданию)
-      if (th.left  && state.noSideLeft  && state.leftReplace  === 'planka') { extraKorpusM2 += leftBoxM2;   extraEdgeMm += 2 * 2 * H; }
-      if (th.right && state.noSideRight && state.rightReplace === 'planka') { extraKorpusM2 += rightBoxM2;  extraEdgeMm += 2 * 2 * H; }
-      if (th.top   && state.noCeiling   && state.topReplace   === 'planka') { extraKorpusM2 += topBoxM2;    extraEdgeMm += 2 * 2 * width; }
-      if (th.bottom && state.noBottom   && state.bottomReplace === 'planka'){ extraKorpusM2 += bottomBoxM2; extraEdgeMm += 2 * 2 * width; }
+      if (th.left  && state.noSideLeft  && state.leftReplace  === 'planka') extraKorpusM2 += leftBoxM2;
+      if (th.right && state.noSideRight && state.rightReplace === 'planka') extraKorpusM2 += rightBoxM2;
+      if (th.top   && state.noCeiling   && state.topReplace   === 'planka') extraKorpusM2 += topBoxM2;
+      if (th.bottom && state.noBottom   && state.bottomReplace === 'planka') extraKorpusM2 += bottomBoxM2;
     }
 
     function meshPricePerM(depth, color) {
@@ -223,8 +224,8 @@ export default {
     // считаем штуки по типу; общие на тип параметры (высота/глубина/цвет) не изменились.
     const countOf = (sec, type) => sec.items.filter(it => it.type === type).length;
 
-    // Кромка (ПВХ-лента по видимым торцам ЛДСП, см. data/materials.json edgeBanding) — считаем
-    // каждый реально оклеиваемый торец, с учётом того, что скрыто в стыках/у стены:
+    // Кромка (ПВХ-лента по видимым торцам ЛДСП) — считаем каждый реально оклеиваемый торец,
+    // с учётом того, что скрыто в стыках/у стены:
     // - крыша/дно: передний торец (ширина короба) + левый/правый торец (глубина короба) —
     //   у крыши/дна есть боковые срезы помимо переднего.
     // - боковые стойки, перегородки между секциями: только передний торец (высота стойки) —
@@ -233,20 +234,34 @@ export default {
     //   отдельная накладка в дверной зоне, ничем не прикрыта ни спереди, ни изнутри, в отличие
     //   от настоящей стойки, у которой задний торец упирается в стену.
     // - полки: передний торец на ширину своей секции.
-    let edgeLengthMm = 0;
-    if (!noCeiling)   edgeLengthMm += width + 2 * depth;
-    if (!noBottom)    edgeLengthMm += width + 2 * depth;
-    if (!noSideLeft)  edgeLengthMm += stojkaH;
-    if (!noSideRight) edgeLengthMm += stojkaH;
-    edgeLengthMm += (sections.length - 1) * stojkaH; // перегородки между секциями — всегда есть
+    //
+    // Лента теперь индивидуальна по ЦВЕТУ плиты и ТОЛЩИНЕ (сессия 39): длина копится в шесть
+    // вёдер «материал × толщина» (корпус/фасад/наполнение × 16/32), цена каждого ведра — из цен
+    // ленты выбранного цвета (edgePerM16/edgePerM32 у цвета в materials.json, см. pricing.js).
+    // «Кромка на 32» — отдельная позиция каталога вместо прежнего множителя ×3.
+    // При общем режиме 32мм корпус/наполнение — сдвоенная плита (лента «на 32»); фасады ящиков
+    // остаются одинарной плитой и лентой «на 16» (их материал при 32 тоже не удваивается).
+    // Точечные «детали 32мм» переводят в ведро 32 кромку только своей детали.
+    const edgeMm = { korpus16: 0, korpus32: 0, fasad16: 0, fasad32: 0, fill16: 0, fill32: 0 };
+    const th32 = state.thick32 || {};
+    const korpusEdge = (mm, t32) => { edgeMm[(state.panel32 || t32) ? 'korpus32' : 'korpus16'] += mm; };
+    const fillEdge   = (mm, t32) => { edgeMm[(state.panel32 || t32) ? 'fill32'   : 'fill16']   += mm; };
+    const fasadEdge  = (mm)      => { edgeMm.fasad16 += mm; };
 
-    function replaceEdgeLength(noSide, replace, span) {
-      return (noSide && replace !== 'none') ? 2 * span : 0;
+    if (!noCeiling)   korpusEdge(width + 2 * depth, th32.top);
+    if (!noBottom)    korpusEdge(width + 2 * depth, th32.bottom);
+    if (!noSideLeft)  korpusEdge(stojkaH, th32.left);
+    if (!noSideRight) korpusEdge(stojkaH, th32.right);
+    korpusEdge((sections.length - 1) * stojkaH, th32.dividers); // перегородки — всегда есть
+
+    // Планка наследует точечную толщину своей стороны, короб — нет (как и в материале выше).
+    function replaceEdge(noSide, replace, span, t32) {
+      if (noSide && replace !== 'none') korpusEdge(2 * span, replace === 'planka' && t32);
     }
-    edgeLengthMm += replaceEdgeLength(state.noSideLeft,  state.leftReplace,   H);
-    edgeLengthMm += replaceEdgeLength(state.noSideRight, state.rightReplace,  H);
-    edgeLengthMm += replaceEdgeLength(state.noCeiling,   state.topReplace,    width);
-    edgeLengthMm += replaceEdgeLength(state.noBottom,    state.bottomReplace, width);
+    replaceEdge(state.noSideLeft,  state.leftReplace,   H, th32.left);
+    replaceEdge(state.noSideRight, state.rightReplace,  H, th32.right);
+    replaceEdge(state.noCeiling,   state.topReplace,    width, th32.top);
+    replaceEdge(state.noBottom,    state.bottomReplace, width, th32.bottom);
 
     sections.forEach((sec, s) => {
       // Без зазора — совпадает с геометрией в buildWardrobeBox.
@@ -268,10 +283,8 @@ export default {
           // боковины оклеены с трёх сторон (верх+перед+зад — не оклеен только низ, в стыке с
           // дном), задняя стенка — только верхний торец (левый/правый/нижний скрыты в стыках с
           // боковинами и дном).
-          const facadeEdge = 2 * (drawerW + sec.drawerHeight);
-          const sideWallsEdge = 2 * (boxDepth + 2 * boxH);
-          const backWallEdge = boxW;
-          edgeLengthMm += facadeEdge + sideWallsEdge + backWallEdge;
+          fasadEdge(2 * (drawerW + sec.drawerHeight));   // фасад ящика — лента в цвет фасада
+          fillEdge(2 * (boxDepth + 2 * boxH) + boxW);    // короб ящика — лента в цвет наполнения
           // Длина направляющей — по реальной (уже клампнутой под глубину короба) физической
           // глубине ящика, не по «желаемому» sec.drawerDepth — то же значение, что режет короб.
           drawerSlidePrice += drawerSlideUnitPrice(sec.drawerSlideType, boxDepth);
@@ -280,7 +293,7 @@ export default {
             // в wardrobe-geometry.js), без короба/направляющих — отдельная панель со своей кромкой
             // по периметру (два новых внутренних торца, которых не было бы у цельного фасада).
             fasadM2 += (offW * sec.drawerHeight) / 1e6;
-            edgeLengthMm += 2 * (offW + sec.drawerHeight);
+            fasadEdge(2 * (offW + sec.drawerHeight));
           }
         });
       }
@@ -302,10 +315,9 @@ export default {
       if (state.backWall !== 'ldsp') fillM2 += (sw * STIFFENER_HEIGHT) / 1e6; // жёсткость — вертикальная пластина, площадь ширина×высота
       sec.items.filter(it => it.type === 'shelf').forEach(it => {
         fillM2 += (sw * innerDepth) / 1e6;
-        edgeLengthMm += sw; // передний торец полки — на всю ширину секции
-        if (!state.panel32 && it.thick32) { // полка 32мм: материал ×2, кромка ×3
+        fillEdge(sw, it.thick32); // передний торец полки; у полки 32мм — лента «на 32»
+        if (!state.panel32 && it.thick32) { // полка 32мм: материал ×2 (кромка — выше, вся в ведре 32)
           extraFillM2 += (sw * innerDepth) / 1e6;
-          extraEdgeMm += 2 * sw;
         }
       });
     });
@@ -367,7 +379,7 @@ export default {
       korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2 + extraKorpusM2,
       fasadM2, doorFillPrice, doorHardwarePrice,
       fillM2: fillM2 + extraFillM2, backWallM2, backWallType, meshPrice, basketPrice, drawerSlidePrice,
-      edgeLengthM: (edgeLengthMm + extraEdgeMm) / 1000,
+      edgeMm,
       mountPrice, fastenerCount, embedCount, // для будущей спецификации
     };
   },
