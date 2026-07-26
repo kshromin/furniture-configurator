@@ -17,4 +17,4 @@
 
 ## Прочее
 
-`DEVLOG.md` — журнал сессий. `CLAUDE.md` — инструкции для Claude. `scripts/dev-server.py` — локальный сервер для превью без кэша. `CNAME` — привязка домена GitHub Pages (`config.khrom-in.ru`).
+`DEVLOG.md` — журнал сессий. `CLAUDE.md` — инструкции для Claude. `scripts/dev-server.py` — локальный сервер для превью без кэша. `CNAME` — привязка домена GitHub Pages (`config.khrom-in.ru`). `assets/` — статические картинки сайта (напр. `khrom-logo.png` — лого разработчика в углу экрана, `#devLogo`).

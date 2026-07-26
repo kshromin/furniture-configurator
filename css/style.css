@@ -1480,3 +1480,31 @@ html, body {
   letter-spacing: 0.5px;
 }
 .admin-contact { color: #888; font-size: 11px; }
+
+/* ── Лого разработчика в углу экрана (задание «лого 21,07») ──────────────
+   Файл лого — на сплошном чёрном фоне, поэтому оформлен как хром-плашка:
+   скругление + тонкая светлая рамка + мягкая тень. Нижний-левый угол над
+   3D-сценой (свободен: #undoBtn сверху, #sidebar/#panel справа).
+   pointer-events:none — чтобы не перехватывать вращение сцены мышью. */
+#devLogo {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  width: clamp(88px, 8vw, 116px);
+  z-index: 30;
+  pointer-events: none;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #000;
+  line-height: 0;
+  border: 1px solid rgba(196, 204, 214, 0.35);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.25);
+  opacity: 0.9;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#devLogo img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
