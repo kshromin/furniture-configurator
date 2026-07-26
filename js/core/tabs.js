@@ -226,10 +226,18 @@ export function bindSlider(id, key, suffix) {
         showToast(`Максимум для распашных — ${maxW} мм: две двери не могут быть шире 800 мм каждая.`);
       }
     }
+    // Комната не может быть меньше габаритов шкафа — подтягиваем значение вверх, чтобы поле
+    // показывало реальный размер (а не введённое меньшее, которое всё равно урежется в геометрии).
+    if (key === 'roomWidth')  val = Math.max(val, state.width);
+    else if (key === 'roomHeight') val = Math.max(val, state.height);
+    else if (key === 'roomDepth')  val = Math.max(val, state.depth);
     state[key] = val;
     range.value = val;
     if (numInput) numInput.value = val;
     if (key === 'width' || key === 'height') updateTypeBar();
+    // Увеличили габарит шкафа — комната должна за ним успеть (иначе поля комнаты разъедутся
+    // с реальностью так же, как при занижении). Держим значения полей в соответствии.
+    if (key === 'width' || key === 'height' || key === 'depth') clampRoomFieldsToWardrobe();
     buildFurniture();
     // build() клампит state.sections[i].drawerDepth под новую глубину короба — перерисовываем
     // карточки секций, чтобы поле ввода показывало актуальное (уже урезанное) значение и max.
@@ -393,6 +401,14 @@ function updateRoomPosButtons() {
     b.classList.toggle('active', b.dataset.pos === state.roomPos));
 }
 
+// Комната не может быть меньше шкафа: подтягиваем размеры комнаты вверх до габаритов изделия
+// и обновляем поля, чтобы показанное значение соответствовало реальной геометрии.
+function clampRoomFieldsToWardrobe() {
+  if (state.roomWidth  < state.width)  { state.roomWidth  = state.width;  setSlider('roomWidth',  state.roomWidth,  ' мм'); }
+  if (state.roomHeight < state.height) { state.roomHeight = state.height; setSlider('roomHeight', state.roomHeight, ' мм'); }
+  if (state.roomDepth  < state.depth)  { state.roomDepth  = state.depth;  setSlider('roomDepth',  state.roomDepth,  ' мм'); }
+}
+
 // Блок «Комната» виден только у шкафа-купе (работаем по блокам); поля раскрыты, когда включена.
 // Вызывается из syncUIFromState() — при загрузке пресета/прорисовки/истории UI подхватит state.
 function syncRoomUI() {
@@ -402,6 +418,7 @@ function syncRoomUI() {
   if (en) en.checked = state.roomEnabled;
   const ctrls = document.getElementById('roomControls');
   if (ctrls) ctrls.style.display = state.roomEnabled ? 'block' : 'none';
+  clampRoomFieldsToWardrobe(); // значения комнаты не меньше габаритов шкафа (в т.ч. после загрузки)
   setSlider('roomWidth',  state.roomWidth,  ' мм');
   setSlider('roomDepth',  state.roomDepth,  ' мм');
   setSlider('roomHeight', state.roomHeight, ' мм');
