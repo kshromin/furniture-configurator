@@ -5,7 +5,7 @@ import { buildFurniture } from './core/build.js';
 import {
   bindTypeButtons, bindSlider, bindFasadTab, bindVariantControls,
   bindTabSwitching, bindToggleDoors, bindBackWall, bindThickness, bindSectionsControls, syncUIFromState,
-  markUnfinishedTypes,
+  markUnfinishedTypes, bindRoomControls,
 } from './core/tabs.js';
 import { addCurrentToOrder, renderOrderCards, bindOrderForm } from './core/order.js';
 import { bindPrint } from './core/print.js';
@@ -51,6 +51,11 @@ async function init() {
   bindSlider('height',   'height',   ' мм');
   bindSlider('depth',    'depth',    ' мм');
   bindSlider('drawers',  'drawers',  '');
+
+  bindSlider('roomWidth',  'roomWidth',  ' мм');
+  bindSlider('roomDepth',  'roomDepth',  ' мм');
+  bindSlider('roomHeight', 'roomHeight', ' мм');
+  bindRoomControls();
 
   bindFasadTab();
 

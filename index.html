@@ -150,6 +150,41 @@
         </div>
       </div>
 
+      <!-- Комната (визуализация вокруг шкафа, задание «стены 26,07») -->
+      <div class="field-group" id="roomBlock">
+        <div class="field-group-title">Комната</div>
+        <div class="field checkbox-field"><label><input type="checkbox" id="roomEnabled"> Показать комнату</label></div>
+
+        <div id="roomControls" style="display:none">
+          <div class="field">
+            <div class="dim-label-row"><label>Ширина комнаты</label><input type="number" autocomplete="off" class="dim-input" id="roomWidthVal" min="1000" max="8000" step="50" value="4000"></div>
+            <input type="range" id="roomWidth" min="1000" max="8000" step="50" value="4000">
+          </div>
+          <div class="field">
+            <div class="dim-label-row"><label>Глубина комнаты</label><input type="number" autocomplete="off" class="dim-input" id="roomDepthVal" min="1000" max="8000" step="50" value="3000"></div>
+            <input type="range" id="roomDepth" min="1000" max="8000" step="50" value="3000">
+          </div>
+          <div class="field">
+            <div class="dim-label-row"><label>Высота комнаты</label><input type="number" autocomplete="off" class="dim-input" id="roomHeightVal" min="2000" max="4000" step="50" value="2700"></div>
+            <input type="range" id="roomHeight" min="2000" max="4000" step="50" value="2700">
+          </div>
+
+          <div class="field">
+            <div class="field-group-title">Позиция шкафа</div>
+            <div class="btn-group" id="roomPosGroup">
+              <button class="opt-btn" data-pos="left">Угол&nbsp;Л</button>
+              <button class="opt-btn active" data-pos="center">Центр</button>
+              <button class="opt-btn" data-pos="right">Угол&nbsp;П</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-group-title">Цвет стен</div>
+            <div class="swatches" id="roomColorSwatches"></div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- 2. Внешнее исполнение -->

@@ -44,6 +44,13 @@ export function hasUnsavedChanges() {
 export const state = {
   type: 'wardrobe',
   width: 1800, height: 2400, depth: 600,
+  // Комната вокруг шкафа-купе (визуализация, задание «стены 26,07») — геометрия в js/core/room.js.
+  // roomEnabled — показывать/нет; размеры в мм; roomColor — hex из палитры WALL_COLORS;
+  // roomPos — позиция шкафа вдоль задней стены: 'left' | 'center' | 'right'.
+  roomEnabled: false,
+  roomWidth: 4000, roomDepth: 3000, roomHeight: 2700,
+  roomColor: '#efe9df',
+  roomPos: 'center',
   // Секции шкафа-купе — у каждой своя ширина (мм) и своё наполнение. Ширины должны в сумме
   // совпадать с внутренней шириной короба — за этим следит rebalanceSections() в _wardrobe-shared.js.
   // items — свободно перетаскиваемое мышкой наполнение секции (кроме вешала, см. ниже): плоский

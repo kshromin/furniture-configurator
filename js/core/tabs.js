@@ -3,6 +3,7 @@ import { resetHistory } from './history.js';
 import { TYPES } from '../types/registry.js';
 import { renderProducerSelect, renderSwatches } from './materials.js';
 import { buildFurniture } from './build.js';
+import { buildRoom, WALL_COLORS } from './room.js';
 import { showToast, showChoiceDialog } from './toast.js';
 import { renderStaticDimensions, setSelectedSection } from './dimensions.js';
 import {
@@ -248,6 +249,7 @@ export function syncUIFromState() {
   setSlider('depth',    state.depth,    ' мм');
   setSlider('drawers',  state.drawers,  '');
   renderSectionsList();
+  syncRoomUI();
 
   document.getElementById('plinthEnabled').checked = state.plinthEnabled;
   document.getElementById('plinthHeightField').style.display = state.plinthEnabled ? 'block' : 'none';
@@ -360,6 +362,64 @@ export function markUnfinishedTypes() {
     }
   });
 }
+// ---------- Комната (задание «стены 26,07») ----------
+
+function renderRoomSwatches() {
+  const cont = document.getElementById('roomColorSwatches');
+  if (!cont) return;
+  cont.innerHTML = '';
+  WALL_COLORS.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'swatch' + (c.hex === state.roomColor ? ' selected' : '');
+    el.style.background = c.hex;
+    el.title = c.name;
+    el.addEventListener('click', () => {
+      state.roomColor = c.hex;
+      renderRoomSwatches();
+      buildRoom();
+    });
+    cont.appendChild(el);
+  });
+}
+
+function updateRoomPosButtons() {
+  document.querySelectorAll('#roomPosGroup .opt-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.pos === state.roomPos));
+}
+
+// Блок «Комната» виден только у шкафа-купе (работаем по блокам); поля раскрыты, когда включена.
+// Вызывается из syncUIFromState() — при загрузке пресета/прорисовки/истории UI подхватит state.
+function syncRoomUI() {
+  const block = document.getElementById('roomBlock');
+  if (block) block.style.display = state.type === 'wardrobe' ? 'block' : 'none';
+  const en = document.getElementById('roomEnabled');
+  if (en) en.checked = state.roomEnabled;
+  const ctrls = document.getElementById('roomControls');
+  if (ctrls) ctrls.style.display = state.roomEnabled ? 'block' : 'none';
+  setSlider('roomWidth',  state.roomWidth,  ' мм');
+  setSlider('roomDepth',  state.roomDepth,  ' мм');
+  setSlider('roomHeight', state.roomHeight, ' мм');
+  updateRoomPosButtons();
+  renderRoomSwatches();
+}
+
+export function bindRoomControls() {
+  const en = document.getElementById('roomEnabled');
+  en.addEventListener('change', () => {
+    state.roomEnabled = en.checked;
+    document.getElementById('roomControls').style.display = en.checked ? 'block' : 'none';
+    buildRoom();
+  });
+  document.querySelectorAll('#roomPosGroup .opt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.roomPos = btn.dataset.pos;
+      updateRoomPosButtons();
+      buildRoom();
+    });
+  });
+  renderRoomSwatches();
+}
+
 function applyTypeSwitch(newType) {
   state.type = newType;
   document.querySelectorAll('.type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === newType));
