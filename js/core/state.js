@@ -50,6 +50,7 @@ export const state = {
   roomEnabled: false,
   roomWidth: 4000, roomDepth: 3000, roomHeight: 2700,
   roomColor: '#efe9df',
+  roomFloorColor: '#d8c39c',
   roomPos: 'center',
   // Секции шкафа-купе — у каждой своя ширина (мм) и своё наполнение. Ширины должны в сумме
   // совпадать с внутренней шириной короба — за этим следит rebalanceSections() в _wardrobe-shared.js.

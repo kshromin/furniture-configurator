@@ -7,19 +7,33 @@ import { state } from './state.js';
 
 // Палитра стен — 10 спокойных интерьерных тонов (задание требует ≤10). Легко заменить на свои.
 export const WALL_COLORS = [
-  { name: 'Белый',         hex: '#f5f4f1' },
-  { name: 'Молочный',      hex: '#efe9df' },
-  { name: 'Бежевый',       hex: '#e6d9c3' },
-  { name: 'Песок',         hex: '#dcc9a8' },
-  { name: 'Светло-серый',  hex: '#dcdcdc' },
-  { name: 'Серый',         hex: '#c2c2c2' },
-  { name: 'Тёплый серый',  hex: '#cabfb2' },
-  { name: 'Голубая дымка', hex: '#ccd6da' },
-  { name: 'Шалфей',        hex: '#ccd3c2' },
-  { name: 'Пудра',         hex: '#e3d2cf' },
+  { name: 'Белый',         hex: '#f7f6f2' },
+  { name: 'Молочный',      hex: '#f0e8d6' },
+  { name: 'Бежевый',       hex: '#ecd9b6' },
+  { name: 'Песок',         hex: '#e3c797' },
+  { name: 'Светло-серый',  hex: '#dedede' },
+  { name: 'Серый',         hex: '#bcbcbc' },
+  { name: 'Тёплый серый',  hex: '#cbbca6' },
+  { name: 'Голубая дымка', hex: '#c1d6e0' },
+  { name: 'Шалфей',        hex: '#c4d3b4' },
+  { name: 'Пудра',         hex: '#eccdc7' },
 ];
 
-const WALL_OPACITY = 0.34;
+// Палитра пола — дерево + нейтральные тона (отдельно от стен).
+export const FLOOR_COLORS = [
+  { name: 'Беленый дуб',   hex: '#e6dcc8' },
+  { name: 'Светлый дуб',   hex: '#d8c39c' },
+  { name: 'Дуб',           hex: '#c7a568' },
+  { name: 'Ясень',         hex: '#ddd2bd' },
+  { name: 'Орех',          hex: '#9c6b3f' },
+  { name: 'Терракота',     hex: '#b5754e' },
+  { name: 'Венге',         hex: '#4b3a2f' },
+  { name: 'Бетон',         hex: '#b8b8b8' },
+  { name: 'Тёмно-серый',   hex: '#7a7a7a' },
+  { name: 'Графит',        hex: '#4a4a4a' },
+];
+
+const WALL_OPACITY = 0.5;
 
 const roomGroup = new THREE.Group();
 scene.add(roomGroup);
@@ -55,6 +69,16 @@ export function buildRoom() {
   else if (state.roomPos === 'right') { xR =  W / 2; xL = xR - rW; }   // правый бок — в правый угол
   else                                { xL = -rW / 2; xR = rW / 2; }   // по центру
   const midX = (xL + xR) / 2;
+
+  // Пол по размеру комнаты (непрозрачный, свой цвет). Приподнят на 1мм над общим серым полом
+  // сцены, чтобы не мерцал z-fighting'ом; шкаф стоит на y=0 — 1мм под кромкой незаметен.
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(rW, rD),
+    new THREE.MeshStandardMaterial({ color: new THREE.Color(state.roomFloorColor), roughness: 0.85, metalness: 0 })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(midX, 1, midZ);
+  roomGroup.add(floor);
 
   // Задняя стена (плоскость XY, лицом в +Z)
   const back = wall(rW, rH, color);

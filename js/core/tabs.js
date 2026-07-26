@@ -3,7 +3,7 @@ import { resetHistory } from './history.js';
 import { TYPES } from '../types/registry.js';
 import { renderProducerSelect, renderSwatches } from './materials.js';
 import { buildFurniture } from './build.js';
-import { buildRoom, WALL_COLORS } from './room.js';
+import { buildRoom, WALL_COLORS, FLOOR_COLORS } from './room.js';
 import { showToast, showChoiceDialog } from './toast.js';
 import { renderStaticDimensions, setSelectedSection } from './dimensions.js';
 import {
@@ -364,22 +364,28 @@ export function markUnfinishedTypes() {
 }
 // ---------- Комната (задание «стены 26,07») ----------
 
-function renderRoomSwatches() {
-  const cont = document.getElementById('roomColorSwatches');
+// Общий рендер палитры-свотчей комнаты: контейнер, список цветов, ключ в state.
+function renderColorSwatches(containerId, colors, stateKey) {
+  const cont = document.getElementById(containerId);
   if (!cont) return;
   cont.innerHTML = '';
-  WALL_COLORS.forEach(c => {
+  colors.forEach(c => {
     const el = document.createElement('div');
-    el.className = 'swatch' + (c.hex === state.roomColor ? ' selected' : '');
+    el.className = 'swatch' + (c.hex === state[stateKey] ? ' selected' : '');
     el.style.background = c.hex;
     el.title = c.name;
     el.addEventListener('click', () => {
-      state.roomColor = c.hex;
-      renderRoomSwatches();
+      state[stateKey] = c.hex;
+      renderColorSwatches(containerId, colors, stateKey);
       buildRoom();
     });
     cont.appendChild(el);
   });
+}
+
+function renderRoomSwatches() {
+  renderColorSwatches('roomColorSwatches', WALL_COLORS, 'roomColor');
+  renderColorSwatches('roomFloorSwatches', FLOOR_COLORS, 'roomFloorColor');
 }
 
 function updateRoomPosButtons() {
