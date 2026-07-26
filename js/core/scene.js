@@ -37,7 +37,9 @@ const dir2 = new THREE.DirectionalLight(0xffffff, 0.3);
 dir2.position.set(-1500, 1000, -1000);
 scene.add(dir2);
 
-const floor = new THREE.Mesh(
+// Общий «бесконечный» серый пол сцены. Экспортируется, чтобы room.js прятал его, когда включена
+// комната со своим полом по размеру (иначе два пола накладываются).
+export const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(6000, 6000),
   new THREE.MeshStandardMaterial({ color: 0xd8d8d8 })
 );

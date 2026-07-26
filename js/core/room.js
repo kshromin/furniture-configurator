@@ -2,7 +2,7 @@
 // Шкаф стоит у задней стены; комната двигается вдоль X по пресету позиции (лево/центр/право),
 // сам шкаф остаётся в начале координат. Габариты и цвет — в state (см. state.roomEnabled и др.).
 import * as THREE from 'three';
-import { scene } from './scene.js';
+import { scene, floor as sceneFloor } from './scene.js';
 import { state } from './state.js';
 
 // Палитра стен — 10 спокойных интерьерных тонов (задание требует ≤10). Легко заменить на свои.
@@ -51,8 +51,13 @@ function wall(w, h, color) {
 export function buildRoom() {
   roomGroup.clear();
   // Комната — только для шкафа-купе (работаем по блокам) и когда включена.
-  if (!state.roomEnabled || state.type !== 'wardrobe') { roomGroup.visible = false; return; }
+  if (!state.roomEnabled || state.type !== 'wardrobe') {
+    roomGroup.visible = false;
+    sceneFloor.visible = true; // вернуть общий пол сцены
+    return;
+  }
   roomGroup.visible = true;
+  sceneFloor.visible = false; // прячем общий пол — у комнаты свой, по размеру
 
   const W = state.width, D = state.depth;                  // габариты шкафа
   const rW = Math.max(state.roomWidth, W);                 // комната не уже/мельче/ниже шкафа
