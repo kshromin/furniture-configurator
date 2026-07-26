@@ -2,7 +2,7 @@
 // Шкаф стоит у задней стены; комната двигается вдоль X по пресету позиции (лево/центр/право),
 // сам шкаф остаётся в начале координат. Габариты и цвет — в state (см. state.roomEnabled и др.).
 import * as THREE from 'three';
-import { scene, floor as sceneFloor } from './scene.js';
+import { scene, floor as sceneFloor, controls, camera } from './scene.js';
 import { state } from './state.js';
 
 // Палитра стен — 10 спокойных интерьерных тонов (задание требует ≤10). Легко заменить на свои.
@@ -48,6 +48,22 @@ function wall(w, h, color) {
   return new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
 }
 
+// Стены, за которые может уйти камера. Для каждой: ось её плоскости (x|z), координата плоскости
+// и знак «внутренней» стороны (где стоит шкаф). Стена гаснет, когда камера уходит на внешнюю
+// сторону — иначе она встала бы между камерой и шкафом и перекрыла обзор.
+let walls = [];
+
+function updateWallVisibility() {
+  if (!state.roomEnabled) return;
+  const p = camera.position;
+  for (const w of walls) {
+    // >= -1мм: небольшой допуск, чтобы стена не мигала, когда камера ровно в плоскости.
+    w.mesh.visible = (p[w.axis] - w.plane) * w.inside >= -1;
+  }
+}
+// Один слушатель на всё время жизни модуля — читает актуальный массив walls после каждой пересборки.
+controls.addEventListener('change', updateWallVisibility);
+
 export function buildRoom() {
   roomGroup.clear();
   // Комната — только для шкафа-купе (работаем по блокам) и когда включена.
@@ -85,20 +101,27 @@ export function buildRoom() {
   floor.position.set(midX, 1, midZ);
   roomGroup.add(floor);
 
-  // Задняя стена (плоскость XY, лицом в +Z)
+  // Задняя стена (плоскость XY, лицом в +Z). Внутренняя сторона — z > backZ (там шкаф).
   const back = wall(rW, rH, color);
   back.position.set(midX, rH / 2, backZ);
   roomGroup.add(back);
 
-  // Левая стена (плоскость ZY, лицом в +X)
+  // Левая стена (плоскость ZY, лицом в +X). Внутри — x > xL.
   const left = wall(rD, rH, color);
   left.rotation.y = Math.PI / 2;
   left.position.set(xL, rH / 2, midZ);
   roomGroup.add(left);
 
-  // Правая стена (плоскость ZY, лицом в -X)
+  // Правая стена (плоскость ZY, лицом в -X). Внутри — x < xR.
   const right = wall(rD, rH, color);
   right.rotation.y = -Math.PI / 2;
   right.position.set(xR, rH / 2, midZ);
   roomGroup.add(right);
+
+  walls = [
+    { mesh: back,  axis: 'z', plane: backZ, inside:  1 },
+    { mesh: left,  axis: 'x', plane: xL,    inside:  1 },
+    { mesh: right, axis: 'x', plane: xR,    inside: -1 },
+  ];
+  updateWallVisibility(); // сразу привести к текущему положению камеры (до первого её движения)
 }
