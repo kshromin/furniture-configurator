@@ -3,6 +3,7 @@
 JS/CSS после правки (даже после обычного reload) — статический сайт без сборки особенно к этому
 чувствителен, т.к. нет хешей в именах файлов, которые обычно инвалидируют кэш сами по себе."""
 import os
+import socketserver
 import sys
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
@@ -13,6 +14,18 @@ class NoCacheHandler(SimpleHTTPRequestHandler):
         self.send_header('Pragma', 'no-cache')
         self.send_header('Expires', '0')
         super().end_headers()
+
+
+class FastServer(ThreadingHTTPServer):
+    """HTTPServer.server_bind() вызывает socket.getfqdn() — обратный DNS-резолв имени хоста,
+    который на Windows нередко висит 5-15 сек. Резолв выполняется ДО listen(), поэтому сервер
+    всё это время не в LISTENING, и браузер при запуске ловит "страница не найдена". server_name
+    нам не нужен (это dev-сервер), поэтому обходим getfqdn — старт становится мгновенным."""
+    def server_bind(self):
+        socketserver.TCPServer.server_bind(self)
+        host, port = self.server_address[:2]
+        self.server_name = host or 'localhost'
+        self.server_port = port
 
 
 if __name__ == '__main__':
@@ -26,4 +39,4 @@ if __name__ == '__main__':
     # запросов ES-модулей, однопоточный сервер обслуживает их по очереди и под такой нагрузкой
     # браузер может оборвать соединение по таймауту (страница падает в chrome-error). Тот же
     # выбор, что и у `python -m http.server` (использует ThreadingHTTPServer с Python 3.7+).
-    ThreadingHTTPServer(('', port), NoCacheHandler).serve_forever()
+    FastServer(('', port), NoCacheHandler).serve_forever()
