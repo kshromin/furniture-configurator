@@ -17,4 +17,4 @@
 
 ## Прочее
 
-`DEVLOG.md` — журнал сессий. `CLAUDE.md` — инструкции для Claude. `scripts/dev-server.py` — локальный сервер для превью без кэша. `CNAME` — привязка домена GitHub Pages (`config.khrom-in.ru`). `assets/` — статические картинки сайта (напр. `khrom-logo.png` — лого разработчика в углу экрана, `#devLogo`).
+`DEVLOG.md` — журнал сессий. `CLAUDE.md` — инструкции для Claude. `scripts/dev-server.py` — локальный сервер для превью без кэша. `CNAME` — привязка домена GitHub Pages (`config.khrom-in.ru`). `assets/` — статические картинки сайта (напр. `khrom-logo.png` — лого разработчика в углу экрана, `#devLogo`). `SUPABASE-SETUP.md` — исходная схема БД/RLS; `supabase/` — SQL-миграции SaaS-мультитенантности (`saas-01-schema.sql` — companies/company_id/RLS; выполняются вручную в Supabase SQL Editor). Стратегия SaaS/хостинга — в `Config/SAAS-PLAN.md` на Яндексе (вне репозитория).
