@@ -112,20 +112,33 @@ create policy "projects_select_company_for_admin" on public.projects
     and company_id = public.current_company_id(auth.uid())
   );
 
+-- Админ компании может ПРАВИТЬ проекты своей компании (решение обсуждения 28.07 — не только
+-- смотреть). using — какие строки можно менять; with check — куда нельзя «увести» строку (в чужую
+-- компанию). Пер-пользовательские UPDATE-политики (менеджер правит свои) остаются как есть.
+drop policy if exists "projects_update_company_for_admin" on public.projects;
+create policy "projects_update_company_for_admin" on public.projects
+  for update using (
+    public.is_company_admin(auth.uid())
+    and company_id = public.current_company_id(auth.uid())
+  ) with check (
+    public.is_company_admin(auth.uid())
+    and company_id = public.current_company_id(auth.uid())
+  );
+
 
 -- 6) Бэкофилл существующих данных --------------------------------------------
 -- Одна «компания по умолчанию» (владельца) на все текущие строки — ДО того, как
 -- приложение начнёт опираться на company_id. Поменяй name/slug/active_types под себя.
 insert into public.companies (name, slug, max_users, active_types, is_active)
-values ('Моя компания', 'my', 100, '["wardrobe"]'::jsonb, true)
+values ('KHROM', 'khrom', 100, '["wardrobe"]'::jsonb, true)
 on conflict (slug) do nothing;
 
 update public.profiles
-  set company_id = (select id from public.companies where slug = 'my')
+  set company_id = (select id from public.companies where slug = 'khrom')
   where company_id is null;
 
 update public.projects
-  set company_id = (select id from public.companies where slug = 'my')
+  set company_id = (select id from public.companies where slug = 'khrom')
   where company_id is null;
 
 -- Себя сделать супер-админом (если ещё не) — раскомментируй и подставь свой email:
