@@ -30,11 +30,36 @@ import {
 // DOOR_FRAME_WIDTH остаётся дефолтом для формул цены/геометрии, не зависящих от вида.
 export const DOOR_FRAME_WIDTH = 40; // видимая ширина профиля по периметру (дефолт)
 export const DOOR_FRAME_DEPTH = 40; // толщина рамки (она же — толщина двери по Z)
+// Горизонтальные профили двери — стандартные, одинаковые для всех вертикальных профилей (не
+// зависят от выбора). Нижний заметно толще верхнего (как в каталоге Premial: верх 21, низ 53) —
+// так купе узнаётся визуально. Это только вид; на метраж/цену толщина не влияет (длина = ширина двери).
+export const TOP_HORIZ_HEIGHT = 21;    // верхний горизонтальный профиль (тонкий)
+export const BOTTOM_HORIZ_HEIGHT = 53; // нижний горизонтальный профиль (толстый)
 const DOOR_FRAME_COLOR = 0xc4c4c8; // fallback, если каталог ещё не загружен
 // Наполнение двери: ЛДСП — цвет фасада, зеркало — голубоватое, «цвет специальный» — розоватый.
 const DOOR_FILL_MIRROR_COLOR  = 0xcfe8ec;
 const DOOR_FILL_SPECIAL_COLOR = 0xe8b4c8;
-const RAIL_COLOR = 0xb0b0b4;
+// Отделка профиля зависит от цвета (этап 1 «профиля купе 28.07»): металличность у крашеных/
+// анодированных цветов ниже, чтобы проступал собственный цвет (при высокой metalness металл
+// отражает нейтральную среду, и белый уходил в серый), а у «сырого» серебра — высокая, оно
+// зеркально-алюминиевое. Наполнение двери (зеркало/стекло/ЛДСП) остаётся матовым.
+const PROFILE_FINISH = {
+  silver: { metalness: 0.85, roughness: 0.28 }, // сырой алюминий — зеркальный
+  gold:   { metalness: 0.75, roughness: 0.30 }, // золотой анод — металлический
+  bronze: { metalness: 0.70, roughness: 0.32 }, // бронза — металлическая
+  black:  { metalness: 0.50, roughness: 0.30 }, // чёрный анод — тёмный сатин
+  white:  { metalness: 0.10, roughness: 0.50 }, // белый крашеный — почти матовый, свой цвет
+};
+const PROFILE_FINISH_DEFAULT = { metalness: 0.40, roughness: 0.35 }; // для новых цветов из эксель
+function profileFinish() { return PROFILE_FINISH[state.profileColor] || PROFILE_FINISH_DEFAULT; }
+// Цвет профиля (и направляющих — цвет общий на изделие) из каталога: hex "#rrggbb" → число Three.js.
+function profileColorHex() {
+  const c = (materials.slidingDoor?.colors || []).find(c => c.id === state.profileColor);
+  return c ? parseInt(c.hex.slice(1), 16) : DOOR_FRAME_COLOR;
+}
+// Наполнение утоплено вглубь двери (по -Z, от зрителя) относительно плоскости рамки — рамка
+// профиля обрамляет полотно, появляется глубина. Рамка глубиной DOOR_FRAME_DEPTH (40).
+const DOOR_FILL_RECESS = 7;
 export const TOP_RAIL_HEIGHT = 50;
 export const BOTTOM_RAIL_HEIGHT = 10;
 
@@ -173,18 +198,25 @@ function buildSlidingDoor(x, y, z, w, h, fillColor, doorIndex) {
   // профили, добавленные через эксель, без явного значения получают стандартную.
   const fw = (materials.slidingDoor?.profiles || []).find(p => p.id === state.profile)?.frameWidth || DOOR_FRAME_WIDTH;
   // Цвет профиля — из каталога (hex вида "#c4c4c8" → число для Three.js).
-  const colorEntry = (materials.slidingDoor?.colors || []).find(c => c.id === state.profileColor);
-  const frameColor = colorEntry ? parseInt(colorEntry.hex.slice(1), 16) : DOOR_FRAME_COLOR;
+  const frameColor = profileColorHex();
   const sliding = state.fasadDoorType === 'sliding';
   const custom = (sliding && doorIndex !== undefined) ? state.doorCustom?.[doorIndex] : null;
   const globalFill = sliding ? state.doorFill : 'ldsp';
 
+  // Верх/низ — стандартные горизонтальные профили (разной толщины), боковины — вертикальный профиль
+  // выбранного вида (ширина fw). Вертикальные бруски идут между горизонталями; из-за разной толщины
+  // верх/низ их центр по Y смещён.
+  const finish = profileFinish(); // металлик-отделка по выбранному цвету профиля
+  const topH = TOP_HORIZ_HEIGHT, botH = BOTTOM_HORIZ_HEIGHT;
+  const vBarH = h - topH - botH;
+  const vBarCY = y + (botH - topH) / 2;
   const meshes = [
-    addPanel(w, fw, DOOR_FRAME_DEPTH, frameColor, [x, y + h / 2 - fw / 2, z]), // верхний брусок рамки
-    addPanel(w, fw, DOOR_FRAME_DEPTH, frameColor, [x, y - h / 2 + fw / 2, z]), // нижний брусок рамки
-    addPanel(fw, h - 2 * fw, DOOR_FRAME_DEPTH, frameColor, [x - w / 2 + fw / 2, y, z]), // левый брусок
-    addPanel(fw, h - 2 * fw, DOOR_FRAME_DEPTH, frameColor, [x + w / 2 - fw / 2, y, z]), // правый брусок
+    addPanel(w, topH, DOOR_FRAME_DEPTH, frameColor, [x, y + h / 2 - topH / 2, z], undefined, finish), // верхний горизонтальный профиль
+    addPanel(w, botH, DOOR_FRAME_DEPTH, frameColor, [x, y - h / 2 + botH / 2, z], undefined, finish), // нижний горизонтальный профиль
+    addPanel(fw, vBarH, DOOR_FRAME_DEPTH, frameColor, [x - w / 2 + fw / 2, vBarCY, z], undefined, finish), // левый вертикальный профиль
+    addPanel(fw, vBarH, DOOR_FRAME_DEPTH, frameColor, [x + w / 2 - fw / 2, vBarCY, z], undefined, finish), // правый вертикальный профиль
   ];
+  const fillZ = z - DOOR_FILL_RECESS; // наполнение утоплено от плоскости рамки
 
   const innerW = w - 2 * fw;
   // Горизонтальные перемычки (state.doorCustom[i].dividers — мм от низа двери) делят полотно на
@@ -192,22 +224,22 @@ function buildSlidingDoor(x, y, z, w, h, fillColor, doorIndex) {
   // наполнением. Позиции перемычек клампятся внутрь рамки (та же страховка, что и в цене —
   // doorCustomSegments в wardrobe-sizing.js).
   const dividers = (custom?.dividers || [])
-    .map(d => Math.max(fw + 30, Math.min(h - fw - 30, d)))
+    .map(d => Math.max(botH + 30, Math.min(h - topH - 30, d)))
     .sort((a, b) => a - b);
-  let prev = fw;
+  let prev = botH;
   dividers.forEach((d, j) => {
     const segH = d - fw / 2 - prev;
     if (segH > 1) {
       const fc = doorFillColor(custom?.fills?.[j] || globalFill, fillColor, custom?.fillColors?.[j]);
-      meshes.push(addPanel(innerW, segH, PANEL_THICKNESS, fc, [x, y - h / 2 + prev + segH / 2, z], 0.85));
+      meshes.push(addPanel(innerW, segH, PANEL_THICKNESS, fc, [x, y - h / 2 + prev + segH / 2, fillZ], 0.85));
     }
-    meshes.push(addPanel(innerW, fw, DOOR_FRAME_DEPTH, frameColor, [x, y - h / 2 + d, z])); // перемычка
+    meshes.push(addPanel(innerW, fw, DOOR_FRAME_DEPTH, frameColor, [x, y - h / 2 + d, z], undefined, finish)); // перемычка
     prev = d + fw / 2;
   });
-  const lastH = h - fw - prev;
+  const lastH = h - topH - prev;
   if (lastH > 1) {
     const fc = doorFillColor(custom?.fills?.[dividers.length] || globalFill, fillColor, custom?.fillColors?.[dividers.length]);
-    meshes.push(addPanel(innerW, lastH, PANEL_THICKNESS, fc, [x, y - h / 2 + prev + lastH / 2, z], 0.85));
+    meshes.push(addPanel(innerW, lastH, PANEL_THICKNESS, fc, [x, y - h / 2 + prev + lastH / 2, fillZ], 0.85));
   }
   return meshes;
 }
@@ -462,8 +494,8 @@ export function buildWardrobeBox() {
     // как нижняя рельса купе, глубиной как сама дверь (рамка), тоже у переднего края.
     const stripH = BOTTOM_RAIL_HEIGHT;
     const stripZ = depth / 2 - DOOR_FRAME_DEPTH / 2;
-    addPanel(spanW, stripH, DOOR_FRAME_DEPTH, RAIL_COLOR, [spanCenterX, y0 + height - topOff - stripH / 2, stripZ]);
-    addPanel(spanW, stripH, DOOR_FRAME_DEPTH, RAIL_COLOR, [spanCenterX, y0 + bottomOff + stripH / 2, stripZ]);
+    addPanel(spanW, stripH, DOOR_FRAME_DEPTH, profileColorHex(), [spanCenterX, y0 + height - topOff - stripH / 2, stripZ], undefined, profileFinish());
+    addPanel(spanW, stripH, DOOR_FRAME_DEPTH, profileColorHex(), [spanCenterX, y0 + bottomOff + stripH / 2, stripZ], undefined, profileFinish());
 
     const doorW = (spanW - (doorCount + 1) * SWING_GAP) / doorCount;
     const doorBottom  = y0 + bottomOff + stripH + SWING_GAP;
@@ -482,8 +514,8 @@ export function buildWardrobeBox() {
     const railFront = depth / 2 - DOOR_FRAME_DEPTH / 2;
     const railBack  = depth / 2 - DOOR_DEPTH_ZONE + DOOR_FRAME_DEPTH / 2;
 
-    addPanel(spanW, TOP_RAIL_HEIGHT,    DOOR_DEPTH_ZONE, RAIL_COLOR, [spanCenterX, y0 + height - topOff - TOP_RAIL_HEIGHT / 2,       doorZoneZ]);
-    addPanel(spanW, BOTTOM_RAIL_HEIGHT, DOOR_DEPTH_ZONE, RAIL_COLOR, [spanCenterX, y0 + bottomOff + BOTTOM_RAIL_HEIGHT / 2, doorZoneZ]);
+    addPanel(spanW, TOP_RAIL_HEIGHT,    DOOR_DEPTH_ZONE, profileColorHex(), [spanCenterX, y0 + height - topOff - TOP_RAIL_HEIGHT / 2,       doorZoneZ], undefined, profileFinish());
+    addPanel(spanW, BOTTOM_RAIL_HEIGHT, DOOR_DEPTH_ZONE, profileColorHex(), [spanCenterX, y0 + bottomOff + BOTTOM_RAIL_HEIGHT / 2, doorZoneZ], undefined, profileFinish());
 
     const doorBottom  = y0 + bottomOff + BOTTOM_RAIL_HEIGHT + gap;
     const doorTop     = y0 + height - topOff - TOP_RAIL_HEIGHT - gap;

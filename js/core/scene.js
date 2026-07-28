@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { state } from './state.js';
 import { showToast } from './toast.js';
 
@@ -36,6 +37,13 @@ scene.add(dir1);
 const dir2 = new THREE.DirectionalLight(0xffffff, 0.3);
 dir2.position.set(-1500, 1000, -1000);
 scene.add(dir2);
+
+// Лёгкая студийная среда (IBL): металлическим профилям/направляющим есть что отражать, поэтому
+// алюминий читается светлым, а не тёмно-серым (без неё metalness 0.85 давал «серый вместо белого»).
+// Генерируется один раз из RoomEnvironment через PMREM — крошечная карта, на производительность не
+// влияет. Матовые панели ЛДСП (metalness 0.05) от среды почти не меняются.
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
 // Общий «бесконечный» серый пол сцены. Экспортируется, чтобы room.js прятал его, когда включена
 // комната со своим полом по размеру (иначе два пола накладываются).
@@ -111,15 +119,17 @@ renderer.domElement.addEventListener('pointerdown', e => {
 export const furnitureGroup = new THREE.Group();
 scene.add(furnitureGroup);
 
-function panelMesh(w, h, d, color, opacity) {
+// matOpts — необязательные переопределения материала (напр. { metalness, roughness } для
+// алюминиевых профилей/направляющих купе). По умолчанию — матовая поверхность ЛДСП.
+function panelMesh(w, h, d, color, opacity, matOpts) {
   const geo = new THREE.BoxGeometry(w, h, d);
-  const p = { color, roughness: 0.6, metalness: 0.05 };
+  const p = { color, roughness: 0.6, metalness: 0.05, ...matOpts };
   if (opacity !== undefined && opacity < 1) { p.transparent = true; p.opacity = opacity; }
   return new THREE.Mesh(geo, new THREE.MeshStandardMaterial(p));
 }
 
-export function addPanel(w, h, d, color, pos, opacity) {
-  const mesh = panelMesh(w, h, d, color, opacity);
+export function addPanel(w, h, d, color, pos, opacity, matOpts) {
+  const mesh = panelMesh(w, h, d, color, opacity, matOpts);
   mesh.position.set(pos[0], pos[1], pos[2]);
   const edgesGeo = new THREE.EdgesGeometry(mesh.geometry, 15);
   const edgesMat = new THREE.LineBasicMaterial({
