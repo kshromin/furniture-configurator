@@ -879,9 +879,12 @@ html, body {
   transition: all 0.15s;
 }
 
-.profile-btn svg {
-  width: 20px;
-  height: 44px;
+.profile-btn img {
+  height: 48px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .profile-btn span {
