@@ -706,6 +706,12 @@
         <div class="pane-title" style="margin:0">Заказы</div>
         <button id="cabinetModalClose" class="projects-modal-close" title="Закрыть">×</button>
       </div>
+      <!-- Папки заказов (задание «поделиться 29,07»): фильтр по projects.status — js/core/projects.js -->
+      <div class="order-folders" id="orderFolders">
+        <button class="order-folder-btn active" data-status="active" type="button">Активные</button>
+        <button class="order-folder-btn" data-status="completed" type="button">Завершённые</button>
+        <button class="order-folder-btn" data-status="cancelled" type="button">Отменённые</button>
+      </div>
       <div class="projects-modal-controls">
         <select id="ordersSortSelect" class="mini-select-wide">
           <option value="created">Сортировка: по дате создания</option>

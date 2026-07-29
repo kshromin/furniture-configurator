@@ -38,6 +38,9 @@ const LISTS = {
 // Сколько строк уже подгружено — свой счётчик на каждый список, «Показать ещё» продолжает с него.
 const paging = { project: 0, order: 0 };
 
+// Папка заказов (задание «поделиться 29,07»): active | completed | cancelled — фильтр по projects.status.
+let orderStatusFilter = 'active';
+
 // Сотрудники своей компании — для окна «Поделиться» и подписи создателя у расшаренных карточек.
 // Грузятся один раз (RLS profiles_select_company из saas-02 отдаёт только свою компанию).
 let team = null;
@@ -72,12 +75,14 @@ function buildQuery(cfg) {
   const me = auth.session.user.id;
   let query = supabase
     .from('projects')
-    .select('id, kind, user_id, shared_with, title, client_name, client_phone, project_code, total, item_count, thumbnail, created_at, updated_at')
+    .select('id, kind, user_id, shared_with, status, title, client_name, client_phone, project_code, total, item_count, thumbnail, created_at, updated_at')
     // «Мои + расшаренные мне» (задание «поделиться 29,07»). Компания-админ/супер по RLS видят больше,
     // но в личном списке показываем только владение + шаринг, а не всю компанию. Две .or() (эта и
     // поисковая ниже) объединяются как AND — то что нужно.
     .or(`user_id.eq.${me},shared_with.cs.{${me}}`)
     .eq('kind', cfg.kind);
+  // Заказы разложены по папкам active/completed/cancelled; проекты — без папок.
+  if (cfg.kind === 'order') query = query.eq('status', orderStatusFilter);
 
   const q = document.getElementById(cfg.search).value.trim();
   if (q) {
@@ -117,6 +122,12 @@ function renderCard(p, cfg, container) {
   const mine = p.user_id === me; // чужая карточка = расшарена мне (создатель другой)
   const sharedNote = mine ? '' : `<div class="order-card-shared">поделился: ${teamName(p.user_id)}</div>`;
   const shareBadge = (mine && p.shared_with?.length) ? ` <span class="order-card-shareinfo" title="Доступ открыт">↗${p.shared_with.length}</span>` : '';
+  // Кнопки папок — только у своих заказов; набор зависит от текущей папки.
+  const statusBtns = (mine && p.kind === 'order') ? (
+    orderStatusFilter === 'active'
+      ? '<button class="order-card-status" data-status="completed">✓ Завершить</button><button class="order-card-status warn" data-status="cancelled">✕ Отмена</button>'
+      : '<button class="order-card-status" data-status="active">↩ В активные</button>'
+  ) : '';
   card.innerHTML = `
     ${thumb}
     <div class="order-card-header">
@@ -133,6 +144,7 @@ function renderCard(p, cfg, container) {
       ${mine ? '<button class="order-card-share">Поделиться</button>' : ''}
       <button class="order-card-edit">Открыть</button>
     </div>
+    ${statusBtns ? `<div class="order-card-actions">${statusBtns}</div>` : ''}
   `;
 
   card.querySelector('.order-card-remove')?.addEventListener('click', async () => {
@@ -143,6 +155,13 @@ function renderCard(p, cfg, container) {
   });
 
   card.querySelector('.order-card-share')?.addEventListener('click', e => openSharePopover(p, e.currentTarget));
+
+  card.querySelectorAll('.order-card-status').forEach(b => b.addEventListener('click', async () => {
+    b.disabled = true;
+    const { error } = await supabase.from('projects').update({ status: b.dataset.status }).eq('id', p.id);
+    if (error) { window.alert('Ошибка: ' + error.message); b.disabled = false; return; }
+    card.remove(); // запись ушла в другую папку
+  }));
 
   card.querySelector('.order-card-edit').addEventListener('click', async e => {
     const btn = e.currentTarget;
@@ -318,6 +337,14 @@ export function bindProjectsControls() {
   bindListControls('project');
   bindListControls('order');
   window.addEventListener('projects-changed', () => { renderProjects(); renderOrders(); });
+
+  // Папки заказов (active/completed/cancelled) — переключают фильтр и перезагружают список.
+  document.querySelectorAll('#orderFolders .order-folder-btn').forEach(b =>
+    b.addEventListener('click', () => {
+      orderStatusFilter = b.dataset.status;
+      document.querySelectorAll('#orderFolders .order-folder-btn').forEach(x => x.classList.toggle('active', x === b));
+      renderOrders();
+    }));
 
   const overlay = document.getElementById('projectsModalOverlay');
   document.getElementById('projectsModalClose').addEventListener('click', closeProjectsModal);
