@@ -11,7 +11,8 @@ import { addCurrentToOrder, renderOrderCards, bindOrderForm } from './core/order
 import { bindPrint } from './core/print.js';
 import { renderExtras, bindExtras } from './core/extras.js';
 import { bindProjectsControls, openProjectsModal } from './core/projects.js';
-import { initAuth, bindLoginForm } from './core/auth.js';
+import { initAuth, bindLoginForm, auth } from './core/auth.js';
+import { supabase } from './core/supabaseClient.js';
 import { bindCabinetControls, openCabinetModal } from './core/cabinet.js';
 import { renderAdminOrders } from './core/admin.js';
 import { initItemDrag } from './core/itemDrag.js';
@@ -20,14 +21,35 @@ import { initHistory, undo, onHistoryChange } from './core/history.js';
 import { initAutofillGuard } from './core/autofillGuard.js';
 import { bindDoorEditor } from './core/doorEditor.js';
 
+// Каталог материалов: у залогиненного пользователя — из его компании (companies.materials в
+// Supabase), иначе (devMode / не залогинен / пустой или битый ответ / ошибка) — локальный
+// data/materials.json. Локальный каталог — всегда рабочий фолбэк, чтобы товары и цены не могли
+// «исчезнуть», даже если Supabase недоступен или у компании каталог ещё не залит.
+async function loadMaterials() {
+  const local = async () => (await fetch('data/materials.json', { cache: 'no-store' })).json();
+  const valid = m => !!(m && m.korpus?.producers?.length && m.fasad?.producers?.length);
+
+  if (localStorage.getItem('devMode') === 'true') return local();
+  const companyId = auth.session && auth.profile?.company_id;
+  if (!companyId) return local();
+
+  try {
+    const { data, error } = await supabase
+      .from('companies').select('materials').eq('id', companyId).single();
+    if (error) { console.warn('Каталог из Supabase не загрузился, фолбэк на локальный:', error.message); return local(); }
+    return valid(data?.materials) ? data.materials : local();
+  } catch (e) {
+    console.warn('Ошибка загрузки каталога, фолбэк на локальный:', e);
+    return local();
+  }
+}
+
 async function init() {
   bindLoginForm();
   await initAuth();
 
-  // no-store: браузер охотно кэширует json, из-за чего после обновления каталога
-  // (цены, extras) пользователи видели старые данные или пустые списки.
-  const res = await fetch('data/materials.json', { cache: 'no-store' });
-  setMaterials(await res.json());
+  // Каталог — из компании пользователя (Supabase) с фолбэком на локальный (см. loadMaterials()).
+  setMaterials(await loadMaterials());
 
   // default state from first producer/color
   ['korpus', 'fasad', 'fill'].forEach(g => {
