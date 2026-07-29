@@ -141,8 +141,8 @@ update public.projects
   set company_id = (select id from public.companies where slug = 'khrom')
   where company_id is null;
 
--- Себя сделать супер-админом (если ещё не) — раскомментируй и подставь свой email:
--- update public.profiles set is_admin = true where email = 'ТВОЙ_EMAIL';
+-- Себя сделать супер-админом:
+update public.profiles set is_admin = true where email = 'hromin@mail.ru';
 
 
 -- 7) Проверка после применения (запусти отдельно, под НЕ-админским пользователем) --
