@@ -897,6 +897,9 @@ html, body {
 .profile-btn:hover { border-color: #a8c0f8; color: #2f6fed; }
 .profile-btn.active { border-color: #2f6fed; background: #eef3ff; color: #2f6fed; }
 
+.perim-side { margin-bottom: 12px; }
+.perim-label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 4px; }
+
 /* ── Карточки популярных проектов ── */
 .presets-list { display: flex; flex-direction: column; gap: 8px; }
 

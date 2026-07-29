@@ -144,7 +144,7 @@
           <div class="dim-label-row"><label>Высота</label><input type="number" autocomplete="off" class="dim-input" id="heightVal" min="600" max="3200" step="10" value="2400"></div>
           <input type="range" id="height" min="600" max="3200" step="10" value="2400">
         </div>
-        <div class="field">
+        <div class="field" id="depthField">
           <div class="dim-label-row"><label>Глубина</label><input type="number" autocomplete="off" class="dim-input" id="depthVal" min="200" max="1000" step="10" value="600"></div>
           <input type="range" id="depth" min="200" max="1000" step="10" value="600">
         </div>
@@ -201,6 +201,58 @@
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="8" height="18" rx="1"/><rect x="13" y="3" width="8" height="18" rx="1"/></svg>
           <span id="toggleDoorsBtnLabel">Не показывать двери</span>
         </button>
+      </div>
+
+      <div class="field-group" data-variant-ctx="perimeter">
+        <div class="field-group-title">Выравнивающие элементы (ЛДСП)</div>
+        <div class="perim-side">
+          <label class="perim-label">Верх</label>
+          <div class="btn-group perim-group" data-perim="top">
+            <button class="opt-btn" data-val="none">Нет</button>
+            <button class="opt-btn" data-val="planka">Планка</button>
+            <button class="opt-btn" data-val="box">Короб</button>
+          </div>
+          <div class="perim-box" data-perim-box="top" style="display:none;margin-top:6px">
+            <div class="dim-label-row"><label>Высота короба</label><input type="number" autocomplete="off" class="dim-input" data-perim-boxinput="top" min="66" max="400" step="1" value="66"></div>
+            <input type="range" data-perim-boxrange="top" min="66" max="400" step="1" value="66">
+          </div>
+        </div>
+        <div class="perim-side">
+          <label class="perim-label">Низ</label>
+          <div class="btn-group perim-group" data-perim="bottom">
+            <button class="opt-btn" data-val="none">Нет</button>
+            <button class="opt-btn" data-val="planka">Планка</button>
+            <button class="opt-btn" data-val="box">Короб</button>
+          </div>
+          <div class="perim-box" data-perim-box="bottom" style="display:none;margin-top:6px">
+            <div class="dim-label-row"><label>Высота короба</label><input type="number" autocomplete="off" class="dim-input" data-perim-boxinput="bottom" min="66" max="400" step="1" value="66"></div>
+            <input type="range" data-perim-boxrange="bottom" min="66" max="400" step="1" value="66">
+          </div>
+        </div>
+        <div class="perim-side">
+          <label class="perim-label">Лево</label>
+          <div class="btn-group perim-group" data-perim="left">
+            <button class="opt-btn" data-val="none">Нет</button>
+            <button class="opt-btn" data-val="planka">Планка</button>
+            <button class="opt-btn" data-val="box">Короб</button>
+          </div>
+          <div class="perim-box" data-perim-box="left" style="display:none;margin-top:6px">
+            <div class="dim-label-row"><label>Ширина короба</label><input type="number" autocomplete="off" class="dim-input" data-perim-boxinput="left" min="66" max="600" step="1" value="66"></div>
+            <input type="range" data-perim-boxrange="left" min="66" max="600" step="1" value="66">
+          </div>
+        </div>
+        <div class="perim-side">
+          <label class="perim-label">Право</label>
+          <div class="btn-group perim-group" data-perim="right">
+            <button class="opt-btn" data-val="none">Нет</button>
+            <button class="opt-btn" data-val="planka">Планка</button>
+            <button class="opt-btn" data-val="box">Короб</button>
+          </div>
+          <div class="perim-box" data-perim-box="right" style="display:none;margin-top:6px">
+            <div class="dim-label-row"><label>Ширина короба</label><input type="number" autocomplete="off" class="dim-input" data-perim-boxinput="right" min="66" max="600" step="1" value="66"></div>
+            <input type="range" data-perim-boxrange="right" min="66" max="600" step="1" value="66">
+          </div>
+        </div>
       </div>
 
       <details class="extra-details" data-variant-ctx="extra">
