@@ -484,11 +484,12 @@
         <div class="swatch-name" id="doorCountHint"></div>
       </div>
 
-      <!-- Блок купе -->
-      <div id="fasadSlidingBlock">
-        <!-- Профиль дверей купе (задание «двери-начали 20,07»): 5 видов × 5 цветов, общие на
-             все двери шкафа (синхронно, в т.ч. из окна комбинированной двери). Каталог и
-             цены-заглушки — data/materials.json → slidingDoor. -->
+      <!-- Профиль + наполнение дверей — общий блок для купе и распашных (задание «двери расп 29,07»:
+           у распашных те же профиль/наполнение, что у купе, кроме направляющих/роликов). Видимость
+           по типу двери (кроме «Без дверей») — в syncFasadUI. -->
+      <div id="fasadDoorControls">
+        <!-- Профиль дверей: 5 видов × 5 цветов, общие на все двери (синхронно, в т.ч. из окна
+             комбинированной двери). Каталог/цены — data/materials.json → slidingDoor. -->
         <div class="field-group">
           <div class="field-group-title">Профиль</div>
           <div class="profile-grid" id="profileGrid">
@@ -570,18 +571,6 @@
             </div>
           </div>
 
-        </div>
-      </div>
-
-      <!-- Блок распашных -->
-      <div id="fasadSwingBlock" style="display:none">
-        <div class="field-group">
-          <div class="field-group-title">Цвет фасада (ЛДСП)</div>
-          <div class="field">
-            <label>Производитель</label>
-            <select id="fasadProducerSwing"></select>
-          </div>
-          <div id="fasadSwatchesSwing" class="swatches"></div>
         </div>
       </div>
 

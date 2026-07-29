@@ -326,12 +326,11 @@ export function syncFasadUI() {
   if (!(materials.slidingDoor?.colors || []).some(c => c.id === state.profileColor)) state.profileColor = 'silver';
 
   document.querySelectorAll('.fasad-type-btn').forEach(b => b.classList.toggle('active', b.dataset.fasad === state.fasadDoorType));
-  document.getElementById('fasadSlidingBlock').style.display = state.fasadDoorType === 'sliding' ? 'block' : 'none';
-  document.getElementById('fasadSwingBlock').style.display   = state.fasadDoorType === 'swing'   ? 'block' : 'none';
-  // «Редактировать дверь» — у купе и распашных (у обоих есть перемычки/наполнение полотна).
+  // Профиль + наполнение + «Редактировать дверь» — общие для купе и распашных (не для «Без дверей»).
+  const hasDoors = state.fasadDoorType === 'sliding' || state.fasadDoorType === 'swing';
+  document.getElementById('fasadDoorControls').style.display = hasDoors ? 'block' : 'none';
   const comboWrap = document.getElementById('comboDoorBtnWrap');
-  if (comboWrap) comboWrap.style.display =
-    (state.fasadDoorType === 'sliding' || state.fasadDoorType === 'swing') ? 'block' : 'none';
+  if (comboWrap) comboWrap.style.display = hasDoors ? 'block' : 'none';
 
   document.querySelectorAll('.profile-btn').forEach(b => b.classList.toggle('active', b.dataset.profile === state.profile));
   renderProfileColors();
@@ -621,8 +620,9 @@ export function bindFasadTab() {
       document.querySelectorAll('.fasad-type-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.fasadDoorType = btn.dataset.fasad;
-      document.getElementById('fasadSlidingBlock').style.display = state.fasadDoorType === 'sliding' ? 'block' : 'none';
-      document.getElementById('fasadSwingBlock').style.display   = state.fasadDoorType === 'swing'   ? 'block' : 'none';
+      const hasDoors = state.fasadDoorType === 'sliding' || state.fasadDoorType === 'swing';
+      document.getElementById('fasadDoorControls').style.display = hasDoors ? 'block' : 'none';
+      document.getElementById('comboDoorBtnWrap').style.display = hasDoors ? 'block' : 'none';
       // У купе и распашных разные допустимые габариты — перепроверяем ширину через тот же
       // кламп, что и при ручном вводе (иначе купе мог остаться на 450мм от распашных).
       const wInput = document.getElementById('widthVal');
