@@ -243,6 +243,10 @@ html, body {
 .tab-btn-admin { color: #a07000; }
 .tab-btn-admin.active { color: #a07000; border-color: #a07000; }
 
+/* Кнопка «Выход» — прижата к низу сайдбара (margin-top:auto), красноватая (задание «выйти 29,07») */
+.tab-btn-logout { margin-top: auto; color: #c0392b; }
+.tab-btn-logout:hover { background: #fbeaea; color: #c0392b; }
+
 /* ── Panel (контент вкладки) ── */
 #panel {
   position: absolute;

@@ -11,7 +11,7 @@ import { addCurrentToOrder, renderOrderCards, bindOrderForm } from './core/order
 import { bindPrint } from './core/print.js';
 import { renderExtras, bindExtras } from './core/extras.js';
 import { bindProjectsControls, openProjectsModal } from './core/projects.js';
-import { initAuth, bindLoginForm, auth } from './core/auth.js';
+import { initAuth, bindLoginForm, auth, signOut } from './core/auth.js';
 import { supabase } from './core/supabaseClient.js';
 import { bindCabinetControls, openCabinetModal } from './core/cabinet.js';
 import { bindUsersControls, openUsersModal } from './core/users.js';
@@ -105,6 +105,7 @@ async function init() {
   document.querySelector('[data-tab="cabinet"]').addEventListener('click', openCabinetModal);
   bindUsersControls();
   document.querySelector('[data-tab="users"]').addEventListener('click', openUsersModal);
+  document.getElementById('sidebarLogoutBtn').addEventListener('click', signOut);
   document.querySelector('[data-tab="projects"]').addEventListener('click', openProjectsModal);
   document.getElementById('adminTabBtn').addEventListener('click', renderAdminOrders);
 
