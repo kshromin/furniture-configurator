@@ -14,6 +14,7 @@ import { bindProjectsControls, openProjectsModal } from './core/projects.js';
 import { initAuth, bindLoginForm, auth } from './core/auth.js';
 import { supabase } from './core/supabaseClient.js';
 import { bindCabinetControls, openCabinetModal } from './core/cabinet.js';
+import { bindUsersControls, openUsersModal } from './core/users.js';
 import { renderAdminOrders } from './core/admin.js';
 import { initItemDrag } from './core/itemDrag.js';
 import { initDimensions } from './core/dimensions.js';
@@ -99,6 +100,8 @@ async function init() {
   bindCabinetControls();
   bindProjectsControls();
   document.querySelector('[data-tab="cabinet"]').addEventListener('click', openCabinetModal);
+  bindUsersControls();
+  document.querySelector('[data-tab="users"]').addEventListener('click', openUsersModal);
   document.querySelector('[data-tab="projects"]').addEventListener('click', openProjectsModal);
   document.getElementById('adminTabBtn').addEventListener('click', renderAdminOrders);
 

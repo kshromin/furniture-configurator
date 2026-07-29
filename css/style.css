@@ -1537,3 +1537,27 @@ html, body {
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
+
+/* ── Вкладка «Пользователи» (админ компании) — js/core/users.js ─────────────── */
+#usersModalBody { display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+.users-add { border: 1px solid #e3e6ea; border-radius: 10px; padding: 12px 14px; background: #f8fafd; flex-shrink: 0; }
+.users-form-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.users-inp { flex: 1; min-width: 130px; }
+.users-add-btn { background: #2f6fed; color: #fff; border-color: #2f6fed; }
+.users-msg { font-size: 12px; margin-top: 6px; color: #666; }
+.users-msg.err { color: #c0392b; }
+.users-msg.ok { color: #1f8a4c; }
+.users-list { display: flex; flex-direction: column; gap: 8px; }
+.user-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #eef0f3;
+            border-radius: 10px; }
+.user-row-edit { flex-direction: column; align-items: stretch; background: #f8fafd; }
+.user-main { flex: 1; min-width: 0; }
+.user-name { font-weight: 600; font-size: 14px; }
+.user-sub { color: #888; font-size: 12px; }
+.user-tag { font-size: 10px; background: #e7edfb; color: #2f6fed; padding: 1px 7px; border-radius: 20px;
+            vertical-align: middle; margin-left: 4px; }
+.user-status { flex-shrink: 0; }
+.user-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; }
+.badge.on { background: #e5f5ea; color: #1f8a4c; }
+.badge.off { background: #f3e6e6; color: #c0392b; }
