@@ -5,7 +5,7 @@ import { buildFurniture } from './core/build.js';
 import {
   bindTypeButtons, bindSlider, bindFasadTab, bindVariantControls,
   bindTabSwitching, bindToggleDoors, bindBackWall, bindThickness, bindSectionsControls, syncUIFromState,
-  markUnfinishedTypes, bindRoomControls,
+  markUnfinishedTypes, bindRoomControls, setCompanyActiveTypes,
 } from './core/tabs.js';
 import { addCurrentToOrder, renderOrderCards, bindOrderForm } from './core/order.js';
 import { bindPrint } from './core/print.js';
@@ -29,6 +29,7 @@ import { bindDoorEditor } from './core/doorEditor.js';
 async function loadMaterials() {
   const local = async () => (await fetch('data/materials.json', { cache: 'no-store' })).json();
   const valid = m => !!(m && m.korpus?.producers?.length && m.fasad?.producers?.length);
+  setCompanyActiveTypes(null); // по умолчанию типы не гейтим (devMode / супер-админ / нет компании)
 
   if (localStorage.getItem('devMode') === 'true') return local();
   const companyId = auth.session && auth.profile?.company_id;
@@ -36,8 +37,10 @@ async function loadMaterials() {
 
   try {
     const { data, error } = await supabase
-      .from('companies').select('materials').eq('id', companyId).single();
+      .from('companies').select('materials, active_types').eq('id', companyId).single();
     if (error) { console.warn('Каталог из Supabase не загрузился, фолбэк на локальный:', error.message); return local(); }
+    // Гейт типов — только для НЕ супер-админа (супер-админ видит все готовые типы).
+    if (!auth.profile?.is_admin) setCompanyActiveTypes(data?.active_types);
     return valid(data?.materials) ? data.materials : local();
   } catch (e) {
     console.warn('Ошибка загрузки каталога, фолбэк на локальный:', e);

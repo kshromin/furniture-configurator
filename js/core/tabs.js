@@ -385,15 +385,24 @@ function syncPerimeter() {
   });
 }
 
+// Гейт типов по компании: null = не гейтить (devMode / супер-админ / нет компании); массив =
+// разрешённые компании типы (companies.active_types). Готовый тип не из этого списка → «не доступен».
+let companyActiveTypes = null;
+export function setCompanyActiveTypes(types) { companyActiveTypes = Array.isArray(types) ? types : null; }
+
 export function markUnfinishedTypes() {
   document.querySelectorAll('.type-btn').forEach(btn => {
-    if (READY_TYPES.includes(btn.dataset.type)) return;
+    const type = btn.dataset.type;
+    let text, locked = false;
+    if (!READY_TYPES.includes(type)) text = 'в разработке';                                  // глобально не готов
+    else if (companyActiveTypes && !companyActiveTypes.includes(type)) { text = 'не доступен'; locked = true; } // не подключён компании
+    else return;                                                                             // готов и доступен
     btn.disabled = true;
-    btn.classList.add('type-wip');
+    btn.classList.add(locked ? 'type-locked' : 'type-wip');
     if (!btn.querySelector('.wip-label')) {
       const label = document.createElement('span');
-      label.className = 'wip-label';
-      label.textContent = 'в разработке';
+      label.className = 'wip-label' + (locked ? ' locked-label' : '');
+      label.textContent = text;
       btn.appendChild(label);
     }
   });

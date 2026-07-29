@@ -1564,3 +1564,6 @@ html, body {
 .badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; }
 .badge.on { background: #e5f5ea; color: #1f8a4c; }
 .badge.off { background: #f3e6e6; color: #c0392b; }
+
+/* «не доступен» — готовый тип, не подключённый компании (SaaS active_types, 2.6) */
+.wip-label.locked-label { color: #8a8f98; }
