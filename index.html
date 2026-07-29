@@ -570,11 +570,6 @@
             </div>
           </div>
 
-          <!-- Редактирование одной двери (перемычки, наполнение секций полотна) —
-               js/core/doorEditor.js -->
-          <div class="field-group" style="margin-top:12px">
-            <button id="comboDoorBtn" class="add-item-btn" type="button">Редактировать дверь</button>
-          </div>
         </div>
       </div>
 
@@ -588,6 +583,12 @@
           </div>
           <div id="fasadSwatchesSwing" class="swatches"></div>
         </div>
+      </div>
+
+      <!-- Редактирование одной двери (перемычки, наполнение секций полотна) — общая для купе и
+           распашных (js/core/doorEditor.js). Видимость по типу двери — в syncFasadUI. -->
+      <div class="field-group" id="comboDoorBtnWrap" style="margin-top:12px;display:none">
+        <button id="comboDoorBtn" class="add-item-btn" type="button">Редактировать дверь</button>
       </div>
 
       </div><!-- /fasadContent -->

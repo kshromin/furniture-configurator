@@ -429,8 +429,8 @@ function endDividerDrag() {
 let openSnapshot = null;
 
 export function openDoorEditor() {
-  if (state.fasadDoorType !== 'sliding' || doorCount() === 0) {
-    showToast('Редактирование двери доступно только у дверей-купе.');
+  if ((state.fasadDoorType !== 'sliding' && state.fasadDoorType !== 'swing') || doorCount() === 0) {
+    showToast('Редактирование двери доступно у дверей-купе и распашных.');
     return;
   }
   currentDoor = getActiveDoorIndex() ?? 0;

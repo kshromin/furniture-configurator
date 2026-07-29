@@ -192,16 +192,18 @@ function doorFillColor(fill, fillColor, colorId) {
 }
 
 // doorIndex — для индивидуальных перемычек/наполнения секций двери (state.doorCustom[i], окно
-// «Комбинированная дверь»); у распашных не передаётся — кастом не применяется, всегда ЛДСП.
+// «Комбинированная дверь»). Передаётся и купе, и распашным — у обоих есть редактор двери.
 export function buildSlidingDoor(x, y, z, w, h, fillColor, doorIndex) {
   // Ширина рамки — свойство профиля из каталога (data/materials.json, frameWidth); новые
   // профили, добавленные через эксель, без явного значения получают стандартную.
   const fw = (materials.slidingDoor?.profiles || []).find(p => p.id === state.profile)?.frameWidth || DOOR_FRAME_WIDTH;
   // Цвет профиля — из каталога (hex вида "#c4c4c8" → число для Three.js).
   const frameColor = profileColorHex();
-  const sliding = state.fasadDoorType === 'sliding';
-  const custom = (sliding && doorIndex !== undefined) ? state.doorCustom?.[doorIndex] : null;
-  const globalFill = sliding ? state.doorFill : 'ldsp';
+  // Кастом (перемычки/наполнение секций) и общее наполнение — у купе И распашных (у обоих есть
+  // редактор «Комбинированная дверь»); doorIndex приходит из buildDoorRow для обеих веток.
+  const editable = state.fasadDoorType === 'sliding' || state.fasadDoorType === 'swing';
+  const custom = (editable && doorIndex !== undefined) ? state.doorCustom?.[doorIndex] : null;
+  const globalFill = editable ? state.doorFill : 'ldsp';
 
   // Верх/низ — стандартные горизонтальные профили (разной толщины), боковины — вертикальный профиль
   // выбранного вида (ширина fw). Вертикальные бруски идут между горизонталями; из-за разной толщины
@@ -290,9 +292,19 @@ export function buildDoorRow({ spanW, spanCenterX, y0, height, topOff, bottomOff
     const doorTop     = y0 + height - topOff - stripH - SWING_GAP;
     const doorH       = doorTop - doorBottom;
     const doorCenterY = (doorBottom + doorTop) / 2;
+    // Раскладка нужна редактору двери (doorCount()/render() по lastBuildDoorLayout). Реестры мешей
+    // и userData.doorIndex НЕ заполняем — драг распашных не поддерживается (как и раньше), редактор
+    // переключает двери своими вкладками, а не выделением в 3D.
+    lastBuildDoorLayout = {
+      doorW, doorH,
+      spanLeftX: spanCenterX - spanW / 2,
+      spanRightX: spanCenterX + spanW / 2,
+      rails: [], xs: [],
+    };
     for (let i = 0; i < doorCount; i++) {
       const x = spanCenterX - spanW / 2 + SWING_GAP + doorW / 2 + i * (doorW + SWING_GAP);
-      buildSlidingDoor(x, doorCenterY, stripZ, doorW, doorH, fColor);
+      buildSlidingDoor(x, doorCenterY, stripZ, doorW, doorH, fColor, i); // doorIndex → индивид. перемычки/наполнение
+      lastBuildDoorLayout.xs.push(x);
     }
     return doorCount;
   }

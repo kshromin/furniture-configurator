@@ -328,6 +328,10 @@ export function syncFasadUI() {
   document.querySelectorAll('.fasad-type-btn').forEach(b => b.classList.toggle('active', b.dataset.fasad === state.fasadDoorType));
   document.getElementById('fasadSlidingBlock').style.display = state.fasadDoorType === 'sliding' ? 'block' : 'none';
   document.getElementById('fasadSwingBlock').style.display   = state.fasadDoorType === 'swing'   ? 'block' : 'none';
+  // «Редактировать дверь» — у купе и распашных (у обоих есть перемычки/наполнение полотна).
+  const comboWrap = document.getElementById('comboDoorBtnWrap');
+  if (comboWrap) comboWrap.style.display =
+    (state.fasadDoorType === 'sliding' || state.fasadDoorType === 'swing') ? 'block' : 'none';
 
   document.querySelectorAll('.profile-btn').forEach(b => b.classList.toggle('active', b.dataset.profile === state.profile));
   renderProfileColors();
