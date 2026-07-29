@@ -183,6 +183,9 @@ export function updateAllContexts() {
   updateVariantContext();
   updateFillContext();
   updateFasadContext();
+  // «Двери купе» — плоское изделие, глубина не нужна: скрываем поле (и в габаритах, и при переключении).
+  const depthField = document.getElementById('depthField');
+  if (depthField) depthField.style.display = state.type === 'sliding-doors' ? 'none' : '';
 }
 
 // ---------- sliders / generic fields ----------
@@ -203,7 +206,7 @@ export function bindSlider(id, key, suffix) {
     val = Math.max(min, Math.min(max, Math.round(val / 10) * 10));
     // Шкаф-купе: даже 2 двери не могут быть уже 500мм — минимальная ширина изделия
     // следует из допуска дверей (пролёт ≥ 2×500−нахлёст) плюс стойки/короба по бокам.
-    if (key === 'width' && state.type === 'wardrobe' && state.fasadDoorType === 'sliding') {
+    if (key === 'width' && (state.type === 'wardrobe' || state.type === 'sliding-doors') && state.fasadDoorType === 'sliding') {
       const span = effectiveDoorSpan();
       const sideOffs = state.width - span.spanW; // лев+прав отступы при текущей конфигурации
       const minW = Math.ceil((2 * DOOR_MIN_W - DOOR_OVERLAP + sideOffs) / 10) * 10;
@@ -213,7 +216,7 @@ export function bindSlider(id, key, suffix) {
       }
     }
     // Распашные: 1–2 двери шириной 400–800мм → ширина шкафа ограничена с обеих сторон.
-    if (key === 'width' && state.type === 'wardrobe' && state.fasadDoorType === 'swing') {
+    if (key === 'width' && (state.type === 'wardrobe' || state.type === 'sliding-doors') && state.fasadDoorType === 'swing') {
       const span = effectiveDoorSpan();
       const sideOffs = state.width - span.spanW;
       const minW = Math.ceil((SWING_DOOR_MIN_W + 2 * SWING_GAP + sideOffs) / 10) * 10;
@@ -277,6 +280,10 @@ export function syncUIFromState() {
   setSlider('alignerLeftW', state.alignerLeftW);
   setSlider('alignerRightW', state.alignerRightW);
   setSlider('alignerTopH', state.alignerTopH);
+  syncPerimeter();
+  // «Двери купе» — глубина не нужна (изделие плоское), поле скрываем.
+  const depthField = document.getElementById('depthField');
+  if (depthField) depthField.style.display = state.type === 'sliding-doors' ? 'none' : '';
 
   document.querySelectorAll('#backWallGroup .opt-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.back === state.backWall);
@@ -355,7 +362,28 @@ window.addEventListener('history-restored', syncUIFromState);
 
 // Готовые к продаже типы. Остальные кнопки блокируются с подписью «в разработке» —
 // делаем типы по одному (сейчас — шкаф-купе); чтобы включить новый тип, добавь его id сюда.
-const READY_TYPES = ['wardrobe'];
+const READY_TYPES = ['wardrobe', 'sliding-doors'];
+
+// Периметр типа «Двери купе»: сторона → [ключ вида замены, ключ размера короба].
+const PERIM_SIDES = {
+  top:    ['topReplace',    'topBoxH'],
+  bottom: ['bottomReplace', 'bottomBoxH'],
+  left:   ['leftReplace',   'leftBoxW'],
+  right:  ['rightReplace',  'rightBoxW'],
+};
+function syncPerimeter() {
+  Object.entries(PERIM_SIDES).forEach(([side, [repKey, boxKey]]) => {
+    const rep = state[repKey] || 'none';
+    document.querySelectorAll(`.perim-group[data-perim="${side}"] .opt-btn`)
+      .forEach(b => b.classList.toggle('active', b.dataset.val === rep));
+    const boxEl = document.querySelector(`.perim-box[data-perim-box="${side}"]`);
+    if (boxEl) boxEl.style.display = rep === 'box' ? '' : 'none';
+    const inp = document.querySelector(`[data-perim-boxinput="${side}"]`);
+    if (inp) inp.value = state[boxKey];
+    const rng = document.querySelector(`[data-perim-boxrange="${side}"]`);
+    if (rng) rng.value = state[boxKey];
+  });
+}
 
 export function markUnfinishedTypes() {
   document.querySelectorAll('.type-btn').forEach(btn => {
@@ -413,7 +441,7 @@ function clampRoomFieldsToWardrobe() {
 // Вызывается из syncUIFromState() — при загрузке пресета/прорисовки/истории UI подхватит state.
 function syncRoomUI() {
   const block = document.getElementById('roomBlock');
-  if (block) block.style.display = state.type === 'wardrobe' ? 'block' : 'none';
+  if (block) block.style.display = (state.type === 'wardrobe' || state.type === 'sliding-doors') ? 'block' : 'none';
   const en = document.getElementById('roomEnabled');
   if (en) en.checked = state.roomEnabled;
   const ctrls = document.getElementById('roomControls');
@@ -506,7 +534,7 @@ export function bindTypeButtons() {
 export function renderDoorCountOptions() {
   const group = document.getElementById('doorCountGroup');
   const hint  = document.getElementById('doorCountHint');
-  if (!group || state.type !== 'wardrobe') return;
+  if (!group || (state.type !== 'wardrobe' && state.type !== 'sliding-doors')) return;
 
   // При «Без дверей» выбор количества не имеет смысла — блок скрывается целиком.
   const block = document.getElementById('doorCountBlock');
@@ -1546,6 +1574,27 @@ export function bindVariantControls() {
   bindSide('noSideRight', 'rightReplaceBlock',  'rightReplaceGroup',  'noSideRight', 'rightReplace',  'rightBoxWField',  'rightBoxW',  'rightBoxWVal',  'rightBoxW');
   bindSide('noCeiling',   'topReplaceBlock',    'topReplaceGroup',    'noCeiling',   'topReplace',    'topBoxHField',    'topBoxH',    'topBoxHVal',    'topBoxH');
   bindSide('noBottom',    'bottomReplaceBlock', 'bottomReplaceGroup', 'noBottom',    'bottomReplace', 'bottomBoxHField', 'bottomBoxH', 'bottomBoxHVal', 'bottomBoxH');
+
+  // Периметр «Двери купе» — выравниватели ЛДСП (нет/планка/короб) на 4 стороны, без «убрать сторону».
+  Object.entries(PERIM_SIDES).forEach(([side, [repKey, boxKey]]) => {
+    document.querySelectorAll(`.perim-group[data-perim="${side}"] .opt-btn`).forEach(btn => {
+      btn.addEventListener('click', () => {
+        state[repKey] = btn.dataset.val;
+        syncPerimeter();
+        buildFurniture();
+      });
+    });
+    const inp = document.querySelector(`[data-perim-boxinput="${side}"]`);
+    const rng = document.querySelector(`[data-perim-boxrange="${side}"]`);
+    const setBox = (v, from) => {
+      state[boxKey] = Number(v);
+      if (inp && from !== inp) inp.value = v;
+      if (rng && from !== rng) rng.value = v;
+      buildFurniture();
+    };
+    if (inp) inp.addEventListener('change', () => setBox(inp.value, inp));
+    if (rng) rng.addEventListener('input',  () => setBox(rng.value, rng));
+  });
 
   // Выравнивающие элементы — планка у переднего края рядом со стойкой/крышей, стойка/крыша сдвигается на её размер
   function bindAligner(cbId, fieldId, sizeSliderId, sizeKey) {

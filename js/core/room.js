@@ -66,8 +66,8 @@ controls.addEventListener('change', updateWallVisibility);
 
 export function buildRoom() {
   roomGroup.clear();
-  // Комната — только для шкафа-купе (работаем по блокам) и когда включена.
-  if (!state.roomEnabled || state.type !== 'wardrobe') {
+  // Комната — для шкафа-купе и дверей-купе (работаем по блокам) и когда включена.
+  if (!state.roomEnabled || (state.type !== 'wardrobe' && state.type !== 'sliding-doors')) {
     roomGroup.visible = false;
     sceneFloor.visible = true; // вернуть общий пол сцены
     return;

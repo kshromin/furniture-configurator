@@ -90,10 +90,13 @@ export function effectiveDoorSpan() {
     return base + (alignerOn ? alignerSize : 0);
   }
 
-  const leftOff   = off(noSideLeft,  leftReplace,   leftBoxW,   alignerLeft,  alignerLeftW, tL);
-  const rightOff  = off(noSideRight, rightReplace,  rightBoxW,  alignerRight, alignerRightW, tR);
-  const topOff    = off(noCeiling,   topReplace,    topBoxH,    alignerTop,   alignerTopH,  tT);
-  const bottomOff = off(noBottom,    bottomReplace, bottomBoxH, false,        0,            tB);
+  // Тип «Двери купе» — корпуса нет, периметр (планка/короб/нет) активен ВСЕГДА, поэтому сторона
+  // условно «убрана» на всех сторонах (off() берёт leftReplace/короб напрямую, как и в геометрии типа).
+  const sd = state.type === 'sliding-doors';
+  const leftOff   = off(noSideLeft  || sd, leftReplace,   leftBoxW,   alignerLeft,  alignerLeftW, tL);
+  const rightOff  = off(noSideRight || sd, rightReplace,  rightBoxW,  alignerRight, alignerRightW, tR);
+  const topOff    = off(noCeiling   || sd, topReplace,    topBoxH,    alignerTop,   alignerTopH,  tT);
+  const bottomOff = off(noBottom    || sd, bottomReplace, bottomBoxH, false,        0,            tB);
 
   // Стойки/задняя стенка/перегородки/выравниватели/наполнение идут во всю глубину короба, а
   // планка/короб — только декоративная накладка в передней дверной зоне (см. drawSideElem).
