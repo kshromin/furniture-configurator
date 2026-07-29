@@ -44,6 +44,9 @@ function updateKitBar() {
     bar.textContent = 'Новая прорисовка';
     bar.classList.remove('kit-editing');
   }
+  // «Вернуть в проект» — только когда открыт ЗАКАЗ (он read-only; правка — через возврат в проект).
+  const retBtn = document.getElementById('returnToProjectBtn');
+  if (retBtn) retBtn.style.display = (editingProjectId !== null && editingProjectKind === 'order') ? '' : 'none';
   // Верхняя строка — режим правки позиции («Изменить» → «✓ Обновить позицию»), самая заметная
   if (editBar) {
     const idx = editingItemId !== null ? orderItems.findIndex(it => it.id === editingItemId) : -1;
@@ -325,6 +328,19 @@ export function startNewKit() {
   guardUnsavedItems('Не сохранять', doStartNewKit);
 }
 
+// «Вернуть в проект» (задание «поделиться 29,07»): заказ read-only, для правки его отвязываем от
+// записи заказа — прорисовки/клиент остаются в работе, но editingProjectId=null (следующее
+// сохранение создаст НОВУЮ запись) и режим — проект. Дальше правишь и сохраняешь новым.
+export function returnOrderToProject() {
+  if (editingProjectKind !== 'order') return;
+  editingProjectId = null;
+  editingProjectKind = 'project';
+  itemsSavedToProject = false;
+  renderOrderCards();
+  markStateSafe();
+  showToast('Заказ возвращён в проект — редактируйте и сохраните новым (проектом или заказом).');
+}
+
 function doStartNewKit() {
   orderItems = [];
   editingItemId = null;
@@ -387,6 +403,7 @@ export function bindOrderForm() {
   document.getElementById('saveOrderBtn').addEventListener('click', () => openSaveModal('order'));
   document.getElementById('newKitBtn').addEventListener('click', startNewKit);
   document.getElementById('newKitTopBtn').addEventListener('click', startNewKit);
+  document.getElementById('returnToProjectBtn')?.addEventListener('click', returnOrderToProject);
   // Закрытие модалки без сохранения отменяет и отложенное действие (см. guardUnsavedItems) —
   // прорисовки не сохранены, затирать их молча нельзя.
   document.getElementById('orderCancel').addEventListener('click', () => {
@@ -439,10 +456,12 @@ export function bindOrderForm() {
     // новый» (её легко не заметить: пользователь менял название и удивлялся, что старый проект
     // перезаписан — просьба 21.07).
     let overwrite = false;
-    if (editingProjectId !== null) {
-      const kindLabel = editingProjectKind === 'order' ? 'заказ' : 'проект';
+    // Заказ неизменяем (задание «поделиться 29,07»): перезаписать нельзя — только сохранить новым.
+    // Чтобы редактировать заказ, сначала «Вернуть в проект» (returnOrderToProject). Диалог
+    // «перезаписать/новым» — только для проектов.
+    if (editingProjectId !== null && editingProjectKind !== 'order') {
       const choice = await showChoiceDialog(
-        `Открыт ${kindLabel}${editingProjectCode ? ' № ' + editingProjectCode : ''}. Перезаписать его или сохранить новым?`,
+        `Открыт проект${editingProjectCode ? ' № ' + editingProjectCode : ''}. Перезаписать его или сохранить новым?`,
         [
           { label: 'Отмена', value: null },
           { label: 'Перезаписать', value: 'update' },
