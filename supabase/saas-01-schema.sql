@@ -35,6 +35,13 @@ alter table public.companies enable row level security;
 -- доступны — решают RLS-политики ниже.
 grant select, insert, update, delete on public.companies to authenticated;
 
+-- service_role (под ним работает Edge Function create-company-user) должен иметь доступ к таблицам,
+-- которые она читает/пишет. В этом проекте гранты автоматически НЕ выдаются (тот же класс бага, что
+-- с authenticated в сессии 19) — иначе функция падает с 42501 "permission denied for table".
+grant all on public.profiles  to service_role;
+grant all on public.companies to service_role;
+grant all on public.projects  to service_role;
+
 
 -- 2) Расширение profiles ------------------------------------------------------
 -- profiles уже существует (id, email, is_admin = супер-админ). Добавляем поля компании.
