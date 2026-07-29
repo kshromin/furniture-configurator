@@ -51,10 +51,10 @@ export function bindLoginForm() {
       return;
     }
     // Полный e-mail (с «@») — как есть. Ник + фирма → ник@<slug>.config (новые аккаунты SaaS,
-    // slug запоминаем). Ник без фирмы → старый служебный домен @conf.conf (легаси-аккаунты).
+    // slug запоминаем). Ник без фирмы → служебный домен @config.config (аккаунты без компании).
     if (!email.includes('@')) {
       if (slug) { email += '@' + slug + '.config'; localStorage.setItem('loginCompanySlug', slug); }
-      else email += '@conf.conf';
+      else email += '@config.config';
     }
     resultEl.style.color = '#555';
     resultEl.textContent = 'Вход...';
