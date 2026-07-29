@@ -1571,3 +1571,25 @@ html, body {
 
 /* «не доступен» — готовый тип, не подключённый компании (SaaS active_types, 2.6) */
 .wip-label.locked-label { color: #8a8f98; }
+
+/* ── «Поделиться» проектом/заказом (задание «поделиться 29,07», js/core/projects.js) ── */
+.order-card-actions { display: flex; gap: 6px; margin-top: 6px; }
+.order-card-actions .order-card-edit { flex: 1; margin-top: 0; }
+.order-card-share { padding: 6px 10px; border: 1px solid #cdd7ea; border-radius: 7px; background: #eef2fb;
+                    color: #2f6fed; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.order-card-share:hover { background: #e2eafb; }
+.order-card-shared { font-size: 11px; color: #a07000; margin-top: 3px; }
+.order-card-shareinfo { font-size: 10px; color: #1f8a4c; margin-left: 4px; }
+
+.share-popover { position: fixed; z-index: 3000; width: 240px; background: #fff; border: 1px solid #d0d7e3;
+                 border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,0.22); padding: 12px; }
+.share-pop-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+.share-pop-list { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.share-pop-list label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.share-pop-empty { color: #999; font-size: 12px; }
+.share-pop-actions { display: flex; gap: 8px; margin-top: 10px; }
+.share-pop-save { flex: 1; padding: 7px; border: none; border-radius: 7px; background: #2f6fed; color: #fff;
+                  font: inherit; font-weight: 600; cursor: pointer; }
+.share-pop-cancel { padding: 7px 12px; border: 1px solid #ccd2da; border-radius: 7px; background: #fff;
+                    font: inherit; cursor: pointer; }
+.share-pop-msg { font-size: 12px; color: #c0392b; margin-top: 6px; }

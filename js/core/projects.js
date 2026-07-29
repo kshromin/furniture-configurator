@@ -38,6 +38,19 @@ const LISTS = {
 // Сколько строк уже подгружено — свой счётчик на каждый список, «Показать ещё» продолжает с него.
 const paging = { project: 0, order: 0 };
 
+// Сотрудники своей компании — для окна «Поделиться» и подписи создателя у расшаренных карточек.
+// Грузятся один раз (RLS profiles_select_company из saas-02 отдаёт только свою компанию).
+let team = null;
+let teamById = {};
+async function loadTeam() {
+  if (team) return team;
+  const { data } = await supabase.from('profiles').select('id, full_name, email').order('full_name');
+  team = data || [];
+  teamById = Object.fromEntries(team.map(u => [u.id, u]));
+  return team;
+}
+const teamName = id => { const u = teamById[id]; return u ? (u.full_name || u.email) : 'сотрудник'; };
+
 function sortField(cfg) { return document.getElementById(cfg.sort).value; } // created|updated|title|client
 
 function loadRange(cfg) {
@@ -56,10 +69,14 @@ function buildQuery(cfg) {
   // Лёгкий список (сессия 37, см. SUPABASE-SETUP.md п.13) — без items (jsonb с полными 3D-
   // снапшотами каждой прорисовки, самое тяжёлое поле). item_count/thumbnail — отдельные лёгкие
   // колонки. Сам items грузится только точечно, при открытии конкретного проекта — см. ниже.
+  const me = auth.session.user.id;
   let query = supabase
     .from('projects')
-    .select('id, kind, title, client_name, client_phone, project_code, total, item_count, thumbnail, created_at, updated_at')
-    .eq('user_id', auth.session.user.id)
+    .select('id, kind, user_id, shared_with, title, client_name, client_phone, project_code, total, item_count, thumbnail, created_at, updated_at')
+    // «Мои + расшаренные мне» (задание «поделиться 29,07»). Компания-админ/супер по RLS видят больше,
+    // но в личном списке показываем только владение + шаринг, а не всю компанию. Две .or() (эта и
+    // поисковая ниже) объединяются как AND — то что нужно.
+    .or(`user_id.eq.${me},shared_with.cs.{${me}}`)
     .eq('kind', cfg.kind);
 
   const q = document.getElementById(cfg.search).value.trim();
@@ -96,26 +113,36 @@ function renderCard(p, cfg, container) {
   const thumb = p.thumbnail ? `<img class="order-card-thumb" src="${p.thumbnail}" alt="">` : '';
   const card = document.createElement('div');
   card.className = 'order-card';
+  const me = auth.session.user.id;
+  const mine = p.user_id === me; // чужая карточка = расшарена мне (создатель другой)
+  const sharedNote = mine ? '' : `<div class="order-card-shared">поделился: ${teamName(p.user_id)}</div>`;
+  const shareBadge = (mine && p.shared_with?.length) ? ` <span class="order-card-shareinfo" title="Доступ открыт">↗${p.shared_with.length}</span>` : '';
   card.innerHTML = `
     ${thumb}
     <div class="order-card-header">
       <div class="order-card-info">
         <span class="order-card-num">${p.project_code ? `${p.project_code} · ` : ''}${created}</span>
         <span class="order-card-name">${p.title ? `<b>${p.title}</b><br>` : ''}${client}${nLine}</span>
+        ${sharedNote}
       </div>
-      <button class="order-card-remove" title="Удалить">×</button>
+      ${mine ? '<button class="order-card-remove" title="Удалить">×</button>' : ''}
     </div>
     <div class="order-card-price">${fmt(p.total)}</div>
-    <span class="status-pill status-${p.kind === 'order' ? 'confirmed' : 'new'}">${KIND_LABELS[p.kind]}</span>
-    <button class="order-card-edit">Открыть</button>
+    <span class="status-pill status-${p.kind === 'order' ? 'confirmed' : 'new'}">${KIND_LABELS[p.kind]}${shareBadge}</span>
+    <div class="order-card-actions">
+      ${mine ? '<button class="order-card-share">Поделиться</button>' : ''}
+      <button class="order-card-edit">Открыть</button>
+    </div>
   `;
 
-  card.querySelector('.order-card-remove').addEventListener('click', async () => {
+  card.querySelector('.order-card-remove')?.addEventListener('click', async () => {
     const who = [p.title, p.client_name, p.project_code].filter(Boolean).join(', ') || 'без данных';
     if (!window.confirm(`Удалить ${cfg.kind === 'order' ? 'заказ' : 'проект'} (${who})? Действие необратимо.`)) return;
     await supabase.from('projects').delete().eq('id', p.id);
     card.remove(); // без полной перезагрузки списка — карточка и так уже в руках
   });
+
+  card.querySelector('.order-card-share')?.addEventListener('click', e => openSharePopover(p, e.currentTarget));
 
   card.querySelector('.order-card-edit').addEventListener('click', async e => {
     const btn = e.currentTarget;
@@ -131,6 +158,59 @@ function renderCard(p, cfg, container) {
   });
 
   container.appendChild(card);
+}
+
+// Окно «Поделиться» (задание «поделиться 29,07») — список сотрудников компании с галочками;
+// сохранение пишет projects.shared_with (владелец правит своей update-политикой). Расшаренному
+// запись становится видна (RLS projects_select_shared, saas-02).
+let sharePop = null;
+function closeSharePopover() {
+  if (!sharePop) return;
+  sharePop.remove(); sharePop = null;
+  document.removeEventListener('click', onDocClickShare, true);
+}
+function onDocClickShare(e) { if (sharePop && !sharePop.contains(e.target)) closeSharePopover(); }
+
+function openSharePopover(p, anchorBtn) {
+  closeSharePopover();
+  const me = auth.session.user.id;
+  const mates = (team || []).filter(u => u.id !== me);
+  const shared = new Set(p.shared_with || []);
+  const pop = document.createElement('div');
+  pop.className = 'share-popover';
+  pop.innerHTML = `
+    <div class="share-pop-title">Поделиться с сотрудником</div>
+    <div class="share-pop-list">${
+      mates.length
+        ? mates.map(u => `<label><input type="checkbox" value="${u.id}" ${shared.has(u.id) ? 'checked' : ''}> ${teamName(u.id)}</label>`).join('')
+        : '<div class="share-pop-empty">В компании пока нет других сотрудников.</div>'
+    }</div>
+    <div class="share-pop-actions">
+      <button class="share-pop-save">Сохранить</button>
+      <button class="share-pop-cancel">Отмена</button>
+    </div>
+    <div class="share-pop-msg"></div>`;
+  document.body.appendChild(pop);
+  sharePop = pop;
+  const r = anchorBtn.getBoundingClientRect();
+  pop.style.top = Math.min(r.bottom + 6, window.innerHeight - pop.offsetHeight - 10) + 'px';
+  pop.style.left = Math.min(r.left, window.innerWidth - pop.offsetWidth - 10) + 'px';
+  setTimeout(() => document.addEventListener('click', onDocClickShare, true), 0);
+
+  pop.querySelector('.share-pop-cancel').addEventListener('click', closeSharePopover);
+  pop.querySelector('.share-pop-save').addEventListener('click', async () => {
+    const ids = [...pop.querySelectorAll('input:checked')].map(i => i.value);
+    const msg = pop.querySelector('.share-pop-msg');
+    msg.textContent = 'Сохранение…';
+    const { error } = await supabase.from('projects').update({ shared_with: ids }).eq('id', p.id);
+    if (error) { msg.textContent = 'Ошибка: ' + error.message; return; }
+    p.shared_with = ids;
+    const card = anchorBtn.closest('.order-card');
+    card?.querySelector('.order-card-shareinfo')?.remove();
+    if (ids.length) card?.querySelector('.status-pill')
+      ?.insertAdjacentHTML('beforeend', ` <span class="order-card-shareinfo" title="Доступ открыт">↗${ids.length}</span>`);
+    closeSharePopover();
+  });
 }
 
 // append=false — свежая загрузка (сброс на первую страницу, список очищается); append=true —
@@ -162,6 +242,7 @@ async function loadPage(kindKey, append) {
   if (!append) { paging[kindKey] = 0; list.innerHTML = ''; }
   const offset = paging[kindKey];
 
+  await loadTeam(); // имена коллег для карточек (создатель у расшаренных, окно «Поделиться»)
   const { query } = buildQuery(cfg);
   loadMoreBtn.disabled = true;
   loadMoreBtn.textContent = 'Загрузка…';
