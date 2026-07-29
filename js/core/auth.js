@@ -34,20 +34,28 @@ export async function initAuth() {
 
 export function bindLoginForm() {
   const emailEl = document.getElementById('loginEmail');
+  const companyEl = document.getElementById('loginCompany');
   const passEl = document.getElementById('loginPassword');
   const resultEl = document.getElementById('loginResult');
+
+  // Slug фирмы запоминается на устройстве — вводится один раз, дальше подставляется сам.
+  if (companyEl) companyEl.value = localStorage.getItem('loginCompanySlug') || '';
 
   const submit = async () => {
     let email = emailEl.value.trim();
     const password = passEl.value;
+    const slug = (companyEl?.value || '').trim().toLowerCase();
     if (!email || !password) {
       resultEl.style.color = 'red';
       resultEl.textContent = 'Введите логин и пароль';
       return;
     }
-    // Короткие логины сотрудников: вводится «ivan» — подставляем служебный домен
-    // (аккаунты в Supabase заводятся как ivan@conf.conf). Полный e-mail с «@» — как есть.
-    if (!email.includes('@')) email += '@conf.conf';
+    // Полный e-mail (с «@») — как есть. Ник + фирма → ник@<slug>.config (новые аккаунты SaaS,
+    // slug запоминаем). Ник без фирмы → старый служебный домен @conf.conf (легаси-аккаунты).
+    if (!email.includes('@')) {
+      if (slug) { email += '@' + slug + '.config'; localStorage.setItem('loginCompanySlug', slug); }
+      else email += '@conf.conf';
+    }
     resultEl.style.color = '#555';
     resultEl.textContent = 'Вход...';
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -61,7 +69,7 @@ export function bindLoginForm() {
   };
 
   document.getElementById('loginSubmit').addEventListener('click', submit);
-  [emailEl, passEl].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); }));
+  [emailEl, companyEl, passEl].forEach(el => el && el.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); }));
 }
 
 export async function signOut() {
