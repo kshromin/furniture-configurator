@@ -1,46 +1,62 @@
-import { state, PANEL_THICKNESS } from '../core/state.js';
+import { state } from '../core/state.js';
 import { addPanel } from '../core/scene.js';
 import { getColor } from '../core/materials.js';
-import { korpusBoxAreaM2, defaultFasadAreaM2 } from '../core/pricing.js';
-import { getDoorCount } from './_wardrobe-shared.js';
+import { defaultFasadAreaM2 } from '../core/pricing.js';
+import { DOOR_DEPTH_ZONE } from './wardrobe-constants.js';
+import { buildDoorRow } from './wardrobe-geometry.js';
+import { effectiveDoorSpan } from './wardrobe-sizing.js';
+
+// Тип «Двери купе» — самостоятельное изделие: только двери (купе/распашные) + выравнивающие элементы
+// из ЛДСП по периметру проёма. Двери и весь дверной ряд (профили, направляющие, распашные ≤2 с
+// лимитами размеров, драг/выделение) переиспользуются из шкафа-купе через buildDoorRow. Периметр —
+// те же поля состояния *Replace/*Box*, что и «замены сторон» у шкафа, но здесь рисуются всегда
+// (у чистых дверей нет корпуса, который надо «убирать»). Размеры периметра и пролёт двери берём из
+// общей effectiveDoorSpan (тип-осведомлённая: для sliding-doors периметр активен всегда).
 
 export default {
   id: 'sliding-doors',
   name: 'Двери купе',
   ctx: {
-    variant: { extra: false },
-    fill:    { sections: false, shelves: false, drawers: false, rod: false, color: false },
-    fasad:   { available: true },
+    variant: { doors: true, perimeter: true }, // Внешнее: кол-во дверей + периметр
+    fill:    {},                               // Внутреннее: пусто (наполнения нет)
+    fasad:   { available: true },              // Фасад: сами двери (профиль/цвет/наполнение)
   },
 
   build() {
     const { width, height } = state;
-    const t = PANEL_THICKNESS;
-    const fColor = getColor('fasad').color;
-    const doorCount = getDoorCount(width);
-    const gap = 4;
-    const doorW = (width - gap * (doorCount + 1)) / doorCount;
+    const kColor = getColor('korpus').color;   // цвет ЛДСП выравнивателей
+    const fColor = getColor('fasad').color;    // цвет наполнения дверей (ЛДСП-фасад)
+    const zone = DOOR_DEPTH_ZONE;              // глубина «изделия» = дверная зона
 
-    // верхняя и нижняя направляющие
-    const kColor = getColor('korpus').color;
-    addPanel(width, t, 40, kColor, [0, height - t / 2, 0]);
-    addPanel(width, t, 40, kColor, [0, t / 2, 0]);
+    // Периметр и пролёт — из общей effectiveDoorSpan (та же модель, что у счётчика дверей и допусков)
+    const { spanW, leftOff: lW, rightOff: rW, topOff: tH, bottomOff: bH } = effectiveDoorSpan();
 
-    // полотна дверей (два слоя для имитации купе)
-    for (let i = 0; i < doorCount; i++) {
-      const x = -width / 2 + gap + doorW / 2 + i * (doorW + gap);
-      const zOffset = i % 2 === 0 ? 0 : t + 6;
-      addPanel(doorW, height - 2 * gap, t, fColor, [x, height / 2, zOffset]);
-    }
+    if (lW) addPanel(lW, height, zone, kColor, [-width / 2 + lW / 2, height / 2, 0]);
+    if (rW) addPanel(rW, height, zone, kColor, [ width / 2 - rW / 2, height / 2, 0]);
+    const innerW  = Math.max(0, spanW);
+    const innerCX = -width / 2 + lW + innerW / 2;
+    if (tH) addPanel(innerW, tH, zone, kColor, [innerCX, height - tH / 2, 0]);
+    if (bH) addPanel(innerW, bH, zone, kColor, [innerCX, bH / 2, 0]);
+
+    // Двери — общий дверной ряд шкафа (купе/распашные + драг/выделение) в проёме между выравнивателями
+    const doorCount = buildDoorRow({
+      spanW: innerW, spanCenterX: innerCX,
+      y0: 0, height, topOff: tH, bottomOff: bH,
+      depth: zone, fColor,
+    });
 
     return { door: doorCount, drawer: 0, shelf: 0, rod: 0, item: 1 };
   },
 
   areas() {
-    return { korpusM2: korpusBoxAreaM2(0), fasadM2: defaultFasadAreaM2(), fillM2: 0 };
+    // ЛДСП выравнивателей — по площади (тариф корпуса); двери — площадь фасада.
+    const { height } = state;
+    const { spanW, leftOff: lW, rightOff: rW, topOff: tH, bottomOff: bH } = effectiveDoorSpan();
+    const alignerM2 = ((lW + rW) * height + (tH + bH) * Math.max(0, spanW)) / 1e6;
+    return { korpusM2: alignerM2, fasadM2: defaultFasadAreaM2(), fillM2: 0 };
   },
 
   describe() {
-    return `, ящиков: ${Math.max(1, state.drawers)}`;
+    return '';
   },
 };

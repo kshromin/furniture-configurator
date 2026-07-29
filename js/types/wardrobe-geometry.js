@@ -51,9 +51,9 @@ const PROFILE_FINISH = {
   white:  { metalness: 0.10, roughness: 0.50 }, // белый крашеный — почти матовый, свой цвет
 };
 const PROFILE_FINISH_DEFAULT = { metalness: 0.40, roughness: 0.35 }; // для новых цветов из эксель
-function profileFinish() { return PROFILE_FINISH[state.profileColor] || PROFILE_FINISH_DEFAULT; }
+export function profileFinish() { return PROFILE_FINISH[state.profileColor] || PROFILE_FINISH_DEFAULT; }
 // Цвет профиля (и направляющих — цвет общий на изделие) из каталога: hex "#rrggbb" → число Three.js.
-function profileColorHex() {
+export function profileColorHex() {
   const c = (materials.slidingDoor?.colors || []).find(c => c.id === state.profileColor);
   return c ? parseInt(c.hex.slice(1), 16) : DOOR_FRAME_COLOR;
 }
@@ -193,7 +193,7 @@ function doorFillColor(fill, fillColor, colorId) {
 
 // doorIndex — для индивидуальных перемычек/наполнения секций двери (state.doorCustom[i], окно
 // «Комбинированная дверь»); у распашных не передаётся — кастом не применяется, всегда ЛДСП.
-function buildSlidingDoor(x, y, z, w, h, fillColor, doorIndex) {
+export function buildSlidingDoor(x, y, z, w, h, fillColor, doorIndex) {
   // Ширина рамки — свойство профиля из каталога (data/materials.json, frameWidth); новые
   // профили, добавленные через эксель, без явного значения получают стандартную.
   const fw = (materials.slidingDoor?.profiles || []).find(p => p.id === state.profile)?.frameWidth || DOOR_FRAME_WIDTH;
@@ -266,6 +266,69 @@ export let lastBuildSectionCenters = [];
 // независимая от lastBuildSectionCenters основных секций, но та же горизонталь (innerSpanW).
 export let lastBuildMezzanineSectionCenters = [];
 export let lastBuildY0 = 0;
+
+// Ряд дверей в проёме — общий для шкафа-купе (buildWardrobeBox) и типа «Двери купе» (sliding-doors.js).
+// Проём: по X — [spanCenterX ± spanW/2], по Y — [y0+bottomOff .. y0+height-topOff]; depth — глубина
+// дверной зоны (у шкафа = глубина короба, у чистых дверей = DOOR_DEPTH_ZONE). Купе — двери по чётности
+// на переднюю/заднюю рельсу, заполняет реестры драга (lastBuildDoorMeshes/lastBuildDoorLayout, drag +
+// выделение в itemDrag.js); распашные — в одну линию с зазором SWING_GAP (драг не поддерживается, как
+// и в шкафу). Ограничения кол-ва/размеров — в getDoorCount (распашные ≤2, ширина 400–800). Возвращает
+// число дверей. Сам сбрасывает реестры, чтобы быть самодостаточной для обоих вызывающих.
+export function buildDoorRow({ spanW, spanCenterX, y0, height, topOff, bottomOff, depth, fColor }) {
+  lastBuildDoorMeshes = [];
+  lastBuildDoorLayout = null;
+  if (!state.showDoors || state.fasadDoorType === 'none' || spanW < 1) return 0;
+  const doorCount = getDoorCount(spanW);
+
+  if (state.fasadDoorType === 'swing') {
+    const stripH = BOTTOM_RAIL_HEIGHT;
+    const stripZ = depth / 2 - DOOR_FRAME_DEPTH / 2;
+    addPanel(spanW, stripH, DOOR_FRAME_DEPTH, profileColorHex(), [spanCenterX, y0 + height - topOff - stripH / 2, stripZ], undefined, profileFinish());
+    addPanel(spanW, stripH, DOOR_FRAME_DEPTH, profileColorHex(), [spanCenterX, y0 + bottomOff + stripH / 2, stripZ], undefined, profileFinish());
+    const doorW = (spanW - (doorCount + 1) * SWING_GAP) / doorCount;
+    const doorBottom  = y0 + bottomOff + stripH + SWING_GAP;
+    const doorTop     = y0 + height - topOff - stripH - SWING_GAP;
+    const doorH       = doorTop - doorBottom;
+    const doorCenterY = (doorBottom + doorTop) / 2;
+    for (let i = 0; i < doorCount; i++) {
+      const x = spanCenterX - spanW / 2 + SWING_GAP + doorW / 2 + i * (doorW + SWING_GAP);
+      buildSlidingDoor(x, doorCenterY, stripZ, doorW, doorH, fColor);
+    }
+    return doorCount;
+  }
+
+  const gap = 4;
+  const doorW = (spanW + (doorCount - 1) * DOOR_OVERLAP) / doorCount;
+  const doorZoneZ = depth / 2 - DOOR_DEPTH_ZONE / 2;
+  const railFront = depth / 2 - DOOR_FRAME_DEPTH / 2;
+  const railBack  = depth / 2 - DOOR_DEPTH_ZONE + DOOR_FRAME_DEPTH / 2;
+
+  addPanel(spanW, TOP_RAIL_HEIGHT,    DOOR_DEPTH_ZONE, profileColorHex(), [spanCenterX, y0 + height - topOff - TOP_RAIL_HEIGHT / 2,       doorZoneZ], undefined, profileFinish());
+  addPanel(spanW, BOTTOM_RAIL_HEIGHT, DOOR_DEPTH_ZONE, profileColorHex(), [spanCenterX, y0 + bottomOff + BOTTOM_RAIL_HEIGHT / 2, doorZoneZ], undefined, profileFinish());
+
+  const doorBottom  = y0 + bottomOff + BOTTOM_RAIL_HEIGHT + gap;
+  const doorTop     = y0 + height - topOff - TOP_RAIL_HEIGHT - gap;
+  const doorH       = doorTop - doorBottom;
+  const doorCenterY = (doorBottom + doorTop) / 2;
+
+  lastBuildDoorLayout = {
+    doorW, doorH,
+    spanLeftX: spanCenterX - spanW / 2,
+    spanRightX: spanCenterX + spanW / 2,
+    rails: [], xs: [],
+  };
+  for (let i = 0; i < doorCount; i++) {
+    const leftEdge = -spanW / 2 + i * (doorW - DOOR_OVERLAP);
+    const x = spanCenterX + leftEdge + doorW / 2;
+    const z = i % 2 === 0 ? railFront : railBack;
+    const meshes = buildSlidingDoor(x, doorCenterY, z, doorW, doorH, fColor, i);
+    meshes.forEach(m => { m.userData.doorIndex = i; });
+    lastBuildDoorMeshes[i] = meshes;
+    lastBuildDoorLayout.rails.push(i % 2 === 0 ? 'front' : 'back');
+    lastBuildDoorLayout.xs.push(x);
+  }
+  return doorCount;
+}
 
 // zone — 'main' | 'mezzanine' (задание «антресоли 19,07»): в какой ряд секций входит меш —
 // нужно js/core/itemDrag.js/dimensions.js, чтобы выбрать правильный массив state.sections/
@@ -484,64 +547,7 @@ export function buildWardrobeBox() {
   }
 
   const spanCenterX = -width / 2 + leftOff + spanW / 2;
-
-  const doorCount = getDoorCount(spanW);
-  // «Без дверей» (fasadDoorType === 'none') — конструктив под купе сохраняется (дверная зона,
-  // утопленное наполнение), но ни двери, ни направляющие не рисуются и не считаются в цену.
-  if (state.showDoors && state.fasadDoorType === 'swing') {
-    // Распашные в той же системе: двери в ОДНУ линию у переднего края, зазор SWING_GAP (7мм)
-    // по периметру и между дверями; вместо направляющих сверху и снизу — узкие полосы высотой
-    // как нижняя рельса купе, глубиной как сама дверь (рамка), тоже у переднего края.
-    const stripH = BOTTOM_RAIL_HEIGHT;
-    const stripZ = depth / 2 - DOOR_FRAME_DEPTH / 2;
-    addPanel(spanW, stripH, DOOR_FRAME_DEPTH, profileColorHex(), [spanCenterX, y0 + height - topOff - stripH / 2, stripZ], undefined, profileFinish());
-    addPanel(spanW, stripH, DOOR_FRAME_DEPTH, profileColorHex(), [spanCenterX, y0 + bottomOff + stripH / 2, stripZ], undefined, profileFinish());
-
-    const doorW = (spanW - (doorCount + 1) * SWING_GAP) / doorCount;
-    const doorBottom  = y0 + bottomOff + stripH + SWING_GAP;
-    const doorTop     = y0 + height - topOff - stripH - SWING_GAP;
-    const doorH       = doorTop - doorBottom;
-    const doorCenterY = (doorBottom + doorTop) / 2;
-
-    for (let i = 0; i < doorCount; i++) {
-      const x = spanCenterX - spanW / 2 + SWING_GAP + doorW / 2 + i * (doorW + SWING_GAP);
-      buildSlidingDoor(x, doorCenterY, stripZ, doorW, doorH, fColor);
-    }
-  } else if (state.showDoors && state.fasadDoorType !== 'none') {
-    const gap = 4;
-    const doorW = (spanW + (doorCount - 1) * DOOR_OVERLAP) / doorCount;
-    const doorZoneZ = depth / 2 - DOOR_DEPTH_ZONE / 2;
-    const railFront = depth / 2 - DOOR_FRAME_DEPTH / 2;
-    const railBack  = depth / 2 - DOOR_DEPTH_ZONE + DOOR_FRAME_DEPTH / 2;
-
-    addPanel(spanW, TOP_RAIL_HEIGHT,    DOOR_DEPTH_ZONE, profileColorHex(), [spanCenterX, y0 + height - topOff - TOP_RAIL_HEIGHT / 2,       doorZoneZ], undefined, profileFinish());
-    addPanel(spanW, BOTTOM_RAIL_HEIGHT, DOOR_DEPTH_ZONE, profileColorHex(), [spanCenterX, y0 + bottomOff + BOTTOM_RAIL_HEIGHT / 2, doorZoneZ], undefined, profileFinish());
-
-    const doorBottom  = y0 + bottomOff + BOTTOM_RAIL_HEIGHT + gap;
-    const doorTop     = y0 + height - topOff - TOP_RAIL_HEIGHT - gap;
-    const doorH       = doorTop - doorBottom;
-    const doorCenterY = (doorBottom + doorTop) / 2;
-
-    // Раскладка ряда — для драга дверей мышкой вдоль направляющей (js/core/itemDrag.js,
-    // kind:'door'): дверь ездит в пределах проёма, двери ОДНОЙ рельсы друг сквозь друга не
-    // проходят (чередование рельс — front/back по чётности, как и в slidingDoorsCanClear).
-    lastBuildDoorLayout = {
-      doorW, doorH,
-      spanLeftX: spanCenterX - spanW / 2,
-      spanRightX: spanCenterX + spanW / 2,
-      rails: [], xs: [],
-    };
-    for (let i = 0; i < doorCount; i++) {
-      const leftEdge = -spanW / 2 + i * (doorW - DOOR_OVERLAP);
-      const x = spanCenterX + leftEdge + doorW / 2;
-      const z = i % 2 === 0 ? railFront : railBack;
-      const meshes = buildSlidingDoor(x, doorCenterY, z, doorW, doorH, fColor, i);
-      meshes.forEach(m => { m.userData.doorIndex = i; });
-      lastBuildDoorMeshes[i] = meshes;
-      lastBuildDoorLayout.rails.push(i % 2 === 0 ? 'front' : 'back');
-      lastBuildDoorLayout.xs.push(x);
-    }
-  }
+  const doorCount = buildDoorRow({ spanW, spanCenterX, y0, height, topOff, bottomOff, depth, fColor });
 
   // fillBottom/fillTop — общая для всех секций (см. sectionVerticalBounds) — та же формула, что
   // уже посчитана здесь (bottomOff/topOff/height в области видимости), вынесена в общую функцию,
