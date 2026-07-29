@@ -61,6 +61,29 @@ export function slidingDoorUnitPrice(doorIndex, doorW, doorH) {
   return { profile, rollers, fill, total: profile + rollers + fill };
 }
 
+// Цена одной РАСПАШНОЙ двери — те же профиль и наполнение, что у купе, но без роликов/направляющей;
+// вместо них комплект распашной двери (swingDoorHardware, фикс за дверь). Для инфопанели выделенной
+// двери (js/core/itemDrag.js); формулы профиля/наполнения синхронны areas() выше.
+export function swingDoorUnitPrice(doorIndex, doorW, doorH) {
+  const cat = materials.slidingDoor || {};
+  const prof = profileRates();
+  const custom = state.doorCustom?.[doorIndex];
+  const { segments, dividers } = doorCustomSegments(custom, doorH);
+  const oneDoorM2 = (doorW * doorH) / 1e6;
+  const totalH = segments.reduce((s, x) => s + x.hMm, 0) || 1;
+  let fill = 0;
+  if (custom) {
+    segments.forEach(sgm => { fill += oneDoorM2 * (sgm.hMm / totalH) * doorFillRate(sgm.fill || state.doorFill, sgm.special, sgm.fillColor); });
+  } else {
+    fill = oneDoorM2 * doorFillRate(state.doorFill, null, null);
+  }
+  const profile = prof
+    ? (2 * doorH / 1000) * prof.vertPerM + (doorW / 1000) * (prof.horizTopPerM + prof.horizBottomPerM) + dividers.length * (doorW / 1000) * (cat.divider?.pricePerM || 0)
+    : 0;
+  const kit = materials.swingDoorHardware?.pricePerDoor || 0;
+  return { profile, kit, fill, total: profile + kit + fill };
+}
+
 export default {
   id: 'wardrobe',
   name: 'Шкаф-купе',
@@ -120,13 +143,12 @@ export default {
     let doorHardwarePrice = 0;
     if (state.fasadDoorType !== 'none') {
       const sliding = state.fasadDoorType === 'sliding';
-      const globalFill = sliding ? state.doorFill : 'ldsp'; // у распашных всегда ЛДСП
+      const globalFill = state.doorFill; // и купе, и распашные — выбранное наполнение (не форсим ЛДСП)
       let dividerM = 0;
       for (let i = 0; i < dc; i++) {
-        const custom = sliding ? state.doorCustom?.[i] : null;
+        const custom = state.doorCustom?.[i]; // индивидуальные перемычки/наполнение — у обоих типов
         const oneDoorM2 = (dw * doorH) / 1e6;
-        // Кастом учитывается и БЕЗ перемычек (было custom?.dividers?.length — наполнение всей
-        // двери, заданное в редакторе одной секцией, показывалось в 3D, но не попадало в цену)
+        // Кастом учитывается и БЕЗ перемычек (наполнение всей двери, заданное в редакторе одной секцией).
         if (custom) {
           const { segments, dividers } = doorCustomSegments(custom, doorH);
           const totalH = segments.reduce((s, x) => s + x.hMm, 0) || 1;
@@ -136,18 +158,18 @@ export default {
           doorFillPrice += oneDoorM2 * fillRate(globalFill, null, null);
         }
       }
-      if (sliding) {
-        const cat = materials.slidingDoor || {};
-        const prof = profileRates(); // прайс профиль×цвет, см. экспорт выше
-        if (prof) {
-          const vertM = (2 * doorH * dc) / 1000;
-          const horizM = (dw * dc) / 1000;
-          doorHardwarePrice =
-            vertM * prof.vertPerM + horizM * prof.horizTopPerM + horizM * prof.horizBottomPerM +
-            dividerM * (cat.divider?.pricePerM || 0) +
-            dc * (cat.rollers?.pricePerSet || 0) +
-            (spanW / 1000) * (cat.track?.pricePerM || 0);
-        }
+      // Профиль двери (вертикали + горизонтали + перемычки) — у купе И распашных. Ролики и
+      // направляющая — только у купе; у распашных вместо них комплект распашной двери (отдельная
+      // строка «Фурнитура распашных дверей» по swingDoorHardware, см. pricing.js).
+      const cat = materials.slidingDoor || {};
+      const prof = profileRates(); // прайс профиль×цвет, см. экспорт выше
+      if (prof) {
+        const vertM = (2 * doorH * dc) / 1000;
+        const horizM = (dw * dc) / 1000;
+        doorHardwarePrice =
+          vertM * prof.vertPerM + horizM * prof.horizTopPerM + horizM * prof.horizBottomPerM +
+          dividerM * (cat.divider?.pricePerM || 0) +
+          (sliding ? dc * (cat.rollers?.pricePerSet || 0) + (spanW / 1000) * (cat.track?.pricePerM || 0) : 0);
       }
     }
 

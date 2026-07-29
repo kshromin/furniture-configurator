@@ -14,7 +14,7 @@ import { projectToOverlay, updateArrow, hideArrow } from './dimensions.js';
 import { renderSectionsList, selectSectionFromScene } from './tabs.js';
 // Напрямую из wardrobe.js (не через barrel — тот не реэкспортирует сам тип во избежание цикла):
 // цена одной двери для инфопанели выделенной двери.
-import { slidingDoorUnitPrice } from '../types/wardrobe.js';
+import { slidingDoorUnitPrice, swingDoorUnitPrice } from '../types/wardrobe.js';
 import { materials } from './state.js';
 import { fmt } from './pricing.js';
 
@@ -165,15 +165,17 @@ function describeActive() {
   if (kind === 'door') {
     const L = lastBuildDoorLayout;
     const cat = materials.slidingDoor || {};
+    const swing = state.fasadDoorType === 'swing';
     const profName = (cat.profiles || []).find(p => p.id === state.profile)?.name || '—';
     const profColor = (cat.colors || []).find(c => c.id === state.profileColor)?.name || '—';
-    // Цена за дверь целиком: профиль (вертикали+горизонтали+перемычки) + ролики + наполнение —
-    // slidingDoorUnitPrice, та же формула, что и в общей цене (wardrobe.js areas)
-    const p = L ? slidingDoorUnitPrice(active.doorIndex, L.doorW, L.doorH) : null;
+    // Цена за дверь целиком: профиль + наполнение + (ролики у купе / комплект у распашной) —
+    // та же формула, что и в общей цене (wardrobe.js areas).
+    const p = L ? (swing ? swingDoorUnitPrice(active.doorIndex, L.doorW, L.doorH)
+                         : slidingDoorUnitPrice(active.doorIndex, L.doorW, L.doorH)) : null;
     return {
       title: `Дверь ${active.doorIndex + 1}`,
       lines: [
-        `Рельса: ${L?.rails[active.doorIndex] === 'front' ? 'передняя' : 'задняя'}`,
+        ...(swing ? [] : [`Рельса: ${L?.rails[active.doorIndex] === 'front' ? 'передняя' : 'задняя'}`]),
         ...(L ? [`Ширина: ${Math.round(L.doorW)} мм`] : []),
         `Профиль: ${profName}, ${profColor.toLowerCase()}`,
         ...(p ? [`<b>Цена двери: ${fmt(Math.round(p.total))}</b>`] : []),
@@ -582,6 +584,14 @@ function onPointerDown(e) {
     const L = lastBuildDoorLayout;
     const meshes = lastBuildDoorMeshes[idx] || [picked.mesh];
     if (!L) return;
+    // Распашные двери не ездят вдоль направляющей (её нет) — только выделение + инфопанель.
+    if (state.fasadDoorType === 'swing') {
+      active = { kind: 'door', doorIndex: idx, meshes };
+      setHighlight(meshes, SELECT_EMISSIVE);
+      showInfoPanel();
+      updateEditInputs();
+      return;
+    }
     const worldAnchor = picked.mesh.getWorldPosition(new THREE.Vector3());
     buildDragPlane(worldAnchor);
     updatePointerNDC(e);

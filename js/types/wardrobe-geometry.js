@@ -292,9 +292,9 @@ export function buildDoorRow({ spanW, spanCenterX, y0, height, topOff, bottomOff
     const doorTop     = y0 + height - topOff - stripH - SWING_GAP;
     const doorH       = doorTop - doorBottom;
     const doorCenterY = (doorBottom + doorTop) / 2;
-    // Раскладка нужна редактору двери (doorCount()/render() по lastBuildDoorLayout). Реестры мешей
-    // и userData.doorIndex НЕ заполняем — драг распашных не поддерживается (как и раньше), редактор
-    // переключает двери своими вкладками, а не выделением в 3D.
+    // Раскладка + реестры мешей нужны редактору двери (doorCount/render) и выделению двери в 3D
+    // (задание «двери расп 29,07»: выделение + инфо, как у купе). Драг вдоль направляющей у
+    // распашных отключён в itemDrag (её нет) — только выделение.
     lastBuildDoorLayout = {
       doorW, doorH,
       spanLeftX: spanCenterX - spanW / 2,
@@ -303,7 +303,9 @@ export function buildDoorRow({ spanW, spanCenterX, y0, height, topOff, bottomOff
     };
     for (let i = 0; i < doorCount; i++) {
       const x = spanCenterX - spanW / 2 + SWING_GAP + doorW / 2 + i * (doorW + SWING_GAP);
-      buildSlidingDoor(x, doorCenterY, stripZ, doorW, doorH, fColor, i); // doorIndex → индивид. перемычки/наполнение
+      const meshes = buildSlidingDoor(x, doorCenterY, stripZ, doorW, doorH, fColor, i); // doorIndex → индивид. перемычки/наполнение
+      meshes.forEach(m => { m.userData.doorIndex = i; });
+      lastBuildDoorMeshes[i] = meshes;
       lastBuildDoorLayout.xs.push(x);
     }
     return doorCount;
