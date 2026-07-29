@@ -1,11 +1,15 @@
 // Edge Function: create-company-user
-// Создаёт пользователя с проверкой прав вызывающего и лимита max_users. Клиентский JS не может
-// создавать записи в auth.users — нужен service_role, поэтому это серверная функция. Два случая:
-//   * СУПЕР-АДМИН (profiles.is_admin) создаёт пользователя в ЛЮБОЙ компании (company_id из входа),
-//     может выставить is_company_admin=true (завести администратора компании);
-//   * АДМИН КОМПАНИИ (profiles.is_company_admin) создаёт менеджера в СВОЕЙ компании.
+// Управление пользователями компаний (service_role — клиент не может писать в auth.users).
+// Две операции по телу запроса:
+//   • есть user_id  → ПРАВКА пользователя (full_name/phone/is_active/пароль; is_company_admin —
+//     только супер-админ);
+//   • нет user_id   → СОЗДАНИЕ пользователя.
+// Права вызывающего:
+//   • СУПЕР-АДМИН (profiles.is_admin) — любые компании/пользователи;
+//   • АДМИН КОМПАНИИ (profiles.is_company_admin) — только своя компания, создаёт менеджеров
+//     (is_company_admin=false).
 // Короткий логин «ivanov» → синтетический email ivanov@<slug>.config (уникален глобально).
-// Env SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY Supabase инжектит сам.
+// Env SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY инжектит Supabase.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -16,10 +20,7 @@ const cors = {
 };
 
 function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...cors, 'Content-Type': 'application/json' },
-  });
+  return new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 }
 
 Deno.serve(async (req) => {
@@ -30,32 +31,48 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
-  // Вызывающего достаём из токена явно (service_role валидирует любой JWT).
+  // Вызывающий (валидируем токен через service_role).
   const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
   const { data: { user: caller }, error: callerErr } = await admin.auth.getUser(token);
-  if (callerErr || !caller)
-    return json({ error: 'Не авторизован', debug: { callerErr: callerErr?.message, hasServiceKey: !!serviceKey } }, 401);
+  if (callerErr || !caller) return json({ error: 'Не авторизован' }, 401);
 
-  // Профиль и роль вызывающего.
-  const { data: callerProfile, error: profErr } = await admin
-    .from('profiles').select('is_admin, is_company_admin, company_id, is_active')
-    .eq('id', caller.id).single();
-  if (!callerProfile || callerProfile.is_active === false)
-    return json({
-      error: 'Аккаунт неактивен',
-      debug: { callerId: caller.id, profileFound: !!callerProfile, isActive: callerProfile?.is_active,
-               profErr: profErr?.message, hasServiceKey: !!serviceKey },
-    }, 403);
+  const { data: callerProfile } = await admin
+    .from('profiles').select('is_admin, is_company_admin, company_id, is_active').eq('id', caller.id).single();
+  if (!callerProfile || callerProfile.is_active === false) return json({ error: 'Аккаунт неактивен' }, 403);
   const isSuper = !!callerProfile.is_admin;
   const isCompanyAdmin = !!callerProfile.is_company_admin;
   if (!isSuper && !isCompanyAdmin) return json({ error: 'Недостаточно прав' }, 403);
 
-  // Вход.
-  const { email, password, full_name, phone, company_id, is_company_admin } =
-    await req.json().catch(() => ({} as Record<string, unknown>));
+  const body = await req.json().catch(() => ({} as Record<string, unknown>));
+
+  // ── ПРАВКА существующего пользователя ─────────────────────────────────────
+  if (body.user_id) {
+    const { data: target } = await admin
+      .from('profiles').select('company_id').eq('id', body.user_id).single();
+    if (!target) return json({ error: 'Пользователь не найден' }, 404);
+    if (!isSuper && target.company_id !== callerProfile.company_id)
+      return json({ error: 'Можно править только пользователей своей компании' }, 403);
+
+    const patch: Record<string, unknown> = {};
+    if (body.full_name !== undefined) patch.full_name = body.full_name || null;
+    if (body.phone !== undefined) patch.phone = body.phone || null;
+    if (body.is_active !== undefined) patch.is_active = !!body.is_active;
+    if (isSuper && body.is_company_admin !== undefined) patch.is_company_admin = !!body.is_company_admin;
+    if (Object.keys(patch).length) {
+      const { error: uErr } = await admin.from('profiles').update(patch).eq('id', body.user_id);
+      if (uErr) return json({ error: 'Не удалось обновить профиль: ' + uErr.message }, 500);
+    }
+    if (body.password) {
+      const { error: pErr } = await admin.auth.admin.updateUserById(String(body.user_id), { password: String(body.password) });
+      if (pErr) return json({ error: 'Не удалось сменить пароль: ' + pErr.message }, 400);
+    }
+    return json({ success: true, user_id: body.user_id, updated: true });
+  }
+
+  // ── СОЗДАНИЕ пользователя ─────────────────────────────────────────────────
+  const { email, password, full_name, phone, company_id, is_company_admin } = body;
   if (!email || !password) return json({ error: 'Нужны логин/email и пароль' }, 400);
 
-  // Целевая компания и роль.
   const targetCompanyId = isSuper ? company_id : callerProfile.company_id;
   const targetIsCompanyAdmin = isSuper ? !!is_company_admin : false;
   if (!targetCompanyId) return json({ error: 'Не указана компания' }, 400);
