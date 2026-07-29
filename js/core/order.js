@@ -458,7 +458,7 @@ export function bindOrderForm() {
     } else {
       let data;
       ({ data, error } = await supabase.from('projects')
-        .insert({ ...row, user_id: auth.session.user.id })
+        .insert({ ...row, user_id: auth.session.user.id, company_id: auth.profile?.company_id })
         .select('id, project_code').single());
       if (!error && data) {
         editingProjectId = data.id; // повторное сохранение обновит эту же строку
