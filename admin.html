@@ -166,22 +166,72 @@ $('logoutBtn').addEventListener('click', logout);
 $('denyLogout').addEventListener('click', logout);
 
 // ── Список компаний ──────────────────────────────────────────────────────────
+let companiesCache = [];
+let editingId = null;
+
 async function loadCompanies() {
   $('listMsg').textContent = 'Загрузка...';
   const { data, error } = await supabase.from('companies')
     .select('id, name, slug, max_users, active_types, is_active').order('created_at');
   if (error) { $('listMsg').textContent = 'Ошибка: ' + error.message; return; }
   $('listMsg').textContent = '';
-  $('companiesBody').innerHTML = (data || []).map(c => {
-    const types = Array.isArray(c.active_types) ? c.active_types.length : 0;
-    const badge = c.is_active ? '<span class="badge on">активна</span>' : '<span class="badge off">заблокирована</span>';
-    const btn = c.is_active
-      ? `<button class="warn" data-block="${c.id}" data-to="false">Заблокировать</button>`
-      : `<button class="ghost" data-block="${c.id}" data-to="true">Разблокировать</button>`;
-    return `<tr><td>${esc(c.name)}</td><td>${esc(c.slug)}</td><td>${c.max_users}</td>
-            <td>${types} тип(ов)</td><td>${badge}</td><td>${btn}</td></tr>`;
-  }).join('') || '<tr><td colspan="6" class="muted">Пока нет компаний</td></tr>';
+  companiesCache = data || [];
+  renderCompanies();
+}
 
+function renderCompanies() {
+  $('companiesBody').innerHTML =
+    companiesCache.map(c => c.id === editingId ? editRow(c) : viewRow(c)).join('')
+    || '<tr><td colspan="6" class="muted">Пока нет компаний</td></tr>';
+  bindRowActions();
+}
+
+function viewRow(c) {
+  const types = Array.isArray(c.active_types) ? c.active_types.length : 0;
+  const badge = c.is_active ? '<span class="badge on">активна</span>' : '<span class="badge off">заблокирована</span>';
+  const blockBtn = c.is_active
+    ? `<button class="warn" data-block="${c.id}" data-to="false">Заблокировать</button>`
+    : `<button class="ghost" data-block="${c.id}" data-to="true">Разблокировать</button>`;
+  return `<tr><td>${esc(c.name)}</td><td>${esc(c.slug)}</td><td>${c.max_users}</td>
+          <td>${types} тип(ов)</td><td>${badge}</td>
+          <td style="white-space:nowrap"><button class="ghost" data-edit="${c.id}">Изменить</button> ${blockBtn}</td></tr>`;
+}
+
+function editRow(c) {
+  const checks = TYPES.map(t =>
+    `<label><input type="checkbox" value="${t.id}" ${(c.active_types || []).includes(t.id) ? 'checked' : ''}> ${t.label}</label>`
+  ).join('');
+  return `<tr><td colspan="6" style="background:#f8fafd">
+    <div class="row">
+      <div><label>Название</label><input type="text" id="eName" value="${esc(c.name)}"></div>
+      <div style="max-width:150px"><label>Slug (не меняется)</label><input type="text" value="${esc(c.slug)}" disabled></div>
+      <div style="max-width:140px"><label>Лимит пользователей</label><input type="number" id="eMax" value="${c.max_users}" min="1"></div>
+    </div>
+    <label>Доступные типы изделий</label>
+    <div class="types" id="eTypes">${checks}</div>
+    <div style="margin-top:12px">
+      <button data-save="${c.id}">Сохранить</button>
+      <button class="ghost" data-cancel="1">Отмена</button>
+    </div>
+  </td></tr>`;
+}
+
+function bindRowActions() {
+  document.querySelectorAll('[data-edit]').forEach(b =>
+    b.addEventListener('click', () => { editingId = b.dataset.edit; renderCompanies(); }));
+  document.querySelectorAll('[data-cancel]').forEach(b =>
+    b.addEventListener('click', () => { editingId = null; renderCompanies(); }));
+  document.querySelectorAll('[data-save]').forEach(b => b.addEventListener('click', async () => {
+    b.disabled = true;
+    const name = $('eName').value.trim();
+    const max_users = parseInt($('eMax').value, 10) || 1;
+    const active_types = [...document.querySelectorAll('#eTypes input:checked')].map(i => i.value);
+    if (!name) { alert('Название не может быть пустым'); b.disabled = false; return; }
+    const { error } = await supabase.from('companies')
+      .update({ name, max_users, active_types }).eq('id', b.dataset.save);
+    if (error) { alert('Ошибка: ' + error.message); b.disabled = false; return; }
+    editingId = null; loadCompanies();
+  }));
   document.querySelectorAll('[data-block]').forEach(b => b.addEventListener('click', async () => {
     b.disabled = true;
     const { error } = await supabase.from('companies')
