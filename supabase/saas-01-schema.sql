@@ -35,6 +35,13 @@ alter table public.companies enable row level security;
 -- доступны — решают RLS-политики ниже.
 grant select, insert, update, delete on public.companies to authenticated;
 
+-- service_role (под ним работает Edge Function create-company-user) должен иметь доступ к таблицам,
+-- которые она читает/пишет. В этом проекте гранты автоматически НЕ выдаются (тот же класс бага, что
+-- с authenticated в сессии 19) — иначе функция падает с 42501 "permission denied for table".
+grant all on public.profiles  to service_role;
+grant all on public.companies to service_role;
+grant all on public.projects  to service_role;
+
 
 -- 2) Расширение profiles ------------------------------------------------------
 -- profiles уже существует (id, email, is_admin = супер-админ). Добавляем поля компании.
@@ -112,24 +119,37 @@ create policy "projects_select_company_for_admin" on public.projects
     and company_id = public.current_company_id(auth.uid())
   );
 
+-- Админ компании может ПРАВИТЬ проекты своей компании (решение обсуждения 28.07 — не только
+-- смотреть). using — какие строки можно менять; with check — куда нельзя «увести» строку (в чужую
+-- компанию). Пер-пользовательские UPDATE-политики (менеджер правит свои) остаются как есть.
+drop policy if exists "projects_update_company_for_admin" on public.projects;
+create policy "projects_update_company_for_admin" on public.projects
+  for update using (
+    public.is_company_admin(auth.uid())
+    and company_id = public.current_company_id(auth.uid())
+  ) with check (
+    public.is_company_admin(auth.uid())
+    and company_id = public.current_company_id(auth.uid())
+  );
+
 
 -- 6) Бэкофилл существующих данных --------------------------------------------
 -- Одна «компания по умолчанию» (владельца) на все текущие строки — ДО того, как
 -- приложение начнёт опираться на company_id. Поменяй name/slug/active_types под себя.
 insert into public.companies (name, slug, max_users, active_types, is_active)
-values ('Моя компания', 'my', 100, '["wardrobe"]'::jsonb, true)
+values ('KHROM', 'khrom', 100, '["wardrobe"]'::jsonb, true)
 on conflict (slug) do nothing;
 
 update public.profiles
-  set company_id = (select id from public.companies where slug = 'my')
+  set company_id = (select id from public.companies where slug = 'khrom')
   where company_id is null;
 
 update public.projects
-  set company_id = (select id from public.companies where slug = 'my')
+  set company_id = (select id from public.companies where slug = 'khrom')
   where company_id is null;
 
--- Себя сделать супер-админом (если ещё не) — раскомментируй и подставь свой email:
--- update public.profiles set is_admin = true where email = 'ТВОЙ_EMAIL';
+-- Себя сделать супер-админом:
+update public.profiles set is_admin = true where email = 'hromin@mail.ru';
 
 
 -- 7) Проверка после применения (запусти отдельно, под НЕ-админским пользователем) --

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Управление компаниями — KHROM</title>
+<!-- Та же import-map, что в index.html: голый импорт @supabase/supabase-js в supabaseClient.js -->
+<script type="importmap">
+{
+  "imports": {
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
+  }
+}
+</script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 system-ui, "Segoe UI", sans-serif; color: #222; background: #f5f6f8; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px;
+           background: #1c2333; color: #fff; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; letter-spacing: .3px; }
+  header .who { font-size: 12px; opacity: .8; }
+  header button { margin-left: 14px; }
+  main { max-width: 960px; margin: 24px auto; padding: 0 16px; }
+  .card { background: #fff; border: 1px solid #e3e6ea; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .card h2 { font-size: 15px; margin: 0 0 14px; }
+  label { display: block; font-size: 12px; color: #555; margin: 10px 0 4px; }
+  input[type=text], input[type=password], input[type=number] {
+    width: 100%; padding: 8px 10px; border: 1px solid #ccd2da; border-radius: 8px; font: inherit; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .row > div { flex: 1; min-width: 160px; }
+  .types { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 4px; }
+  .types label { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; color: #333; }
+  .types input { width: auto; }
+  button { padding: 9px 16px; border: none; border-radius: 8px; background: #2f6fed; color: #fff;
+           font: inherit; font-weight: 600; cursor: pointer; }
+  button.ghost { background: #eef2fb; color: #2f6fed; }
+  button.warn { background: #fbeaea; color: #c0392b; }
+  button:disabled { opacity: .5; cursor: default; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid #eef0f3; font-size: 13px; }
+  th { color: #888; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; }
+  .badge.on { background: #e5f5ea; color: #1f8a4c; }
+  .badge.off { background: #f3e6e6; color: #c0392b; }
+  .msg { margin-top: 10px; font-size: 13px; }
+  .msg.err { color: #c0392b; }
+  .msg.ok { color: #1f8a4c; }
+  .login-wrap { max-width: 340px; margin: 80px auto; }
+  .fieldgroup-title { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: .04em;
+                      margin: 18px 0 2px; }
+  .muted { color: #999; font-size: 12px; }
+  a.back { color: #2f6fed; text-decoration: none; font-size: 13px; }
+</style>
+</head>
+<body>
+
+  <!-- Вход -->
+  <div id="loginView" class="login-wrap card" hidden>
+    <h2>Вход — управление компаниями</h2>
+    <label>Email</label>
+    <input type="text" id="loginEmail" autocomplete="username">
+    <label>Пароль</label>
+    <input type="password" id="loginPassword" autocomplete="current-password">
+    <div style="margin-top:14px"><button id="loginBtn">Войти</button></div>
+    <div id="loginMsg" class="msg"></div>
+    <p class="muted" style="margin-top:16px">Доступ только у супер-администратора.</p>
+  </div>
+
+  <!-- Нет прав -->
+  <div id="denyView" class="login-wrap card" hidden>
+    <h2>Доступ запрещён</h2>
+    <p class="muted">Эта страница только для супер-администратора.</p>
+    <p id="denyWho" class="muted"></p>
+    <button id="denyLogout" class="ghost">Выйти</button>
+  </div>
+
+  <!-- Панель -->
+  <div id="panelView" hidden>
+    <header>
+      <h1>KHROM · Управление компаниями</h1>
+      <div>
+        <span class="who" id="whoami"></span>
+        <button class="ghost" id="logoutBtn">Выйти</button>
+      </div>
+    </header>
+    <main>
+      <div class="card">
+        <h2>Создать компанию</h2>
+        <div class="row">
+          <div><label>Название</label><input type="text" id="cName" placeholder="Дилер «Ромашка»"></div>
+          <div><label>Slug (латиницей)</label><input type="text" id="cSlug" placeholder="romashka"></div>
+          <div style="max-width:140px"><label>Лимит пользователей</label><input type="number" id="cMax" value="5" min="1"></div>
+        </div>
+        <label>Доступные типы изделий</label>
+        <div class="types" id="cTypes"></div>
+
+        <div class="fieldgroup-title">Администратор компании</div>
+        <div class="row">
+          <div><label>Логин / email</label><input type="text" id="aEmail" placeholder="ivanov или ivanov@romashka.config"></div>
+          <div><label>Пароль</label><input type="text" id="aPass"></div>
+          <div><label>ФИО (необязательно)</label><input type="text" id="aName"></div>
+        </div>
+        <div style="margin-top:16px"><button id="createBtn">Создать</button></div>
+        <div id="createMsg" class="msg"></div>
+      </div>
+
+      <div class="card">
+        <h2>Компании</h2>
+        <table>
+          <thead><tr><th>Название</th><th>Slug</th><th>Лимит</th><th>Типы</th><th>Статус</th><th></th></tr></thead>
+          <tbody id="companiesBody"></tbody>
+        </table>
+        <div id="listMsg" class="msg muted"></div>
+      </div>
+    </main>
+  </div>
+
+<script type="module">
+import { supabase } from './js/core/supabaseClient.js';
+
+const $ = id => document.getElementById(id);
+const show = id => { for (const v of ['loginView','denyView','panelView']) $(v).hidden = (v !== id); };
+
+const TYPES = [
+  { id: 'wardrobe', label: 'Шкаф-купе' },
+  { id: 'wardrobe-swing', label: 'Распашной' },
+  { id: 'wardrobe-open', label: 'Открытый' },
+  { id: 'chest', label: 'Комод' },
+  { id: 'table', label: 'Стол' },
+  { id: 'parts', label: 'Детали' },
+  { id: 'sliding-doors', label: 'Двери купе' },
+  { id: 'wardrobe-room', label: 'Гардероб' },
+];
+
+// Чекбоксы типов (по умолчанию отмечен «Шкаф-купе»)
+$('cTypes').innerHTML = TYPES.map(t =>
+  `<label><input type="checkbox" value="${t.id}" ${t.id === 'wardrobe' ? 'checked' : ''}> ${t.label}</label>`
+).join('');
+
+async function init() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return show('loginView');
+  const { data: prof } = await supabase.from('profiles').select('is_admin, email').eq('id', session.user.id).single();
+  if (!prof?.is_admin) {
+    $('denyWho').textContent = 'Вы вошли как: ' + (session.user.email || '');
+    return show('denyView');
+  }
+  $('whoami').textContent = session.user.email || '';
+  show('panelView');
+  loadCompanies();
+}
+
+// ── Вход ────────────────────────────────────────────────────────────────────
+$('loginBtn').addEventListener('click', async () => {
+  const email = $('loginEmail').value.trim();
+  const password = $('loginPassword').value;
+  $('loginMsg').textContent = 'Вход...'; $('loginMsg').className = 'msg';
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) { $('loginMsg').textContent = 'Неверный логин или пароль'; $('loginMsg').className = 'msg err'; return; }
+  $('loginMsg').textContent = ''; init();
+});
+$('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
+
+const logout = async () => { await supabase.auth.signOut(); show('loginView'); };
+$('logoutBtn').addEventListener('click', logout);
+$('denyLogout').addEventListener('click', logout);
+
+// ── Список компаний ──────────────────────────────────────────────────────────
+let companiesCache = [];
+let editingId = null;
+
+async function loadCompanies() {
+  $('listMsg').textContent = 'Загрузка...';
+  const { data, error } = await supabase.from('companies')
+    .select('id, name, slug, max_users, active_types, is_active').order('created_at');
+  if (error) { $('listMsg').textContent = 'Ошибка: ' + error.message; return; }
+  $('listMsg').textContent = '';
+  companiesCache = data || [];
+  renderCompanies();
+}
+
+function renderCompanies() {
+  $('companiesBody').innerHTML =
+    companiesCache.map(c => c.id === editingId ? editRow(c) : viewRow(c)).join('')
+    || '<tr><td colspan="6" class="muted">Пока нет компаний</td></tr>';
+  bindRowActions();
+}
+
+function viewRow(c) {
+  const types = Array.isArray(c.active_types) ? c.active_types.length : 0;
+  const badge = c.is_active ? '<span class="badge on">активна</span>' : '<span class="badge off">заблокирована</span>';
+  const blockBtn = c.is_active
+    ? `<button class="warn" data-block="${c.id}" data-to="false">Заблокировать</button>`
+    : `<button class="ghost" data-block="${c.id}" data-to="true">Разблокировать</button>`;
+  return `<tr><td>${esc(c.name)}</td><td>${esc(c.slug)}</td><td>${c.max_users}</td>
+          <td>${types} тип(ов)</td><td>${badge}</td>
+          <td style="white-space:nowrap"><button class="ghost" data-edit="${c.id}">Изменить</button> ${blockBtn}</td></tr>`;
+}
+
+function editRow(c) {
+  const checks = TYPES.map(t =>
+    `<label><input type="checkbox" value="${t.id}" ${(c.active_types || []).includes(t.id) ? 'checked' : ''}> ${t.label}</label>`
+  ).join('');
+  return `<tr><td colspan="6" style="background:#f8fafd">
+    <div class="row">
+      <div><label>Название</label><input type="text" id="eName" value="${esc(c.name)}"></div>
+      <div style="max-width:150px"><label>Slug (не меняется)</label><input type="text" value="${esc(c.slug)}" disabled></div>
+      <div style="max-width:140px"><label>Лимит пользователей</label><input type="number" id="eMax" value="${c.max_users}" min="1"></div>
+    </div>
+    <label>Доступные типы изделий</label>
+    <div class="types" id="eTypes">${checks}</div>
+    <div style="margin-top:12px">
+      <button data-save="${c.id}">Сохранить</button>
+      <button class="ghost" data-cancel="1">Отмена</button>
+    </div>
+  </td></tr>`;
+}
+
+function bindRowActions() {
+  document.querySelectorAll('[data-edit]').forEach(b =>
+    b.addEventListener('click', () => { editingId = b.dataset.edit; renderCompanies(); }));
+  document.querySelectorAll('[data-cancel]').forEach(b =>
+    b.addEventListener('click', () => { editingId = null; renderCompanies(); }));
+  document.querySelectorAll('[data-save]').forEach(b => b.addEventListener('click', async () => {
+    b.disabled = true;
+    const name = $('eName').value.trim();
+    const max_users = parseInt($('eMax').value, 10) || 1;
+    const active_types = [...document.querySelectorAll('#eTypes input:checked')].map(i => i.value);
+    if (!name) { alert('Название не может быть пустым'); b.disabled = false; return; }
+    const { error } = await supabase.from('companies')
+      .update({ name, max_users, active_types }).eq('id', b.dataset.save);
+    if (error) { alert('Ошибка: ' + error.message); b.disabled = false; return; }
+    editingId = null; loadCompanies();
+  }));
+  document.querySelectorAll('[data-block]').forEach(b => b.addEventListener('click', async () => {
+    b.disabled = true;
+    const { error } = await supabase.from('companies')
+      .update({ is_active: b.dataset.to === 'true' }).eq('id', b.dataset.block);
+    if (error) { alert('Ошибка: ' + error.message); b.disabled = false; return; }
+    loadCompanies();
+  }));
+}
+
+function esc(s) { return String(s ?? '').replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m])); }
+
+// ── Создание компании + её админа ────────────────────────────────────────────
+$('createBtn').addEventListener('click', async () => {
+  const msg = $('createMsg');
+  const name = $('cName').value.trim();
+  const slug = $('cSlug').value.trim().toLowerCase();
+  const max_users = parseInt($('cMax').value, 10) || 5;
+  const active_types = [...document.querySelectorAll('#cTypes input:checked')].map(i => i.value);
+  const aEmail = $('aEmail').value.trim();
+  const aPass = $('aPass').value;
+  const aName = $('aName').value.trim();
+
+  if (!name || !slug) { msg.className = 'msg err'; msg.textContent = 'Заполни название и slug'; return; }
+  if (!/^[a-z0-9-]+$/.test(slug)) { msg.className = 'msg err'; msg.textContent = 'Slug — только латиница, цифры, дефис'; return; }
+  if (!aEmail || !aPass) { msg.className = 'msg err'; msg.textContent = 'Укажи логин и пароль администратора компании'; return; }
+
+  $('createBtn').disabled = true;
+  msg.className = 'msg'; msg.textContent = 'Создаём компанию...';
+
+  // 1) компания
+  const { data: comp, error: cErr } = await supabase.from('companies')
+    .insert({ name, slug, max_users, active_types }).select('id').single();
+  if (cErr) { msg.className = 'msg err'; msg.textContent = 'Ошибка компании: ' + cErr.message; $('createBtn').disabled = false; return; }
+
+  // 2) администратор компании (через Edge Function на service_role)
+  msg.textContent = 'Создаём администратора...';
+  const { data: fData, error: fErr } = await supabase.functions.invoke('create-company-user', {
+    body: { email: aEmail, password: aPass, full_name: aName, company_id: comp.id, is_company_admin: true },
+  });
+  const failText = fErr ? (fErr.context ? await fErr.context.text() : fErr.message) : null;
+  if (fErr || !fData?.success) {
+    // откат: удаляем компанию, чтобы не осталась без админа
+    await supabase.from('companies').delete().eq('id', comp.id);
+    msg.className = 'msg err'; msg.textContent = 'Не удалось создать админа (компания отменена): ' + (failText || '');
+    $('createBtn').disabled = false; return;
+  }
+
+  msg.className = 'msg ok'; msg.textContent = `Готово: компания «${name}» и админ ${fData.email}`;
+  $('cName').value = $('cSlug').value = $('aEmail').value = $('aPass').value = $('aName').value = '';
+  $('createBtn').disabled = false;
+  loadCompanies();
+});
+
+init();
+</script>
+</body>
+</html>

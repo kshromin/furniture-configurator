@@ -1654,7 +1654,7 @@ export function bindTabSwitching() {
       // «Проекты» и «Заказы» — большие модальные окна поверх текущей вкладки (сессия 37/38), не
       // обычное переключение: своих .tab-pane больше нет, открытие модалов — отдельные слушатели
       // в main.js (openProjectsModal/openCabinetModal). Сайдбар/typeBar остаются как были.
-      if (btn.dataset.tab === 'projects' || btn.dataset.tab === 'cabinet') return;
+      if (btn.dataset.tab === 'projects' || btn.dataset.tab === 'cabinet' || btn.dataset.tab === 'users') return;
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
       btn.classList.add('active');

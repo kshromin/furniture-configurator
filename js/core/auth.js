@@ -14,6 +14,8 @@ function setGates(loggedIn) {
   document.getElementById('panel').style.display = loggedIn ? '' : 'none';
   const adminBtn = document.getElementById('adminTabBtn');
   if (adminBtn) adminBtn.style.display = (loggedIn && auth.profile?.is_admin) ? '' : 'none';
+  const usersBtn = document.getElementById('usersTabBtn');
+  if (usersBtn) usersBtn.style.display = (loggedIn && auth.profile?.is_company_admin) ? '' : 'none';
 }
 
 export async function initAuth() {
