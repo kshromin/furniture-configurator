@@ -49,6 +49,11 @@
   .fieldgroup-title { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: .04em;
                       margin: 18px 0 2px; }
   .muted { color: #999; font-size: 12px; }
+  .admin-line { font-size: 12px; color: #1f8a4c; margin-top: 2px; }
+  .admin-line.none { color: #c0392b; }
+  .admin-users { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+  .admin-user-row { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+                    padding: 7px 10px; border: 1px solid #eef0f3; border-radius: 8px; font-size: 13px; }
   a.back { color: #2f6fed; text-decoration: none; font-size: 13px; }
 </style>
 </head>
@@ -167,17 +172,23 @@ $('denyLogout').addEventListener('click', logout);
 
 // ── Список компаний ──────────────────────────────────────────────────────────
 let companiesCache = [];
+let usersCache = [];
 let editingId = null;
 
 async function loadCompanies() {
   $('listMsg').textContent = 'Загрузка...';
-  const { data, error } = await supabase.from('companies')
-    .select('id, name, slug, max_users, active_types, is_active').order('created_at');
-  if (error) { $('listMsg').textContent = 'Ошибка: ' + error.message; return; }
+  const [comps, users] = await Promise.all([
+    supabase.from('companies').select('id, name, slug, max_users, active_types, is_active').order('created_at'),
+    supabase.from('profiles').select('id, email, full_name, is_company_admin, is_active, company_id'),
+  ]);
+  if (comps.error || users.error) { $('listMsg').textContent = 'Ошибка: ' + (comps.error || users.error).message; return; }
   $('listMsg').textContent = '';
-  companiesCache = data || [];
+  companiesCache = comps.data || [];
+  usersCache = users.data || [];
   renderCompanies();
 }
+const usersOf = id => usersCache.filter(u => u.company_id === id);
+const adminsOf = id => usersOf(id).filter(u => u.is_company_admin);
 
 function renderCompanies() {
   $('companiesBody').innerHTML =
@@ -192,7 +203,11 @@ function viewRow(c) {
   const blockBtn = c.is_active
     ? `<button class="warn" data-block="${c.id}" data-to="false">Заблокировать</button>`
     : `<button class="ghost" data-block="${c.id}" data-to="true">Разблокировать</button>`;
-  return `<tr><td>${esc(c.name)}</td><td>${esc(c.slug)}</td><td>${c.max_users}</td>
+  const admins = adminsOf(c.id);
+  const adminLine = admins.length
+    ? `<div class="admin-line">админ: ${admins.map(a => esc(a.email)).join(', ')}</div>`
+    : `<div class="admin-line none">админ не назначен</div>`;
+  return `<tr><td>${esc(c.name)}${adminLine}</td><td>${esc(c.slug)}</td><td>${c.max_users}</td>
           <td>${types} тип(ов)</td><td>${badge}</td>
           <td style="white-space:nowrap"><button class="ghost" data-edit="${c.id}">Изменить</button> ${blockBtn}</td></tr>`;
 }
@@ -213,7 +228,25 @@ function editRow(c) {
       <button data-save="${c.id}">Сохранить</button>
       <button class="ghost" data-cancel="1">Отмена</button>
     </div>
+
+    <div class="fieldgroup-title">Пользователи и админ компании</div>
+    <div class="admin-users">${usersBlock(c.id)}</div>
+    <div id="adminMsg" class="msg"></div>
   </td></tr>`;
+}
+
+function usersBlock(companyId) {
+  const users = usersOf(companyId);
+  if (!users.length) return '<div class="muted">В компании ещё нет пользователей. Админ создаётся вместе с компанией; либо назначь существующего.</div>';
+  return users.map(u => `
+    <div class="admin-user-row">
+      <span>${esc(u.full_name || u.email)}${u.full_name ? ` <span class="muted">${esc(u.email)}</span>` : ''}
+        ${u.is_company_admin ? '<span class="badge on">админ</span>' : ''}
+        ${u.is_active ? '' : '<span class="badge off">заблокирован</span>'}</span>
+      ${u.is_company_admin
+        ? `<button class="ghost" data-adminoff="${u.id}">Снять админа</button>`
+        : `<button class="ghost" data-adminon="${u.id}">Сделать админом</button>`}
+    </div>`).join('');
 }
 
 function bindRowActions() {
@@ -239,6 +272,26 @@ function bindRowActions() {
     if (error) { alert('Ошибка: ' + error.message); b.disabled = false; return; }
     loadCompanies();
   }));
+  document.querySelectorAll('[data-adminon]').forEach(b =>
+    b.addEventListener('click', () => setAdmin(b.dataset.adminon, true, b)));
+  document.querySelectorAll('[data-adminoff]').forEach(b =>
+    b.addEventListener('click', () => setAdmin(b.dataset.adminoff, false, b)));
+}
+
+// Назначить/снять админа компании (is_company_admin) — через Edge Function (только супер-админ).
+async function setAdmin(userId, on, b) {
+  const msg = document.getElementById('adminMsg');
+  b.disabled = true;
+  if (msg) { msg.className = 'msg'; msg.textContent = on ? 'Назначаем...' : 'Снимаем...'; }
+  const { data, error } = await supabase.functions.invoke('create-company-user', {
+    body: { user_id: userId, is_company_admin: on },
+  });
+  const failText = error ? (error.context ? await error.context.text() : error.message) : null;
+  if (error || !data?.success) {
+    if (msg) { msg.className = 'msg err'; msg.textContent = 'Ошибка: ' + (failText || ''); }
+    b.disabled = false; return;
+  }
+  loadCompanies(); // editingId сохраняется → форма правки перерисуется с новыми данными
 }
 
 function esc(s) { return String(s ?? '').replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m])); }
