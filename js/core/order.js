@@ -28,6 +28,7 @@ let editingProjectClient = null; // { name, phone, address }
 let editingProjectTitle = '';
 let editingProjectKind = 'project';  // project | order — что именно открыто
 let editingProjectCode = '';         // № открытого проекта/заказа (для строки-индикатора)
+let editingOrderLocked = false;      // открытый заказ заблокирован («изменять нельзя») → без перезаписи
 
 // Строка под типом изделия (typeBar): в каком комплекте сейчас работаем — «Новая прорисовка»
 // или название/№ открытого проекта/заказа. Обновляется при каждом renderOrderCards.
@@ -206,6 +207,7 @@ function doOpenProject(project) {
   editingProjectTitle = project.title || '';
   editingProjectKind = project.kind || 'project';
   editingProjectCode = project.project_code || '';
+  editingOrderLocked = (project.locked_by || []).length > 0; // заблокированный заказ нельзя перезаписать
   orderItems = (project.items || []).map(it => ({ ...it, id: it.id || Date.now() + Math.random() }));
   itemsSavedToProject = true;
   editingItemId = null;
@@ -334,6 +336,7 @@ function doStartNewKit() {
   editingProjectTitle = '';
   editingProjectKind = 'project';
   editingProjectCode = '';
+  editingOrderLocked = false;
   itemsSavedToProject = false;
   document.getElementById('addItemBtn').textContent = '+ Добавить в прорисовки';
   renderOrderCards();
@@ -439,12 +442,13 @@ export function bindOrderForm() {
     // новый» (её легко не заметить: пользователь менял название и удивлялся, что старый проект
     // перезаписан — просьба 21.07).
     let overwrite = false;
-    // Заказ неизменяем (задание «поделиться 29,07»): перезаписать нельзя — только сохранить новым.
-    // Чтобы редактировать заказ, сначала «Вернуть в проект» (returnOrderToProject). Диалог
-    // «перезаписать/новым» — только для проектов.
-    if (editingProjectId !== null && editingProjectKind !== 'order') {
+    // Заблокированный заказ («изменять нельзя», задание «поделиться 29,07») перезаписать нельзя —
+    // только «сохранить новым». Разблокированный заказ и проекты — обычный вопрос «перезаписать/новым».
+    const lockedOrder = editingProjectKind === 'order' && editingOrderLocked;
+    if (editingProjectId !== null && !lockedOrder) {
+      const kindLabel = editingProjectKind === 'order' ? 'заказ' : 'проект';
       const choice = await showChoiceDialog(
-        `Открыт проект${editingProjectCode ? ' № ' + editingProjectCode : ''}. Перезаписать его или сохранить новым?`,
+        `Открыт ${kindLabel}${editingProjectCode ? ' № ' + editingProjectCode : ''}. Перезаписать его или сохранить новым?`,
         [
           { label: 'Отмена', value: null },
           { label: 'Перезаписать', value: 'update' },
@@ -465,6 +469,7 @@ export function bindOrderForm() {
       if (!error && data) {
         editingProjectId = data.id; // повторное сохранение обновит эту же строку
         editingProjectCode = data.project_code || '';
+        editingOrderLocked = false; // новая запись создаётся незаблокированной
       }
     }
 

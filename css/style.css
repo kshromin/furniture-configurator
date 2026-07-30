@@ -1605,3 +1605,8 @@ html, body {
 .order-card-status:hover { background: #dff0df; }
 .order-card-status.warn { background: #fbeaea; color: #c0392b; border-color: #ecc; }
 .order-card-status.warn:hover { background: #f6dede; }
+
+/* Галочка «изменять нельзя» на карточке заказа (задание «поделиться 29,07») */
+.order-card-lock { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12px;
+                   color: #c0392b; cursor: pointer; }
+.order-card-lock input { cursor: pointer; }

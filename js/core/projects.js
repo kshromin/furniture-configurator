@@ -93,7 +93,7 @@ function buildQuery(cfg) {
   const me = auth.session.user.id;
   let query = supabase
     .from('projects')
-    .select('id, kind, user_id, shared_with, status, title, client_name, client_phone, project_code, total, item_count, thumbnail, created_at, updated_at')
+    .select('id, kind, user_id, shared_with, status, locked_by, title, client_name, client_phone, project_code, total, item_count, thumbnail, created_at, updated_at')
     .eq('kind', cfg.kind);
   // Админ компании видит записи ВСЕХ сотрудников (RLS company-admin), разложенные по менеджеру-папке
   // (managerFilter). Остальные (в т.ч. супер-админ — ему это не нужно) — «мои + расшаренные мне».
@@ -149,6 +149,14 @@ function renderCard(p, cfg, container) {
       ? '<button class="order-card-status" data-status="completed">✓ Завершить</button><button class="order-card-status warn" data-status="cancelled">✕ Отмена</button>'
       : '<button class="order-card-status" data-status="active">↩ В активные</button>'
   ) : '';
+  // «Изменять нельзя» — совместная блокировка заказа (задание «поделиться 29,07»): доступна всем,
+  // кто видит заказ; заблокирован, пока массив locked_by не пуст. Снять можно только свою (RPC).
+  const locked = (p.locked_by || []).length > 0;
+  const lockRow = p.kind === 'order'
+    ? `<label class="order-card-lock" title="${locked ? 'Заказ заблокирован от изменений' : 'Запретить изменения этого заказа'}">
+         <input type="checkbox" class="order-lock-cb" ${locked ? 'checked' : ''}> изменять нельзя${locked ? ` (${p.locked_by.length})` : ''}
+       </label>`
+    : '';
   card.innerHTML = `
     ${thumb}
     <div class="order-card-header">
@@ -161,6 +169,7 @@ function renderCard(p, cfg, container) {
     </div>
     <div class="order-card-price">${fmt(p.total)}</div>
     <span class="status-pill status-${p.kind === 'order' ? 'confirmed' : 'new'}">${KIND_LABELS[p.kind]}${shareBadge}</span>
+    ${lockRow}
     <div class="order-card-actions">
       ${mine ? '<button class="order-card-share">Поделиться</button>' : ''}
       <button class="order-card-edit">Открыть</button>
@@ -169,10 +178,31 @@ function renderCard(p, cfg, container) {
   `;
 
   card.querySelector('.order-card-remove')?.addEventListener('click', async () => {
+    if ((p.locked_by || []).length > 0) {
+      window.alert('Заказ заблокирован («изменять нельзя»). Сначала снимите блокировку.');
+      return;
+    }
     const who = [p.title, p.client_name, p.project_code].filter(Boolean).join(', ') || 'без данных';
     if (!window.confirm(`Удалить ${cfg.kind === 'order' ? 'заказ' : 'проект'} (${who})? Действие необратимо.`)) return;
     await supabase.from('projects').delete().eq('id', p.id);
     card.remove(); // без полной перезагрузки списка — карточка и так уже в руках
+  });
+
+  // Галочка «изменять нельзя» — ставит/снимает СВОЮ блокировку через RPC (снять чужую нельзя).
+  card.querySelector('.order-lock-cb')?.addEventListener('change', async e => {
+    const cb = e.currentTarget;
+    const wantLock = cb.checked;
+    cb.disabled = true;
+    const { data, error } = await supabase.rpc('set_order_lock', { p_id: p.id, lock: wantLock });
+    cb.disabled = false;
+    if (error) { window.alert('Ошибка: ' + error.message); cb.checked = !wantLock; return; }
+    p.locked_by = data || [];
+    const nowLocked = p.locked_by.length > 0;
+    cb.checked = nowLocked;
+    cb.closest('.order-card-lock')?.setAttribute('title',
+      nowLocked ? 'Заказ заблокирован от изменений' : 'Запретить изменения этого заказа');
+    // Пытались снять, но заказ ещё заблокирован другими — снять могут только они.
+    if (!wantLock && nowLocked) window.alert('Заказ ещё заблокирован другим сотрудником — снять может только он.');
   });
 
   card.querySelector('.order-card-share')?.addEventListener('click', e => openSharePopover(p, e.currentTarget));
