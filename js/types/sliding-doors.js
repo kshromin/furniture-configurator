@@ -1,10 +1,10 @@
 import { state } from '../core/state.js';
 import { addPanel } from '../core/scene.js';
 import { getColor } from '../core/materials.js';
-import { defaultFasadAreaM2 } from '../core/pricing.js';
 import { DOOR_DEPTH_ZONE } from './wardrobe-constants.js';
-import { buildDoorRow } from './wardrobe-geometry.js';
+import { buildDoorRow, lastBuildDoorLayout } from './wardrobe-geometry.js';
 import { effectiveDoorSpan } from './wardrobe-sizing.js';
+import { slidingDoorUnitPrice, swingDoorUnitPrice, profileRate } from './wardrobe.js';
 
 // Тип «Двери купе» — самостоятельное изделие: только двери (купе/распашные) + выравнивающие элементы
 // из ЛДСП по периметру проёма. Двери и весь дверной ряд (профили, направляющие, распашные ≤2 с
@@ -49,11 +49,25 @@ export default {
   },
 
   areas() {
-    // ЛДСП выравнивателей — по площади (тариф корпуса); двери — площадь фасада.
     const { height } = state;
     const { spanW, leftOff: lW, rightOff: rW, topOff: tH, bottomOff: bH } = effectiveDoorSpan();
+    // ЛДСП выравнивателей — по площади (тариф корпуса).
     const alignerM2 = ((lW + rW) * height + (tH + bH) * Math.max(0, spanW)) / 1e6;
-    return { korpusM2: alignerM2, fasadM2: defaultFasadAreaM2(), fillM2: 0 };
+    // Цена дверей — теми же per-door функциями, что у шкафа (профиль + наполнение), + направляющая
+    // на весь проём. Полотна считаются как наполнение (doorFillPrice), НЕ как плоский фасад (fasadM2=0).
+    // Раскладку (doorW/doorH/число) берём из lastBuildDoorLayout — build() отработал перед areas().
+    let doorFillPrice = 0, doorHardwarePrice = 0;
+    const L = lastBuildDoorLayout;
+    if (L && L.xs.length) {
+      const sliding = state.fasadDoorType === 'sliding';
+      for (let i = 0; i < L.xs.length; i++) {
+        const u = sliding ? slidingDoorUnitPrice(i, L.doorW, L.doorH) : swingDoorUnitPrice(i, L.doorW, L.doorH);
+        doorFillPrice += u.fill;
+        doorHardwarePrice += u.profile + (sliding ? u.rollers : u.kit);
+      }
+      if (sliding) doorHardwarePrice += (spanW / 1000) * profileRate('track');
+    }
+    return { korpusM2: alignerM2, fasadM2: 0, fillM2: 0, doorFillPrice, doorHardwarePrice };
   },
 
   describe() {
