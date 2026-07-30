@@ -164,8 +164,8 @@ html, body {
 .drag-info-panel {
   display: none;
   position: absolute;
-  /* правее плавающей кнопки «Назад» (#undoBtn: 16px + 40px ширины) — не перекрываются */
-  top: 16px; left: 68px;
+  /* правее кнопки «Назад», НИЖЕ индикатора процесса (#processIndicator сверху) — не перекрываются */
+  top: 60px; left: 68px;
   max-width: 240px;
   background: rgba(255,255,255,0.94);
   border: 1px solid #d0d7e3;
@@ -194,7 +194,38 @@ html, body {
   padding: 10px 0;
   gap: 4px;
   z-index: 10;
+  /* Кнопок много, мониторы разные — если не влезают по высоте, полоса прокручивается
+     (задание 30,07). Тонкий скроллбар, чтобы не съедать ширину. */
+  overflow-y: auto;
+  overflow-x: hidden;
 }
+#sidebar::-webkit-scrollbar { width: 6px; }
+#sidebar::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+#sidebar::-webkit-scrollbar-track { background: transparent; }
+/* В прокручиваемой колонке кнопки не должны сжиматься (иначе «схлопнутся» вместо скролла). */
+.tab-btn, .account-chip { flex-shrink: 0; }
+
+/* ── Индикатор процесса (задание 30,07, п.3): где ты сейчас — новая прорисовка / открыт
+   заказ-проект / правка позиции. Синяя точка = новая, зелёная = правка открытого. ── */
+#processIndicator {
+  position: absolute;
+  top: 16px; left: 68px;
+  display: flex; align-items: center; gap: 7px;
+  max-width: 260px;
+  background: rgba(255,255,255,0.94);
+  border: 1px solid #d0d7e3;
+  border-radius: 8px;
+  padding: 7px 11px;
+  font-size: 12px; font-weight: 600; color: #445;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  z-index: 6;
+  pointer-events: none;
+  white-space: nowrap;
+}
+#processIndicator .pi-dot { width: 8px; height: 8px; border-radius: 50%; background: #2f6fed; flex-shrink: 0; }
+#processIndicator .pi-text { overflow: hidden; text-overflow: ellipsis; }
+#processIndicator.editing { border-color: #1d9a4a; color: #1d9a4a; }
+#processIndicator.editing .pi-dot { background: #1d9a4a; }
 
 .tab-btn {
   display: flex;

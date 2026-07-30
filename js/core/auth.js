@@ -29,6 +29,9 @@ function setGates(loggedIn) {
       acc.title = 'Аккаунт: ' + email;
     }
   }
+  // Индикатор процесса виден только после входа (текст обновляет order.js/updateKitBar).
+  const proc = document.getElementById('processIndicator');
+  if (proc) proc.style.display = loggedIn ? '' : 'none';
 }
 
 export async function initAuth() {

@@ -11,6 +11,12 @@
   <button id="undoBtn" title="Отменить последнее изменение" disabled>
     <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
   </button>
+  <!-- Индикатор процесса (задание, пункт 3): всегда показывает, где ты сейчас — «Новая
+       прорисовка» / открыт заказ/проект / правка позиции. Текст обновляет order.js
+       (updateKitBar), видимость — auth.js (setGates, только когда вошёл). -->
+  <div id="processIndicator" style="display:none">
+    <span class="pi-dot"></span><span class="pi-text">Новая прорисовка</span>
+  </div>
   <div id="dimOverlay">
     <svg id="dimArrowsSvg">
       <defs>

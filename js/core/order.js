@@ -51,6 +51,28 @@ function updateKitBar() {
     editBar.style.display = idx !== -1 ? 'block' : 'none';
     if (idx !== -1) editBar.textContent = `Правка позиции #${idx + 1}`;
   }
+  updateProcessIndicator();
+}
+
+// Глобальный индикатор процесса (левый верх, поверх 3D) — дублирует смысл kitBar, но виден
+// всегда, на любой вкладке (задание 30,07, п.3). Видимость включает setGates (только после входа).
+function updateProcessIndicator() {
+  const ind = document.getElementById('processIndicator');
+  if (!ind) return;
+  let txt;
+  if (editingProjectId !== null) {
+    const kindLabel = editingProjectKind === 'order' ? 'Заказ' : 'Проект';
+    const name = editingProjectTitle || editingProjectClient?.name || '';
+    txt = `${kindLabel}${editingProjectCode ? ' ' + editingProjectCode : ''}${name ? ' — ' + name : ''}`;
+    ind.classList.add('editing');
+  } else {
+    txt = 'Новая прорисовка';
+    ind.classList.remove('editing');
+  }
+  const idx = editingItemId !== null ? orderItems.findIndex(it => it.id === editingItemId) : -1;
+  if (idx !== -1) txt += ` · правка позиции #${idx + 1}`;
+  ind.querySelector('.pi-text').textContent = txt;
+  ind.title = txt;
 }
 let itemsSavedToProject = false; // текущий комплект уже сохранён (для предупреждения при открытии другого)
 
