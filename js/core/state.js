@@ -41,6 +41,13 @@ export function hasUnsavedChanges() {
   return lastSafeSnapshot !== null && JSON.stringify(state) !== lastSafeSnapshot;
 }
 
+// Снимок «типового» состояния сразу после старта (дефолтная модель + выбранные по умолчанию
+// материалы) — к нему возвращает кнопка «Новая прорисовка» (задание 30,07). Снимается один раз
+// в main.js, когда стартовая модель полностью собрана.
+let defaultSnapshot = null;
+export function captureDefaultState() { defaultSnapshot = JSON.stringify(state); }
+export function getDefaultState() { return defaultSnapshot ? JSON.parse(defaultSnapshot) : null; }
+
 export const state = {
   type: 'wardrobe',
   width: 1800, height: 2400, depth: 600,

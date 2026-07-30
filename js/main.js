@@ -1,4 +1,4 @@
-import { state, materials, setMaterials, markStateSafe } from './core/state.js';
+import { state, materials, setMaterials, markStateSafe, captureDefaultState } from './core/state.js';
 import { renderProducerSelect } from './core/materials.js';
 import { renderPresets } from './core/presets.js';
 import { buildFurniture } from './core/build.js';
@@ -127,6 +127,7 @@ async function init() {
   syncUIFromState();
   buildFurniture();
   markStateSafe();
+  captureDefaultState(); // запомнить типовую модель — к ней вернёт «Новая прорисовка»
 }
 
 init();

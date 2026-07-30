@@ -1,4 +1,4 @@
-import { state, markStateSafe, hasUnsavedChanges } from './state.js';
+import { state, markStateSafe, hasUnsavedChanges, getDefaultState } from './state.js';
 import { getColor } from './materials.js';
 import { fmt } from './pricing.js';
 import { TYPES } from '../types/registry.js';
@@ -389,9 +389,21 @@ function doStartNewKit() {
   editingOrderLocked = false;
   itemsSavedToProject = false;
   document.getElementById('addItemBtn').textContent = '+ Добавить в прорисовки';
+  // Сбросить и саму 3D-модель до типовой (задание 30,07): «Новая прорисовка» = чистый лист.
+  const def = getDefaultState();
+  if (def) {
+    Object.assign(state, def);
+    syncUIFromState();
+    ['korpus', 'fasad', 'fill'].forEach(g => {
+      document.getElementById(g + 'Producer').value = state[g + 'Producer'];
+      renderSwatches(g, g + 'Swatches');
+    });
+    buildFurniture();
+    resetHistory(); // чистая модель — нельзя откатиться в историю прежней
+  }
   renderOrderCards();
-  markStateSafe(); // новая точка отсчёта — текущее 3D остаётся, но «грязным» больше не считается
-  showToast('Новый комплект — прорисовки очищены.');
+  markStateSafe(); // типовая модель — новая точка отсчёта (не «грязная»)
+  showToast('Новый комплект — модель и прорисовки сброшены.');
 }
 
 // Маленькая превьюшка текущего вида 3D-модели (задание «Проекты» — большое окно с превью,
