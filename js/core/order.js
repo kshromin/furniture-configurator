@@ -91,6 +91,17 @@ function updateProcessIndicator() {
   ind.classList.add(cls);
   ind.querySelector('.pi-text').textContent = txt;
   ind.title = txt;
+
+  // Кнопка «Обновить прорисовку #N» — когда текущий чертёж изменён (changed) и НЕ в режиме
+  // «Изменить» (idx===-1), а показанная прорисовка есть в комплекте: даём перезаписать её, не
+  // добавляя новую (задание 30,07).
+  const upBtn = document.getElementById('updateItemBtn');
+  if (upBtn) {
+    const dispIdx = orderItems.findIndex(it => it.id === displayedItemId && it.snapshot);
+    const canUpdate = idx === -1 && changed && dispIdx !== -1;
+    upBtn.style.display = canUpdate ? '' : 'none';
+    if (canUpdate) upBtn.textContent = `✓ Обновить прорисовку #${dispIdx + 1}`;
+  }
 }
 let itemsSavedToProject = false; // текущий комплект уже сохранён (для предупреждения при открытии другого)
 
@@ -173,6 +184,22 @@ export function addCurrentToOrder() {
   itemsSavedToProject = false;
   markStateSafe();
   renderOrderCards();
+}
+
+// Перезаписать показанную сейчас прорисовку (displayedItemId) текущим чертежом — без нажатия
+// «Изменить» в списке (задание 30,07): изменил модель, но хочешь обновить ту же позицию, а не
+// добавлять новую. Кнопка #updateItemBtn показывается только когда это осмысленно (см.
+// updateProcessIndicator).
+export function updateDisplayedItem() {
+  const item = orderItems.find(it => it.id === displayedItemId && it.snapshot);
+  if (!item) return;
+  item.label = describeConfig();
+  item.total = state.lastTotal || 0;
+  item.snapshot = JSON.parse(JSON.stringify(state));
+  itemsSavedToProject = false; // комплект изменился относительно сохранённого проекта (если открыт)
+  markStateSafe();
+  renderOrderCards();
+  showToast('Прорисовка обновлена.');
 }
 
 // Доп. элемент/услуга (вкладка «Добавить к заказу») — без 3D-снапшота, только строка с ценой.
@@ -465,6 +492,7 @@ export function bindOrderForm() {
   document.getElementById('saveOrderBtn').addEventListener('click', () => openSaveModal('order'));
   document.getElementById('newKitBtn').addEventListener('click', startNewKit);
   document.getElementById('newKitTopBtn').addEventListener('click', startNewKit);
+  document.getElementById('updateItemBtn').addEventListener('click', updateDisplayedItem);
   // Закрытие модалки без сохранения отменяет и отложенное действие (см. guardUnsavedItems) —
   // прорисовки не сохранены, затирать их молча нельзя.
   document.getElementById('orderCancel').addEventListener('click', () => {

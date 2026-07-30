@@ -825,6 +825,10 @@ html, body {
 
 .add-item-btn:hover { background: #eef3ff; }
 
+/* «Обновить прорисовку» — зелёная сплошная (перезапись существующей позиции, не добавление). */
+.update-item-btn { border-style: solid; border-color: #1d9a4a; color: #1d9a4a; margin-top: 6px; }
+.update-item-btn:hover { background: #eafaf0; }
+
 .order-btn {
   width: 100%;
   margin-top: 10px;
