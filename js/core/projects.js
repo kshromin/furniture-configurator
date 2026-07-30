@@ -166,12 +166,17 @@ function renderCard(p, cfg, container) {
       : '<button class="order-card-status" data-status="active">↩ В активные</button>'
   ) : '';
   // «Изменять нельзя» — совместная блокировка заказа (задание «поделиться 29,07»): доступна всем,
-  // кто видит заказ; заблокирован, пока массив locked_by не пуст. Снять можно только свою (RPC).
-  const locked = (p.locked_by || []).length > 0;
+  // кто видит заказ; заблокирован, пока массив locked_by не пуст. Галочка отражает МОЮ блокировку
+  // (снять можно только свою, RPC); под ней — кто именно заблокировал (задание 30,07), чтобы
+  // остальные знали, к кому идти за разблокировкой.
+  const lockers = p.locked_by || [];
+  const iLocked = lockers.includes(me);
+  const lockerNames = lockers.map(id => id === me ? 'вы' : teamName(id)).join(', ');
   const lockRow = p.kind === 'order'
-    ? `<label class="order-card-lock" title="${locked ? 'Заказ заблокирован от изменений' : 'Запретить изменения этого заказа'}">
-         <input type="checkbox" class="order-lock-cb" ${locked ? 'checked' : ''}> изменять нельзя${locked ? ` (${p.locked_by.length})` : ''}
-       </label>`
+    ? `<label class="order-card-lock" title="${lockers.length ? 'Заблокировали: ' + lockerNames : 'Запретить изменения этого заказа'}">
+         <input type="checkbox" class="order-lock-cb" ${iLocked ? 'checked' : ''}> изменять нельзя
+       </label>
+       ${lockers.length ? `<div class="order-card-lockers">🔒 заблокировали: ${lockerNames}</div>` : ''}`
     : '';
   card.innerHTML = `
     ${thumb}
@@ -213,12 +218,19 @@ function renderCard(p, cfg, container) {
     cb.disabled = false;
     if (error) { window.alert('Ошибка: ' + error.message); cb.checked = !wantLock; return; }
     p.locked_by = data || [];
-    const nowLocked = p.locked_by.length > 0;
-    cb.checked = nowLocked;
-    cb.closest('.order-card-lock')?.setAttribute('title',
-      nowLocked ? 'Заказ заблокирован от изменений' : 'Запретить изменения этого заказа');
+    const me2 = auth.session.user.id;
+    cb.checked = p.locked_by.includes(me2); // галочка — про МОЮ блокировку
+    const names = p.locked_by.map(id => id === me2 ? 'вы' : teamName(id)).join(', ');
+    const label = cb.closest('.order-card-lock');
+    label?.setAttribute('title', p.locked_by.length ? 'Заблокировали: ' + names : 'Запретить изменения этого заказа');
+    // Строка «кто заблокировал» под галочкой — создаём/обновляем/убираем.
+    let line = label?.parentElement?.querySelector('.order-card-lockers');
+    if (p.locked_by.length) {
+      if (!line) { line = document.createElement('div'); line.className = 'order-card-lockers'; label.after(line); }
+      line.textContent = '🔒 заблокировали: ' + names;
+    } else if (line) { line.remove(); }
     // Пытались снять, но заказ ещё заблокирован другими — снять могут только они.
-    if (!wantLock && nowLocked) window.alert('Заказ ещё заблокирован другим сотрудником — снять может только он.');
+    if (!wantLock && p.locked_by.length) window.alert('Заказ ещё заблокирован другим сотрудником — снять может только он.');
   });
 
   card.querySelector('.order-card-share')?.addEventListener('click', e => openSharePopover(p, e.currentTarget));

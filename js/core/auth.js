@@ -34,13 +34,24 @@ function setGates(loggedIn) {
   if (proc) proc.style.display = loggedIn ? '' : 'none';
 }
 
+// id пользователя, под которым сейчас инициализировано приложение. undefined = ещё не знаем.
+let knownUserId;
+
 export async function initAuth() {
   const { data } = await supabase.auth.getSession();
   auth.session = data.session;
   if (auth.session) await loadProfile(auth.session.user.id);
+  knownUserId = auth.session?.user?.id ?? null;
   setGates(!!auth.session);
 
   supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    const newId = newSession?.user?.id ?? null;
+    // Сменился аккаунт (вход/выход/другой пользователь) — полный сброс до стартового состояния
+    // через перезагрузку: экран, 3D-модель и прорисовки обнуляются, каталог/профиль грузятся
+    // заново под нового пользователя (задание 30,07). Первичное восстановление сессии (тот же id)
+    // и обновление токена — не трогаем.
+    if (knownUserId !== undefined && newId !== knownUserId) { location.reload(); return; }
+    knownUserId = newId;
     auth.session = newSession;
     if (auth.session) await loadProfile(auth.session.user.id);
     else auth.profile = null;

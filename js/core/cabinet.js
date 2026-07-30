@@ -1,4 +1,3 @@
-import { signOut } from './auth.js';
 import { renderOrders } from './projects.js';
 
 // Кабинет = большое окно «Заказы» (сессия 38) — то же решение, что и у «Проекты»
@@ -19,8 +18,6 @@ export function closeCabinetModal() {
 }
 
 export function bindCabinetControls() {
-  document.getElementById('logoutBtn').addEventListener('click', () => signOut());
-
   const overlay = document.getElementById('cabinetModalOverlay');
   document.getElementById('cabinetModalClose').addEventListener('click', closeCabinetModal);
   overlay.addEventListener('click', e => { if (e.target === overlay) closeCabinetModal(); });

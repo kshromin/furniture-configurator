@@ -7,7 +7,7 @@ import { renderSwatches } from './materials.js';
 import { buildFurniture } from './build.js';
 import { resetHistory } from './history.js';
 import { supabase } from './supabaseClient.js';
-import { auth } from './auth.js';
+import { auth, signOut } from './auth.js';
 import { showToast, showChoiceDialog } from './toast.js';
 import { scene, camera, renderer } from './scene.js';
 
@@ -59,18 +59,23 @@ function updateKitBar() {
 function updateProcessIndicator() {
   const ind = document.getElementById('processIndicator');
   if (!ind) return;
-  let txt;
+  // «Изменён» = открытый проект/заказ, в который внесли правки после сохранения: либо изменена
+  // текущая 3D-модель (hasUnsavedChanges), либо тронут комплект (itemsSavedToProject=false).
+  const dirty = hasUnsavedChanges() || (orderItems.length > 0 && !itemsSavedToProject);
+  let txt, cls;
   if (editingProjectId !== null) {
     const kindLabel = editingProjectKind === 'order' ? 'Заказ' : 'Проект';
     const name = editingProjectTitle || editingProjectClient?.name || '';
     txt = `${kindLabel}${editingProjectCode ? ' ' + editingProjectCode : ''}${name ? ' — ' + name : ''}`;
-    ind.classList.add('editing');
+    if (dirty) { txt += ' · изменён'; cls = 'modified'; } else { cls = 'saved'; }
   } else {
     txt = 'Новая прорисовка';
-    ind.classList.remove('editing');
+    cls = 'new';
   }
   const idx = editingItemId !== null ? orderItems.findIndex(it => it.id === editingItemId) : -1;
   if (idx !== -1) txt += ` · правка позиции #${idx + 1}`;
+  ind.classList.remove('new', 'saved', 'modified');
+  ind.classList.add(cls);
   ind.querySelector('.pi-text').textContent = txt;
   ind.title = txt;
 }
@@ -80,9 +85,26 @@ let modalKind = 'project'; // какой режим открыт в модалк
 
 // Есть ли работа, которая пропадёт при закрытии/F5: непустой несохранённый комплект ИЛИ правки
 // текущей 3D-модели, не добавленные в комплект. Для предупреждения beforeunload (см. main.js).
+// suppressUnsavedPrompt=true — намеренный уход (после «сохранить/выйти без сохранения» в выходе),
+// чтобы браузер не спрашивал повторно при перезагрузке, которую делает смена аккаунта.
+let suppressUnsavedPrompt = false;
 export function hasUnsavedWork() {
-  return (orderItems.length > 0 && !itemsSavedToProject) || hasUnsavedChanges();
+  return !suppressUnsavedPrompt && ((orderItems.length > 0 && !itemsSavedToProject) || hasUnsavedChanges());
 }
+
+// Выход из аккаунта с предложением сохранить (задание 30,07): та же развилка, что при открытии
+// другого проекта. Сохранил/сбросил — выходим (signOut → auth.js перезагрузит страницу до
+// стартового состояния, прорисовки обнулятся).
+export function requestLogout() {
+  guardUnsavedItems('Выйти без сохранения', async () => {
+    suppressUnsavedPrompt = true;
+    await signOut();
+  });
+}
+
+// Обновить индикатор процесса извне (например, на каждое изменение 3D — см. main.js/onHistoryChange),
+// чтобы статус «изменён» появлялся сразу, а не только при перерисовке списка прорисовок.
+export function refreshProcessIndicator() { updateProcessIndicator(); }
 
 export function describeConfig() {
   const type = TYPES[state.type];
