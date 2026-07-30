@@ -59,21 +59,34 @@ function updateKitBar() {
 function updateProcessIndicator() {
   const ind = document.getElementById('processIndicator');
   if (!ind) return;
-  // «Изменён» = открытый проект/заказ, в который внесли правки после сохранения: либо изменена
-  // текущая 3D-модель (hasUnsavedChanges), либо тронут комплект (itemsSavedToProject=false).
-  const dirty = hasUnsavedChanges() || (orderItems.length > 0 && !itemsSavedToProject);
+  const changed = hasUnsavedChanges(); // текущий 3D отличается от точки отсчёта (markStateSafe)
+  const idx = editingItemId !== null ? orderItems.findIndex(it => it.id === editingItemId) : -1;
   let txt, cls;
   if (editingProjectId !== null) {
+    // Открыт сохранённый проект/заказ. «изменён» = правки после сохранения (3D или комплект).
     const kindLabel = editingProjectKind === 'order' ? 'Заказ' : 'Проект';
     const name = editingProjectTitle || editingProjectClient?.name || '';
     txt = `${kindLabel}${editingProjectCode ? ' ' + editingProjectCode : ''}${name ? ' — ' + name : ''}`;
+    const dirty = changed || (orderItems.length > 0 && !itemsSavedToProject);
     if (dirty) { txt += ' · изменён'; cls = 'modified'; } else { cls = 'saved'; }
+    if (idx !== -1) txt += ` · правка позиции #${idx + 1}`;
+  } else if (idx !== -1) {
+    // Правишь конкретную позицию комплекта (нажата «Изменить»). Тронул — стало «изменена».
+    txt = `Прорисовка · правка позиции #${idx + 1}`;
+    cls = changed ? 'modified' : 'saved';
+  } else if (changed) {
+    // Текущий чертёж изменён и НЕ добавлен/не обновлён в комплекте — работа не должна потеряться
+    // (задание 30,07): «добавил, но не нажимал изменить» и что-то поменял.
+    txt = 'Прорисовка изменена';
+    cls = 'modified';
+  } else if (orderItems.some(it => it.snapshot)) {
+    // Есть добавленные прорисовки, текущий чертёж совпадает с последней добавленной.
+    txt = 'Прорисовка сохранена';
+    cls = 'saved';
   } else {
     txt = 'Новая прорисовка';
     cls = 'new';
   }
-  const idx = editingItemId !== null ? orderItems.findIndex(it => it.id === editingItemId) : -1;
-  if (idx !== -1) txt += ` · правка позиции #${idx + 1}`;
   ind.classList.remove('new', 'saved', 'modified');
   ind.classList.add(cls);
   ind.querySelector('.pi-text').textContent = txt;
