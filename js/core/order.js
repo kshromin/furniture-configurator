@@ -185,9 +185,9 @@ export function loadItemForEdit(id) {
   // Остаёмся на вкладке «Прорисовки»: карточка получает статус «Редактируется сейчас…»,
   // в kitBar видно «правка позиции #N» — понятно, где находишься; на вкладки настроек
   // пользователь перейдёт сам, когда надо (раньше насильно перекидывало на «Тип»).
-  renderOrderCards();
-  markStateSafe();
   resetHistory(); // другая прорисовка — не откатываться в историю прежней (см. history.js)
+  markStateSafe();
+  renderOrderCards(); // после markStateSafe — индикатор считается от свежей точки отсчёта
 }
 
 // Продолжение, отложенное до успешного сохранения (задание «сохранение заказа 21,07»): guard
@@ -261,7 +261,6 @@ function doOpenProject(project) {
   orderItems = (project.items || []).map(it => ({ ...it, id: it.id || Date.now() + Math.random() }));
   itemsSavedToProject = true;
   editingItemId = null;
-  renderOrderCards();
   // первую прорисовку с 3D сразу показываем на модели
   const first = orderItems.find(it => it.snapshot);
   displayedItemId = first ? first.id : null;
@@ -278,6 +277,7 @@ function doOpenProject(project) {
   // Свежая точка отсчёта несохранённых правок ВСЕГДА (не только при наличии снапшота): иначе
   // после открытия пустого проекта guard считал бы «грязными» правки, сделанные ещё до открытия.
   markStateSafe();
+  renderOrderCards(); // ВАЖНО: после markStateSafe — иначе индикатор залипнет на «изменён»
   document.querySelector('[data-tab="order"]').click();
   showToast(`Проект${project.project_code ? ' № ' + project.project_code : ''} открыт — комплект в «Прорисовках».`);
 }
@@ -401,8 +401,8 @@ function doStartNewKit() {
     buildFurniture();
     resetHistory(); // чистая модель — нельзя откатиться в историю прежней
   }
-  renderOrderCards();
   markStateSafe(); // типовая модель — новая точка отсчёта (не «грязная»)
+  renderOrderCards(); // после markStateSafe — индикатор не залипнет на «изменён»
   showToast('Новый комплект — модель и прорисовки сброшены.');
 }
 

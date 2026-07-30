@@ -119,7 +119,10 @@ async function init() {
   initHistory();
   const undoBtn = document.getElementById('undoBtn');
   undoBtn.addEventListener('click', undo);
-  onHistoryChange(count => { undoBtn.disabled = count < 2; refreshProcessIndicator(); });
+  onHistoryChange(count => { undoBtn.disabled = count < 2; });
+  // Индикатор процесса реагирует на любое изменение модели сразу (цвет/размер/наполнение) —
+  // напрямую по событию пересбора, не дожидаясь дебаунса истории (задание 30,07).
+  window.addEventListener('furniture-rebuilt', refreshProcessIndicator);
 
   initAutofillGuard();
   bindDoorEditor();
