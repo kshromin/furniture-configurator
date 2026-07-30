@@ -25,13 +25,13 @@ const LISTS = {
     kind: 'project', list: 'projectsList', empty: 'projectsEmpty', sort: 'projectsSortSelect',
     search: 'projectsSearch', range: 'projectsRange', from: 'projectsFrom', to: 'projectsTo',
     clear: 'projectsRangeClear', loadMore: 'projectsLoadMore', storageKey: 'projectsDateRange',
-    emptyText: 'Сохранённых проектов пока нет.',
+    manager: 'projectsManager', emptyText: 'Сохранённых проектов пока нет.',
   },
   order: {
     kind: 'order', list: 'ordersList', empty: 'ordersEmpty', sort: 'ordersSortSelect',
     search: 'ordersSearch', range: 'ordersRange', from: 'ordersFrom', to: 'ordersTo',
     clear: 'ordersRangeClear', loadMore: 'ordersLoadMore', storageKey: 'ordersDateRange',
-    emptyText: 'Заказов пока нет.',
+    manager: 'ordersManager', emptyText: 'Заказов пока нет.',
   },
 };
 
@@ -40,6 +40,9 @@ const paging = { project: 0, order: 0 };
 
 // Папка заказов (задание «поделиться 29,07»): active | completed | cancelled — фильтр по projects.status.
 let orderStatusFilter = 'active';
+
+// Папка по менеджеру — только у админа компании (видит записи всех сотрудников). '' = все сотрудники.
+const managerFilter = { project: '', order: '' };
 
 // Сотрудники своей компании — для окна «Поделиться» и подписи создателя у расшаренных карточек.
 // Грузятся один раз (RLS profiles_select_company из saas-02 отдаёт только свою компанию).
@@ -53,6 +56,21 @@ async function loadTeam() {
   return team;
 }
 const teamName = id => { const u = teamById[id]; return u ? (u.full_name || u.email) : 'сотрудник'; };
+
+// Селектор менеджера-папки: показываем только админу компании, наполняем из team один раз.
+function syncManagerUI(cfg) {
+  const sel = document.getElementById(cfg.manager);
+  if (!sel) return;
+  const isAdmin = auth.profile?.is_company_admin;
+  sel.style.display = isAdmin ? '' : 'none';
+  if (isAdmin && sel.dataset.filled !== '1' && team) {
+    const me = auth.session.user.id;
+    sel.innerHTML = '<option value="">Все сотрудники</option>' +
+      team.map(u => `<option value="${u.id}">${teamName(u.id)}${u.id === me ? ' (я)' : ''}</option>`).join('');
+    sel.value = managerFilter[cfg.kind];
+    sel.dataset.filled = '1';
+  }
+}
 
 function sortField(cfg) { return document.getElementById(cfg.sort).value; } // created|updated|title|client
 
@@ -76,11 +94,14 @@ function buildQuery(cfg) {
   let query = supabase
     .from('projects')
     .select('id, kind, user_id, shared_with, status, title, client_name, client_phone, project_code, total, item_count, thumbnail, created_at, updated_at')
-    // «Мои + расшаренные мне» (задание «поделиться 29,07»). Компания-админ/супер по RLS видят больше,
-    // но в личном списке показываем только владение + шаринг, а не всю компанию. Две .or() (эта и
-    // поисковая ниже) объединяются как AND — то что нужно.
-    .or(`user_id.eq.${me},shared_with.cs.{${me}}`)
     .eq('kind', cfg.kind);
+  // Админ компании видит записи ВСЕХ сотрудников (RLS company-admin), разложенные по менеджеру-папке
+  // (managerFilter). Остальные (в т.ч. супер-админ — ему это не нужно) — «мои + расшаренные мне».
+  if (auth.profile?.is_company_admin) {
+    if (managerFilter[cfg.kind]) query = query.eq('user_id', managerFilter[cfg.kind]);
+  } else {
+    query = query.or(`user_id.eq.${me},shared_with.cs.{${me}}`);
+  }
   // Заказы разложены по папкам active/completed/cancelled; проекты — без папок.
   if (cfg.kind === 'order') query = query.eq('status', orderStatusFilter);
 
@@ -262,6 +283,7 @@ async function loadPage(kindKey, append) {
   const offset = paging[kindKey];
 
   await loadTeam(); // имена коллег для карточек (создатель у расшаренных, окно «Поделиться»)
+  syncManagerUI(cfg); // селектор менеджера-папки (только админ компании)
   const { query } = buildQuery(cfg);
   loadMoreBtn.disabled = true;
   loadMoreBtn.textContent = 'Загрузка…';
@@ -331,6 +353,10 @@ function bindListControls(kindKey) {
     renderList(kindKey);
   });
   document.getElementById(cfg.loadMore).addEventListener('click', () => loadMoreList(kindKey));
+  document.getElementById(cfg.manager)?.addEventListener('change', e => {
+    managerFilter[kindKey] = e.target.value; // папка по менеджеру (админ компании)
+    renderList(kindKey);
+  });
 }
 
 export function bindProjectsControls() {
