@@ -171,7 +171,7 @@ function renderCard(p, cfg, container) {
     <span class="status-pill status-${p.kind === 'order' ? 'confirmed' : 'new'}">${KIND_LABELS[p.kind]}${shareBadge}</span>
     ${lockRow}
     <div class="order-card-actions">
-      ${mine ? '<button class="order-card-share">Поделиться</button>' : ''}
+      <button class="order-card-share">Поделиться</button>
       <button class="order-card-edit">Открыть</button>
     </div>
     ${statusBtns ? `<div class="order-card-actions">${statusBtns}</div>` : ''}
@@ -272,7 +272,7 @@ function openSharePopover(p, anchorBtn) {
     const ids = [...pop.querySelectorAll('input:checked')].map(i => i.value);
     const msg = pop.querySelector('.share-pop-msg');
     msg.textContent = 'Сохранение…';
-    const { error } = await supabase.from('projects').update({ shared_with: ids }).eq('id', p.id);
+    const { error } = await supabase.rpc('set_project_share', { p_id: p.id, uids: ids });
     if (error) { msg.textContent = 'Ошибка: ' + error.message; return; }
     p.shared_with = ids;
     const card = anchorBtn.closest('.order-card');
