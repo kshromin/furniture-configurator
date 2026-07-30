@@ -56,6 +56,12 @@ let itemsSavedToProject = false; // текущий комплект уже со�
 
 let modalKind = 'project'; // какой режим открыт в модалке: project | order
 
+// Есть ли работа, которая пропадёт при закрытии/F5: непустой несохранённый комплект ИЛИ правки
+// текущей 3D-модели, не добавленные в комплект. Для предупреждения beforeunload (см. main.js).
+export function hasUnsavedWork() {
+  return (orderItems.length > 0 && !itemsSavedToProject) || hasUnsavedChanges();
+}
+
 export function describeConfig() {
   const type = TYPES[state.type];
   const kName = getColor('korpus').name || '';

@@ -18,6 +18,17 @@ function setGates(loggedIn) {
   if (usersBtn) usersBtn.style.display = (loggedIn && auth.profile?.is_company_admin) ? '' : 'none';
   const logoutBtn = document.getElementById('sidebarLogoutBtn');
   if (logoutBtn) logoutBtn.style.display = loggedIn ? '' : 'none';
+  // Всегда видно, в каком аккаунте сидишь. Имя = full_name, иначе ник (часть e-mail до «@»).
+  const acc = document.getElementById('currentAccount');
+  if (acc) {
+    acc.style.display = loggedIn ? '' : 'none';
+    if (loggedIn) {
+      const email = auth.session?.user?.email || '';
+      const nameEl = document.getElementById('currentAccountName');
+      if (nameEl) nameEl.textContent = auth.profile?.full_name || email.split('@')[0] || '—';
+      acc.title = 'Аккаунт: ' + email;
+    }
+  }
 }
 
 export async function initAuth() {

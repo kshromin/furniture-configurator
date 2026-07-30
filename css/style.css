@@ -243,8 +243,24 @@ html, body {
 .tab-btn-admin { color: #a07000; }
 .tab-btn-admin.active { color: #a07000; border-color: #a07000; }
 
-/* Кнопка «Выход» — прижата к низу сайдбара (margin-top:auto), красноватая (задание «выйти 29,07») */
-.tab-btn-logout { margin-top: auto; color: #c0392b; }
+/* Аккаунт-чип — прижат к низу (margin-top:auto тянет вниз и его, и «Выход» под ним). */
+.account-chip {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 58px; padding: 8px 4px; margin-top: auto;
+  border-radius: 10px; color: #2f6fed; background: #eaf1ff;
+  gap: 3px; cursor: default;
+}
+.account-chip svg {
+  width: 20px; height: 20px; fill: none; stroke: currentColor;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.account-chip span {
+  font-size: 8px; font-weight: 600; text-align: center; line-height: 1.15;
+  max-width: 54px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Кнопка «Выход» — сразу под аккаунт-чипом внизу, красноватая (задание «выйти 29,07») */
+.tab-btn-logout { color: #c0392b; }
 .tab-btn-logout:hover { background: #fbeaea; color: #c0392b; }
 
 /* ── Panel (контент вкладки) ── */

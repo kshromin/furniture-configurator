@@ -57,19 +57,36 @@ async function loadTeam() {
 }
 const teamName = id => { const u = teamById[id]; return u ? (u.full_name || u.email) : 'сотрудник'; };
 
-// Селектор менеджера-папки: показываем только админу компании, наполняем из team один раз.
-function syncManagerUI(cfg) {
+// Владельцы записей, ДОСТУПНЫХ текущему пользователю (свои + расшаренные мне; у админа компании —
+// вся компания через RLS). distinct user_id по этому kind — из них наполняем селектор-папку.
+async function loadOwners(cfg) {
+  const me = auth.session.user.id;
+  let q = supabase.from('projects').select('user_id').eq('kind', cfg.kind);
+  if (!auth.profile?.is_company_admin) q = q.or(`user_id.eq.${me},shared_with.cs.{${me}}`);
+  const { data } = await q;
+  return [...new Set((data || []).map(r => r.user_id))];
+}
+
+// Селектор-папка по собственнику — теперь у ВСЕХ пользователей (задание 30,07): в списке те
+// коллеги, чьи записи тебе доступны. Прячем, если владелец только один (я) — выбирать не из кого.
+async function syncManagerUI(cfg) {
   const sel = document.getElementById(cfg.manager);
   if (!sel) return;
-  const isAdmin = auth.profile?.is_company_admin;
-  sel.style.display = isAdmin ? '' : 'none';
-  if (isAdmin && sel.dataset.filled !== '1' && team) {
-    const me = auth.session.user.id;
-    sel.innerHTML = '<option value="">Все сотрудники</option>' +
-      team.map(u => `<option value="${u.id}">${teamName(u.id)}${u.id === me ? ' (я)' : ''}</option>`).join('');
-    sel.value = managerFilter[cfg.kind];
-    sel.dataset.filled = '1';
+  const me = auth.session.user.id;
+  const owners = await loadOwners(cfg);
+  if (owners.filter(id => id !== me).length === 0) {
+    sel.style.display = 'none';
+    if (managerFilter[cfg.kind]) managerFilter[cfg.kind] = ''; // сбросить фильтр, если папок не стало
+    return;
   }
+  sel.style.display = '';
+  const sorted = [...owners].sort((a, b) =>
+    a === me ? -1 : b === me ? 1 : teamName(a).localeCompare(teamName(b), 'ru'));
+  sel.innerHTML = '<option value="">Все</option>' +
+    sorted.map(id => `<option value="${id}">${teamName(id)}${id === me ? ' (я)' : ''}</option>`).join('');
+  // Прежний выбор мог исчезнуть (запись перестала быть доступной) — тогда сбрасываем на «Все».
+  if (!owners.includes(managerFilter[cfg.kind])) managerFilter[cfg.kind] = '';
+  sel.value = managerFilter[cfg.kind];
 }
 
 function sortField(cfg) { return document.getElementById(cfg.sort).value; } // created|updated|title|client
@@ -95,13 +112,12 @@ function buildQuery(cfg) {
     .from('projects')
     .select('id, kind, user_id, shared_with, status, locked_by, title, client_name, client_phone, project_code, total, item_count, thumbnail, created_at, updated_at')
     .eq('kind', cfg.kind);
-  // Админ компании видит записи ВСЕХ сотрудников (RLS company-admin), разложенные по менеджеру-папке
-  // (managerFilter). Остальные (в т.ч. супер-админ — ему это не нужно) — «мои + расшаренные мне».
-  if (auth.profile?.is_company_admin) {
-    if (managerFilter[cfg.kind]) query = query.eq('user_id', managerFilter[cfg.kind]);
-  } else {
+  // Область видимости: админ компании — вся компания (RLS company-admin); остальные — «мои +
+  // расшаренные мне». Поверх — папка по собственнику (managerFilter), доступна теперь всем.
+  if (!auth.profile?.is_company_admin) {
     query = query.or(`user_id.eq.${me},shared_with.cs.{${me}}`);
   }
+  if (managerFilter[cfg.kind]) query = query.eq('user_id', managerFilter[cfg.kind]);
   // Заказы разложены по папкам active/completed/cancelled; проекты — без папок.
   if (cfg.kind === 'order') query = query.eq('status', orderStatusFilter);
 
@@ -313,7 +329,7 @@ async function loadPage(kindKey, append) {
   const offset = paging[kindKey];
 
   await loadTeam(); // имена коллег для карточек (создатель у расшаренных, окно «Поделиться»)
-  syncManagerUI(cfg); // селектор менеджера-папки (только админ компании)
+  await syncManagerUI(cfg); // селектор-папка по собственнику (у всех) — заполняет managerFilter
   const { query } = buildQuery(cfg);
   loadMoreBtn.disabled = true;
   loadMoreBtn.textContent = 'Загрузка…';
@@ -384,7 +400,7 @@ function bindListControls(kindKey) {
   });
   document.getElementById(cfg.loadMore).addEventListener('click', () => loadMoreList(kindKey));
   document.getElementById(cfg.manager)?.addEventListener('change', e => {
-    managerFilter[kindKey] = e.target.value; // папка по менеджеру (админ компании)
+    managerFilter[kindKey] = e.target.value; // папка по собственнику (у всех пользователей)
     renderList(kindKey);
   });
 }

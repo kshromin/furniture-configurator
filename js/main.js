@@ -7,7 +7,7 @@ import {
   bindTabSwitching, bindToggleDoors, bindBackWall, bindThickness, bindSectionsControls, syncUIFromState,
   markUnfinishedTypes, bindRoomControls, setCompanyActiveTypes,
 } from './core/tabs.js';
-import { addCurrentToOrder, renderOrderCards, bindOrderForm } from './core/order.js';
+import { addCurrentToOrder, renderOrderCards, bindOrderForm, hasUnsavedWork } from './core/order.js';
 import { bindPrint } from './core/print.js';
 import { renderExtras, bindExtras } from './core/extras.js';
 import { bindProjectsControls, openProjectsModal } from './core/projects.js';
@@ -96,6 +96,11 @@ async function init() {
   bindToggleDoors();
   bindSectionsControls();
   bindOrderForm();
+  // Предупреждение перед закрытием/F5, если есть несохранённые прорисовки (нативный диалог
+  // браузера — текст задаёт сам браузер; «типа может сохранишь прорисовки в проект»).
+  window.addEventListener('beforeunload', e => {
+    if (hasUnsavedWork()) { e.preventDefault(); e.returnValue = ''; }
+  });
   bindPrint();
   renderExtras();
   bindExtras();
