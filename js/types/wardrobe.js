@@ -27,15 +27,14 @@ export function doorFillRate(f, sp, colorId) {
   return getColor('fasad').pricePerM2;
 }
 
-// Ставки профиля купе для текущих state.profile/profileColor: отдельная строка прайса на каждое
-// сочетание профиль×цвет (slidingDoor.profilePrices, без коэффициентов — просьба 21.07).
-// Фолбэк на базовые ставки профиля — для сочетаний, которых в прайсе нет (старые снапшоты).
-export function profileRates() {
-  const cat = materials.slidingDoor || {};
-  return (cat.profilePrices || []).find(x => x.profile === state.profile && x.color === state.profileColor)
-    || (cat.profiles || []).find(p => p.id === state.profile)
-    || (cat.profiles || [])[0]
-    || null;
+// Ставка ЭЛЕМЕНТА профиля (₽/пог.м) для текущего цвета: отдельная позиция на каждое сочетание
+// элемент×цвет (slidingDoor.profilePrices). Элементы: 5 вертикальных (id профиля) + horizTop/
+// horizBottom (горизонтали) + divider (перемычка) + track (направляющая) — общие для всех вертикалей.
+// Цвет профиля общий на изделие (state.profileColor). Нет позиции → 0 (старые снапшоты/неполный прайс).
+export function profileRate(element) {
+  const rows = materials.slidingDoor?.profilePrices || [];
+  const r = rows.find(x => x.element === element && x.color === state.profileColor);
+  return r ? r.pricePerM : 0;
 }
 
 // Цена одной двери купе целиком: профиль (вертикали+горизонтали+перемычки) + ролики +
@@ -43,7 +42,6 @@ export function profileRates() {
 // Формулы те же, что в areas() — для инфопанели выделенной двери (js/core/itemDrag.js).
 export function slidingDoorUnitPrice(doorIndex, doorW, doorH) {
   const cat = materials.slidingDoor || {};
-  const prof = profileRates();
   const custom = state.doorCustom?.[doorIndex];
   const { segments, dividers } = doorCustomSegments(custom, doorH);
   const oneDoorM2 = (doorW * doorH) / 1e6;
@@ -54,9 +52,9 @@ export function slidingDoorUnitPrice(doorIndex, doorW, doorH) {
   } else {
     fill = oneDoorM2 * doorFillRate(state.doorFill, null, null);
   }
-  const profile = prof
-    ? (2 * doorH / 1000) * prof.vertPerM + (doorW / 1000) * (prof.horizTopPerM + prof.horizBottomPerM) + dividers.length * (doorW / 1000) * (cat.divider?.pricePerM || 0)
-    : 0;
+  const profile = (2 * doorH / 1000) * profileRate(state.profile)
+    + (doorW / 1000) * (profileRate('horizTop') + profileRate('horizBottom'))
+    + dividers.length * (doorW / 1000) * profileRate('divider');
   const rollers = cat.rollers?.pricePerSet || 0;
   return { profile, rollers, fill, total: profile + rollers + fill };
 }
@@ -66,7 +64,6 @@ export function slidingDoorUnitPrice(doorIndex, doorW, doorH) {
 // двери (js/core/itemDrag.js); формулы профиля/наполнения синхронны areas() выше.
 export function swingDoorUnitPrice(doorIndex, doorW, doorH) {
   const cat = materials.slidingDoor || {};
-  const prof = profileRates();
   const custom = state.doorCustom?.[doorIndex];
   const { segments, dividers } = doorCustomSegments(custom, doorH);
   const oneDoorM2 = (doorW * doorH) / 1e6;
@@ -77,9 +74,9 @@ export function swingDoorUnitPrice(doorIndex, doorW, doorH) {
   } else {
     fill = oneDoorM2 * doorFillRate(state.doorFill, null, null);
   }
-  const profile = prof
-    ? (2 * doorH / 1000) * prof.vertPerM + (doorW / 1000) * (prof.horizTopPerM + prof.horizBottomPerM) + dividers.length * (doorW / 1000) * (cat.divider?.pricePerM || 0)
-    : 0;
+  const profile = (2 * doorH / 1000) * profileRate(state.profile)
+    + (doorW / 1000) * (profileRate('horizTop') + profileRate('horizBottom'))
+    + dividers.length * (doorW / 1000) * profileRate('divider');
   const kit = materials.swingDoorHardware?.pricePerDoor || 0;
   return { profile, kit, fill, total: profile + kit + fill };
 }
@@ -162,15 +159,12 @@ export default {
       // направляющая — только у купе; у распашных вместо них комплект распашной двери (отдельная
       // строка «Фурнитура распашных дверей» по swingDoorHardware, см. pricing.js).
       const cat = materials.slidingDoor || {};
-      const prof = profileRates(); // прайс профиль×цвет, см. экспорт выше
-      if (prof) {
-        const vertM = (2 * doorH * dc) / 1000;
-        const horizM = (dw * dc) / 1000;
-        doorHardwarePrice =
-          vertM * prof.vertPerM + horizM * prof.horizTopPerM + horizM * prof.horizBottomPerM +
-          dividerM * (cat.divider?.pricePerM || 0) +
-          (sliding ? dc * (cat.rollers?.pricePerSet || 0) + (spanW / 1000) * (cat.track?.pricePerM || 0) : 0);
-      }
+      const vertM = (2 * doorH * dc) / 1000;
+      const horizM = (dw * dc) / 1000;
+      doorHardwarePrice =
+        vertM * profileRate(state.profile) + horizM * (profileRate('horizTop') + profileRate('horizBottom')) +
+        dividerM * profileRate('divider') +
+        (sliding ? dc * (cat.rollers?.pricePerSet || 0) + (spanW / 1000) * profileRate('track') : 0);
     }
 
     // Площадь коробов и планок (материал — корпус)

@@ -330,14 +330,6 @@
       "name": "Комплект роликов (на дверь)",
       "pricePerSet": 900
     },
-    "track": {
-      "name": "Направляющая верх+низ (за пог. м ширины проёма)",
-      "pricePerM": 200
-    },
-    "divider": {
-      "name": "Горизонтальная перемычка (за пог. м)",
-      "pricePerM": 200
-    },
     "fills": {
       "mirror": {
         "name": "Зеркало",
@@ -381,179 +373,229 @@
     },
     "profilePrices": [
       {
-        "profile": "open",
+        "element": "open",
         "color": "silver",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "open",
+        "element": "open",
         "color": "black",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "open",
+        "element": "open",
         "color": "white",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "open",
+        "element": "open",
         "color": "gold",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "open",
+        "element": "open",
         "color": "bronze",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "closed",
+        "element": "closed",
         "color": "silver",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "closed",
+        "element": "closed",
         "color": "black",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "closed",
+        "element": "closed",
         "color": "white",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "closed",
+        "element": "closed",
         "color": "gold",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "closed",
+        "element": "closed",
         "color": "bronze",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "slim",
+        "element": "slim",
         "color": "silver",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "slim",
+        "element": "slim",
         "color": "black",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "slim",
+        "element": "slim",
         "color": "white",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "slim",
+        "element": "slim",
         "color": "gold",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "slim",
+        "element": "slim",
         "color": "bronze",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "slimbox",
+        "element": "slimbox",
         "color": "silver",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "slimbox",
+        "element": "slimbox",
         "color": "black",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "slimbox",
+        "element": "slimbox",
         "color": "white",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "slimbox",
+        "element": "slimbox",
         "color": "gold",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "slimbox",
+        "element": "slimbox",
         "color": "bronze",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "widebox",
+        "element": "widebox",
         "color": "silver",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "widebox",
+        "element": "widebox",
         "color": "black",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "widebox",
+        "element": "widebox",
         "color": "white",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "widebox",
+        "element": "widebox",
         "color": "gold",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
       },
       {
-        "profile": "widebox",
+        "element": "widebox",
         "color": "bronze",
-        "vertPerM": 200,
-        "horizTopPerM": 200,
-        "horizBottomPerM": 200
+        "pricePerM": 200
+      },
+      {
+        "element": "horizTop",
+        "color": "silver",
+        "pricePerM": 200
+      },
+      {
+        "element": "horizTop",
+        "color": "black",
+        "pricePerM": 200
+      },
+      {
+        "element": "horizTop",
+        "color": "white",
+        "pricePerM": 200
+      },
+      {
+        "element": "horizTop",
+        "color": "gold",
+        "pricePerM": 200
+      },
+      {
+        "element": "horizTop",
+        "color": "bronze",
+        "pricePerM": 200
+      },
+      {
+        "element": "horizBottom",
+        "color": "silver",
+        "pricePerM": 200
+      },
+      {
+        "element": "horizBottom",
+        "color": "black",
+        "pricePerM": 200
+      },
+      {
+        "element": "horizBottom",
+        "color": "white",
+        "pricePerM": 200
+      },
+      {
+        "element": "horizBottom",
+        "color": "gold",
+        "pricePerM": 200
+      },
+      {
+        "element": "horizBottom",
+        "color": "bronze",
+        "pricePerM": 200
+      },
+      {
+        "element": "divider",
+        "color": "silver",
+        "pricePerM": 200
+      },
+      {
+        "element": "divider",
+        "color": "black",
+        "pricePerM": 200
+      },
+      {
+        "element": "divider",
+        "color": "white",
+        "pricePerM": 200
+      },
+      {
+        "element": "divider",
+        "color": "gold",
+        "pricePerM": 200
+      },
+      {
+        "element": "divider",
+        "color": "bronze",
+        "pricePerM": 200
+      },
+      {
+        "element": "track",
+        "color": "silver",
+        "pricePerM": 200
+      },
+      {
+        "element": "track",
+        "color": "black",
+        "pricePerM": 200
+      },
+      {
+        "element": "track",
+        "color": "white",
+        "pricePerM": 200
+      },
+      {
+        "element": "track",
+        "color": "gold",
+        "pricePerM": 200
+      },
+      {
+        "element": "track",
+        "color": "bronze",
+        "pricePerM": 200
       }
     ]
   },
