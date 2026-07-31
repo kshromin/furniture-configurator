@@ -8,12 +8,15 @@
 #   python catalog_import.py                 → окно выбора xlsx
 #   python catalog_import.py --in <path>     → без окна (для тестов/автоматизации)
 #
-# Что умеет СЕЙЧАС: обновление цен/полей существующих позиций по `_key`. Новые строки (без `_key`)
-# пока пропускаются с предупреждением — добавление новых позиций будет следующим шагом.
+# Умеет: (1) обновлять цены/поля существующих позиций по `_key`; (2) создавать НОВЫЕ позиции из
+# строк без `_key` на расширяемых листах (ЛДСП — с автосозданием кромок 16/32, Наполнение дверей —
+# стекло, Доп.элементы, Сетчатые полки, Корзины). На фиксированных листах (профили, направляющие,
+# фурнитура) новые строки пропускаются. id новых позиций — транслит имени (slugify).
 import json
 import os
 import sys
 import copy
+import re
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
@@ -37,6 +40,101 @@ SHEETS = {
 }
 # ключи-шаблоны (ручные/справочные) — не позиции, пропускаем при записи
 TEMPLATE_KEYS = {'dfill:special', 'addon:custom:manual'}
+
+REV_SURFACE = {label: key for key, label in [('korpus', 'корпус'), ('fasad', 'фасад'), ('fill', 'наполнение')]}
+REV_METAL = {'белый': 'white', 'серебро': 'silver', 'чёрный': 'black', 'черный': 'black'}
+
+_TR = {'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e', 'ж': 'zh', 'з': 'z',
+       'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r',
+       'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'h', 'ц': 'c', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch',
+       'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya'}
+
+
+def slugify(name, existing, prefix='item'):
+    """Стабильный ascii-id из имени (транслит), уникальный среди existing."""
+    s = ''.join(_TR.get(ch, ch if (ch.isascii() and ch.isalnum()) else ' ') for ch in str(name).lower())
+    s = re.sub(r'[^a-z0-9]+', '_', s).strip('_')[:24] or prefix
+    base, i = s, 2
+    while s in existing:
+        s = f'{base}_{i}'; i += 1
+    return s
+
+
+# ── Создатели НОВЫХ позиций (строка без _key) по имени листа ─────────────────────────────────
+def new_ldsp(data, vals, ctx):
+    surf = REV_SURFACE.get(str(vals[0] or '').strip().lower())
+    if not surf:
+        return f'{ctx}: неизвестная поверхность «{vals[0]}»'
+    name = str(vals[2] or '').strip()
+    if not name:
+        return f'{ctx}: пустое название цвета'
+    p = num(vals[3])
+    if p is None:
+        return f'{ctx}: цена не число'
+    prods = data[surf]['producers']
+    prod = next((x for x in prods if x['name'] == vals[1]), None)
+    if prod is None:
+        pid = slugify(vals[1] or 'prod', {x['id'] for x in prods}, 'prod')
+        prod = {'id': pid, 'name': str(vals[1] or pid), 'colors': []}
+        prods.append(prod)
+    cid = slugify(name, {c['id'] for c in prod['colors']}, 'col')
+    color = {'id': cid, 'name': name, 'color': '', 'pricePerM2': p,
+             'edgePerM16': 0, 'edgePerM32': 0}  # кромки заводятся пустыми (автосоздание §1.2)
+    if vals[4]:
+        color['texture'] = str(vals[4])
+    prod['colors'].append(color)
+    return None
+
+
+def new_dfill(data, vals, ctx):
+    if str(vals[0] or '').strip().lower() != 'стекло':
+        return f'{ctx}: новые строки допустимы только для стекла'
+    p = num(vals[2])
+    if p is None:
+        return f'{ctx}: цена не число'
+    cols = data['slidingDoor']['fills']['glass']['colors']
+    cid = slugify(vals[1], {c['id'] for c in cols}, 'glass')
+    cols.append({'id': cid, 'name': str(vals[1]), 'color': '#d9ecf0', 'pricePerM2': p})
+    return None
+
+
+def new_addon(data, vals, ctx):
+    manual = isinstance(vals[2], str) and vals[2].strip().lower() == MANUAL
+    p = MANUAL if manual else num(vals[2])
+    if p is None:
+        return f'{ctx}: цена не число'
+    g = next((x for x in data['extras'] if x['name'] == vals[0]), None)
+    if g is None:
+        return f'{ctx}: группа «{vals[0]}» не найдена'
+    iid = slugify(vals[1], {it['id'] for it in g['items']}, 'addon')
+    item = {'id': iid, 'name': str(vals[1]), 'price': 0 if manual else p}
+    if manual:
+        item['manual'] = True
+    g['items'].append(item)
+    return None
+
+
+def new_mesh(data, vals, ctx):
+    d, p = num(vals[1]), num(vals[3])
+    if d is None or p is None:
+        return f'{ctx}: глубина/цена не число'
+    color = REV_METAL.get(str(vals[2] or '').strip().lower(), vals[2])
+    data['meshShelf'].append({'depth': int(d), 'color': color, 'name': str(vals[0]), 'pricePerM': p})
+    return None
+
+
+def new_basket(data, vals, ctx):
+    n = [num(vals[0]), num(vals[1]), num(vals[2]), num(vals[4])]
+    if any(x is None for x in n):
+        return f'{ctx}: размеры/цена не число'
+    color = REV_METAL.get(str(vals[3] or '').strip().lower(), vals[3])
+    data['basket'].append({'width': int(n[0]), 'depth': int(n[1]), 'height': int(n[2]),
+                           'color': color, 'price': n[3]})
+    return None
+
+
+CREATORS = {'ЛДСП': new_ldsp, 'Наполнение дверей': new_dfill, 'Доп.элементы': new_addon,
+            'Сетчатые полки': new_mesh, 'Корзины': new_basket}
 
 
 def num(v):
@@ -191,7 +289,7 @@ def main():
     data = copy.deepcopy(original)
 
     wb = openpyxl.load_workbook(path, data_only=True)
-    errors, applied, skipped_new = [], 0, 0
+    errors, applied, created, skipped_new = [], 0, 0, 0
 
     for name, cfg in SHEETS.items():
         if name not in wb.sheetnames:
@@ -202,8 +300,18 @@ def main():
                 continue
             key = row[cfg['key'] - 1] if len(row) >= cfg['key'] else None
             if not key:
-                skipped_new += 1
-                continue  # новая строка без _key — пока не поддерживаем (следующий шаг)
+                # новая строка (без _key) — создать позицию, если лист это допускает
+                creator = CREATORS.get(name)
+                if not creator:
+                    skipped_new += 1
+                    continue
+                vals = list(row) + [None] * 10
+                err = creator(data, vals, f'{name}, строка {ri} (новая)')
+                if err:
+                    errors.append(err)
+                else:
+                    created += 1
+                continue
             price = row[cfg['price'] - 1] if cfg['price'] and len(row) >= cfg['price'] else None
             extra = {f: (row[c - 1] if len(row) >= c else None) for f, c in cfg.get('extra', {}).items()}
             err = apply_row(data, str(key), price, extra, f'{name}, строка {ri}')
@@ -229,7 +337,10 @@ def main():
     except Exception as e:
         print(f'ОШИБКА записи: {e}'); return 1
 
-    print(f'Готово: применено {applied} позиц., пропущено новых строк {skipped_new}.')
+    msg = f'Готово: обновлено {applied}, добавлено новых {created}'
+    if skipped_new:
+        msg += f', пропущено новых строк на нерасширяемых листах {skipped_new}'
+    print(msg + '.')
     print(f'Бэкап прежней версии: {os.path.basename(DST)}.bak')
     return 0
 
