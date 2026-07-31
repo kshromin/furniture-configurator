@@ -9,6 +9,7 @@ import {
 } from './core/tabs.js';
 import { addCurrentToOrder, renderOrderCards, bindOrderForm, hasUnsavedWork, requestLogout, refreshProcessIndicator } from './core/order.js';
 import { bindPrint } from './core/print.js';
+import { bindSpecExport } from './core/spec.js';
 import { renderExtras, bindExtras } from './core/extras.js';
 import { bindProjectsControls, openProjectsModal } from './core/projects.js';
 import { initAuth, bindLoginForm, auth } from './core/auth.js';
@@ -102,6 +103,7 @@ async function init() {
     if (hasUnsavedWork()) { e.preventDefault(); e.returnValue = ''; }
   });
   bindPrint();
+  bindSpecExport();
   renderExtras();
   bindExtras();
 
