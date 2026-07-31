@@ -266,12 +266,15 @@ def apply_row(data, key, price, extra, errctx):
 
 
 def main():
+    global IN_DIR
     import openpyxl
     args = sys.argv[1:]
     path = None
     if args and args[0] == '--in':
         path = args[1]
     else:
+        if len(args) >= 2 and args[0] == '--dir':  # папка, где искать файл (батник: Config\Выгрузки)
+            IN_DIR = args[1]
         try:
             import tkinter as tk
             from tkinter import filedialog

@@ -252,12 +252,16 @@ def build_workbook(data, chosen_keys):
 
 
 def main():
-    global OUT
+    global OUT, OUT_DIR
     args = sys.argv[1:]
     if args and args[0] == '--all':
         chosen = [k for k, _, _ in CATEGORIES]
         OUT = args[1] if len(args) > 1 else OUT
     else:
+        # --dir <папка>: куда по умолчанию сохранять (батник передаёт Config\Выгрузки)
+        if len(args) >= 2 and args[0] == '--dir':
+            OUT_DIR = args[1]
+            OUT = os.path.join(OUT_DIR, 'ассортимент.xlsx')
         chosen = choose_categories()
         if not chosen:
             print('Выгрузка отменена.'); return 1
