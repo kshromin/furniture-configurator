@@ -36,6 +36,20 @@ export function bindSpecExport() {
       ws['!cols'] = [{ wch: 5 }, { wch: 72 }, { wch: 14 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Спецификация');
+
+      // 2-й лист — разбивка по категориям (для проверки расчёта). Суммы = те же, что в панели
+      // цены приложения. У позиций, сохранённых до появления разбивки, ячейки пустые.
+      const CATS = [['korpus', 'Корпус'], ['fasad', 'Фасады'], ['fill', 'Наполнение'],
+        ['backWall', 'Задняя стенка'], ['fittings', 'Фурнитура'],
+        ['swingHw', 'Фурн. распашных'], ['kromka', 'Кромка']];
+      const bd = [['№', 'Наименование', ...CATS.map(c => c[1]), 'Итого']];
+      d.items.forEach((it, i) => {
+        const b = it.breakdown;
+        bd.push([i + 1, it.label, ...CATS.map(c => (b ? Math.round(b[c[0]] || 0) : '')), it.total]);
+      });
+      const wsB = XLSX.utils.aoa_to_sheet(bd);
+      wsB['!cols'] = [{ wch: 5 }, { wch: 50 }, ...CATS.map(() => ({ wch: 13 })), { wch: 13 }];
+      XLSX.utils.book_append_sheet(wb, wsB, 'Разбивка');
       const base = d.code || d.client?.name || 'спецификация';
       XLSX.writeFile(wb, `Спецификация_${base}.xlsx`);
     } catch (e) {

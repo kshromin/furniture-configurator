@@ -115,4 +115,10 @@ export function updatePrice(counts) {
   if (swEl) swEl.textContent = swingHwPrice > 0 ? fmt(swingHwPrice) : '—';
 
   state.lastTotal = total;
+  // Разбивка по категориям (те же суммы, что в панели цены) — для спецификации, вид «разбивка»
+  // (план Этап 4). Только стэш готовых значений, расчёт не меняем.
+  state.lastBreakdown = {
+    korpus: korpusPrice, fasad: fasadPrice, fill: fillPrice, backWall: backWallPrice,
+    fittings: fittingsPrice, swingHw: swingHwPrice, kromka: kromkaPrice, total,
+  };
 }
