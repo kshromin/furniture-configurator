@@ -37,18 +37,19 @@ export function bindSpecExport() {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Спецификация');
 
-      // 2-й лист — разбивка по категориям (для проверки расчёта). Суммы = те же, что в панели
-      // цены приложения. У позиций, сохранённых до появления разбивки, ячейки пустые.
-      const CATS = [['korpus', 'Корпус'], ['fasad', 'Фасады'], ['fill', 'Наполнение'],
-        ['backWall', 'Задняя стенка'], ['fittings', 'Фурнитура'],
-        ['swingHw', 'Фурн. распашных'], ['kromka', 'Кромка']];
-      const bd = [['№', 'Наименование', ...CATS.map(c => c[1]), 'Итого']];
+      // 2-й лист — детальная разбивка ПО ПОЗИЦИЯМ (наименование · кол-во · ед · цена · сумма).
+      // По каждой прорисовке комплекта — строка-заголовок (её № и итог), под ней компоненты.
+      // Суммы строятся из тех же величин, что и цена, поэтому Σ строк = итог позиции (в расчёте
+      // есть сверка). У прорисовок, сохранённых до появления разбивки, компонентов нет — только итог.
+      const bd = [['№', 'Наименование', 'Кол-во', 'Ед.', 'Цена ₽', 'Сумма ₽']];
       d.items.forEach((it, i) => {
-        const b = it.breakdown;
-        bd.push([i + 1, it.label, ...CATS.map(c => (b ? Math.round(b[c[0]] || 0) : '')), it.total]);
+        bd.push([`${i + 1}`, it.label, '', '', '', Math.round(it.total)]);
+        (it.lineItems || []).forEach(li => bd.push(['', '    ' + li.name, li.qty, li.unit, li.price ?? '', Math.round(li.sum)]));
       });
+      bd.push([]);
+      bd.push(['', 'ИТОГО', '', '', '', Math.round(d.grandTotal)]);
       const wsB = XLSX.utils.aoa_to_sheet(bd);
-      wsB['!cols'] = [{ wch: 5 }, { wch: 50 }, ...CATS.map(() => ({ wch: 13 })), { wch: 13 }];
+      wsB['!cols'] = [{ wch: 5 }, { wch: 52 }, { wch: 9 }, { wch: 8 }, { wch: 11 }, { wch: 12 }];
       XLSX.utils.book_append_sheet(wb, wsB, 'Разбивка');
       const base = d.code || d.client?.name || 'спецификация';
       XLSX.writeFile(wb, `Спецификация_${base}.xlsx`);

@@ -44,6 +44,7 @@ export function updatePrice(counts) {
     korpusM2 = 0, fasadM2 = 0, doorFillPrice = 0, doorHardwarePrice = 0,
     fillM2 = 0, backWallM2 = 0, backWallType = state.backWall,
     meshPrice = 0, basketPrice = 0, drawerSlidePrice = 0, edgeMm = null, mountPrice = 0,
+    fastenerCount = 0, embedCount = 0,
   } = type.areas(counts);
 
   const kMat = getColor('korpus');
@@ -121,4 +122,40 @@ export function updatePrice(counts) {
     korpus: korpusPrice, fasad: fasadPrice, fill: fillPrice, backWall: backWallPrice,
     fittings: fittingsPrice, swingHw: swingHwPrice, kromka: kromkaPrice, total,
   };
+
+  // ДЕТАЛЬНАЯ разбивка по позициям (спецификация, «наименование · кол-во · ед · цена · сумма»).
+  // Строится из тех же величин, что и цена выше, поэтому Σ строк == total (сверка в конце: любой
+  // остаток — строкой «Прочее»). Аддитивно, расчёт не меняем. Направляющие и профиль дверей пока
+  // одной строкой-группой — детализацию по типам/элементам добавим следующим шагом.
+  const li = [];
+  const push = (name, qty, unit, price, sum) => { if (Math.round(sum || 0) !== 0) li.push({ name, qty, unit, price, sum }); };
+  const doorsN = (counts.door || 0) + (counts.swingDoor || 0);
+  push('ЛДСП корпус' + (kMat.name ? ` (${kMat.name})` : ''), korpusM2, 'м²', kMat.pricePerM2 * thickMul, korpusM2 * kMat.pricePerM2 * thickMul);
+  push('Крепёж и встройка (скрытые)', fastenerCount + embedCount, 'шт', null, mountPrice);
+  push('ЛДСП фасад' + (fMat.name ? ` (${fMat.name})` : ''), fasadM2, 'м²', fMat.pricePerM2, fasadM2 * fMat.pricePerM2);
+  push('Наполнение дверей', doorsN, 'дв.', null, doorFillPrice);
+  push('ЛДСП наполнение' + (nMat.name ? ` (${nMat.name})` : ''), fillM2, 'м²', nMat.pricePerM2 * thickMul, fillM2 * nMat.pricePerM2 * thickMul);
+  push('Сетчатые полки', counts.meshShelf || 0, 'шт', null, meshPrice);
+  push('Корзины', counts.basket || 0, 'шт', null, basketPrice);
+  push('Задняя стенка', backWallM2, 'м²', null, backWallPrice);
+  push('Направляющие ящиков', counts.drawer || 0, 'компл', null, drawerSlidePrice);
+  push('Профиль и фурнитура дверей купе', counts.door || 0, 'дв.', null, doorHardwarePrice);
+  (materials.fittings || []).forEach(f => {
+    const n = f.per === 'front' ? (counts.door || 0) + (counts.drawer || 0) : (counts[f.per] || 0);
+    push(f.name, n, 'шт', f.price, f.price * n);
+  });
+  push(materials.swingDoorHardware?.name || 'Фурнитура распашных дверей', counts.swingDoor || 0, 'дв.', materials.swingDoorHardware?.pricePerDoor, swingHwPrice);
+  if (edgeMm) {
+    [['Кромка 16 (корпус)', edgeMm.korpus16, edgeRate(kMat, 16)],
+     ['Кромка 32 (корпус)', edgeMm.korpus32, edgeRate(kMat, 32)],
+     ['Кромка 16 (фасад)',  edgeMm.fasad16,  edgeRate(fMat, 16)],
+     ['Кромка 32 (фасад)',  edgeMm.fasad32,  edgeRate(fMat, 32)],
+     ['Кромка 16 (наполнение)', edgeMm.fill16, edgeRate(nMat, 16)],
+     ['Кромка 32 (наполнение)', edgeMm.fill32, edgeRate(nMat, 32)],
+    ].forEach(([nm, mm, rate]) => push(nm, +(mm / 1000).toFixed(2), 'пог.м', rate, (mm / 1000) * rate));
+  }
+  const liSum = li.reduce((s, x) => s + x.sum, 0);
+  const diff = total - liSum;
+  if (Math.round(diff) !== 0) push('Прочее (сверка расчёта)', '', '', null, diff);
+  state.lastLineItems = li;
 }

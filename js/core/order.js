@@ -167,12 +167,14 @@ export function describeConfig() {
 export function addCurrentToOrder() {
   const snap = JSON.parse(JSON.stringify(state));
   const breakdown = state.lastBreakdown ? { ...state.lastBreakdown } : null; // разбивка по категориям
+  const lineItems = state.lastLineItems ? state.lastLineItems.map(x => ({ ...x })) : null; // по позициям
   if (editingItemId !== null) {
     const idx = orderItems.findIndex(it => it.id === editingItemId);
     if (idx !== -1) {
       orderItems[idx].label    = describeConfig();
       orderItems[idx].total    = state.lastTotal || 0;
       orderItems[idx].breakdown = breakdown;
+      orderItems[idx].lineItems = lineItems;
       orderItems[idx].snapshot = snap;
       displayedItemId = editingItemId;
     }
@@ -180,7 +182,7 @@ export function addCurrentToOrder() {
     document.getElementById('addItemBtn').textContent = '+ Добавить в прорисовки';
   } else {
     const id = Date.now();
-    orderItems.push({ id, label: describeConfig(), total: state.lastTotal || 0, breakdown, snapshot: snap });
+    orderItems.push({ id, label: describeConfig(), total: state.lastTotal || 0, breakdown, lineItems, snapshot: snap });
     displayedItemId = id;
   }
   itemsSavedToProject = false;
@@ -198,6 +200,7 @@ export function updateDisplayedItem() {
   item.label = describeConfig();
   item.total = state.lastTotal || 0;
   item.breakdown = state.lastBreakdown ? { ...state.lastBreakdown } : null;
+  item.lineItems = state.lastLineItems ? state.lastLineItems.map(x => ({ ...x })) : null;
   item.snapshot = JSON.parse(JSON.stringify(state));
   itemsSavedToProject = false; // комплект изменился относительно сохранённого проекта (если открыт)
   markStateSafe();
@@ -270,8 +273,8 @@ async function guardUnsavedItems(discardLabel, proceed) {
 // клиент/№ открытого проекта. Пустой комплект печатает текущую конфигурацию одной позицией.
 export function getPrintData() {
   const items = orderItems.length > 0
-    ? orderItems.map(it => ({ label: it.label, total: it.total, breakdown: it.breakdown || null }))
-    : [{ label: describeConfig(), total: state.lastTotal || 0, breakdown: state.lastBreakdown ? { ...state.lastBreakdown } : null }];
+    ? orderItems.map(it => ({ label: it.label, total: it.total, breakdown: it.breakdown || null, lineItems: it.lineItems || null }))
+    : [{ label: describeConfig(), total: state.lastTotal || 0, breakdown: state.lastBreakdown ? { ...state.lastBreakdown } : null, lineItems: state.lastLineItems ? state.lastLineItems.map(x => ({ ...x })) : null }];
   // Номер позиции (1-based), чей снапшот сейчас показан в 3D, — картинка в печати соответствует
   // именно ей; null — на экране несохранённая конфигурация либо позиция не определена.
   const idx = orderItems.findIndex(it => it.id === displayedItemId);
