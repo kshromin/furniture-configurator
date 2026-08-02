@@ -44,7 +44,7 @@ export function updatePrice(counts) {
     korpusM2 = 0, fasadM2 = 0, doorFillPrice = 0, doorHardwarePrice = 0,
     fillM2 = 0, backWallM2 = 0, backWallType = state.backWall,
     meshPrice = 0, basketPrice = 0, drawerSlidePrice = 0, edgeMm = null, mountPrice = 0,
-    fastenerCount = 0, embedCount = 0,
+    fastenerCount = 0, embedCount = 0, rodMeterM = 0,
   } = type.areas(counts);
 
   const kMat = getColor('korpus');
@@ -79,10 +79,16 @@ export function updatePrice(counts) {
   // doorHardwarePrice — профиль/ролики/направляющая дверей купе (лумп-сумма из wardrobe.js
   // areas(), та же схема, что и drawerSlidePrice): вертикальные и горизонтальные профили по
   // пог. м с учётом вида и цвета, ролики за дверь, направляющая за пог. м ширины проёма.
+  // Штанга — погонными метрами (materials.rod ₽/пог.м). Доводчик двери купе — по выбору
+  // пользователя: state.doorSoftClose — массив индексов дверей купе с доводчиком, 1 на дверь.
+  const rodPrice = rodMeterM * (materials.rod?.pricePerM || 0);
+  const softCloseCount = state.fasadDoorType === 'sliding'
+    ? (state.doorSoftClose || []).filter(i => i < (counts.door || 0)).length : 0;
+  const softClosePrice = softCloseCount * (materials.doorSoftClose?.pricePerDoor || 0);
   const fittingsPrice = (materials.fittings || []).reduce((sum, f) => {
     const n = f.per === 'front' ? counts.door + counts.drawer : (counts[f.per] || 0);
     return sum + f.price * n;
-  }, 0) + drawerSlidePrice + doorHardwarePrice;
+  }, 0) + drawerSlidePrice + doorHardwarePrice + rodPrice + softClosePrice;
   // Фурнитура распашных дверей — отдельная позиция по счётчику swingDoor (купейные rail/ручка
   // на распашные не начисляются, см. counts в wardrobe-geometry.js). 500₽/дверь — заглушка,
   // реальная цена будет уточнена.
@@ -154,10 +160,12 @@ export function updatePrice(counts) {
   push('Задняя стенка', backWallM2, 'м²', null, backWallPrice);
   push('Направляющие ящиков', counts.drawer || 0, 'компл', null, drawerSlidePrice);
   push('Профиль и фурнитура дверей купе', counts.door || 0, 'дв.', null, doorHardwarePrice);
+  push(materials.rod?.name || 'Штанга для одежды', +rodMeterM.toFixed(2), 'пог.м', materials.rod?.pricePerM, rodPrice);
   (materials.fittings || []).forEach(f => {
     const n = f.per === 'front' ? (counts.door || 0) + (counts.drawer || 0) : (counts[f.per] || 0);
     push(f.name, n, 'шт', f.price, f.price * n);
   });
+  push(materials.doorSoftClose?.name || 'Доводчик двери купе', softCloseCount, 'дв.', materials.doorSoftClose?.pricePerDoor, softClosePrice);
   push(materials.swingDoorHardware?.name || 'Фурнитура распашных дверей', counts.swingDoor || 0, 'дв.', materials.swingDoorHardware?.pricePerDoor, swingHwPrice);
 
   // Кромка — по ЦВЕТУ (+ толщина 16/32), без раскладки корпус/фасад/наполнение.

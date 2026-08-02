@@ -216,24 +216,6 @@
   },
   "fittings": [
     {
-      "id": "hardware_set",
-      "name": "Крепёж и доводчики (на изделие)",
-      "price": 500,
-      "per": "item"
-    },
-    {
-      "id": "shelf_support",
-      "name": "Опоры полки (компл.)",
-      "price": 150,
-      "per": "shelf"
-    },
-    {
-      "id": "rod",
-      "name": "Штанга для одежды",
-      "price": 400,
-      "per": "rod"
-    },
-    {
       "id": "rod_flange",
       "name": "Фланец крепления трубы",
       "price": 50,
@@ -252,6 +234,14 @@
       "per": "valet"
     }
   ],
+  "rod": {
+    "name": "Штанга для одежды",
+    "pricePerM": 400
+  },
+  "doorSoftClose": {
+    "name": "Доводчик двери купе",
+    "pricePerDoor": 500
+  },
   "swingDoorHardware": {
     "name": "Фурнитура распашной двери (компл.)",
     "pricePerDoor": 500

@@ -391,11 +391,15 @@ export default {
     });
     const mountPrice = fastenerCount * 100 + embedCount * 300;
 
+    // Штанга для одежды — погонными метрами (ширина секции × число штанг в ней), цена ₽/пог.м
+    // (materials.rod), а не за штуку. Фланцы/крабы — по-прежнему штуками (в fittings).
+    const rodMeterM = sections.reduce((s, sec) => s + sec.items.filter(it => it.type === 'rod').length * sec.width, 0) / 1000;
+
     return {
       korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2 + extraKorpusM2,
       fasadM2, doorFillPrice, doorHardwarePrice,
       fillM2: fillM2 + extraFillM2, backWallM2, backWallType, meshPrice, basketPrice, drawerSlidePrice,
-      edgeMm,
+      edgeMm, rodMeterM,
       mountPrice, fastenerCount, embedCount, // для будущей спецификации
     };
   },
