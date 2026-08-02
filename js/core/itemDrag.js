@@ -172,14 +172,30 @@ function describeActive() {
     // та же формула, что и в общей цене (wardrobe.js areas).
     const p = L ? (swing ? swingDoorUnitPrice(active.doorIndex, L.doorW, L.doorH)
                          : slidingDoorUnitPrice(active.doorIndex, L.doorW, L.doorH)) : null;
+    // Доводчик — только у дверей КУПЕ, ставится/снимается пользователем на конкретную дверь
+    // (state.doorSoftClose — массив индексов дверей с доводчиком). Цена — за дверь (materials.doorSoftClose).
+    const softOn = !swing && (state.doorSoftClose || []).includes(active.doorIndex);
+    const softPrice = materials.doorSoftClose?.pricePerDoor || 0;
+    const shownTotal = p ? p.total + (softOn ? softPrice : 0) : null;
     return {
       title: `Дверь ${active.doorIndex + 1}`,
       lines: [
         ...(swing ? [] : [`Рельса: ${L?.rails[active.doorIndex] === 'front' ? 'передняя' : 'задняя'}`]),
         ...(L ? [`Ширина: ${Math.round(L.doorW)} мм`] : []),
         `Профиль: ${profName}, ${profColor.toLowerCase()}`,
-        ...(p ? [`<b>Цена двери: ${fmt(Math.round(p.total))}</b>`] : []),
+        ...(softOn ? [`+ доводчик (${fmt(softPrice)})`] : []),
+        ...(shownTotal != null ? [`<b>Цена двери: ${fmt(Math.round(shownTotal))}</b>`] : []),
       ],
+      // Доводчик — тумблер только у купе (у распашных нет).
+      actions: swing ? [] : [{
+        label: softOn ? 'Убрать доводчик' : '+ Доводчик',
+        onClick: () => {
+          const arr = state.doorSoftClose || (state.doorSoftClose = []);
+          const i = arr.indexOf(active.doorIndex);
+          if (i >= 0) arr.splice(i, 1); else arr.push(active.doorIndex);
+          refreshActive();
+        },
+      }],
     };
   }
   switch (itemType) {
