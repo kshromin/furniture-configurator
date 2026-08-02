@@ -292,6 +292,7 @@ export function syncUIFromState() {
     b.classList.toggle('active', b.dataset.thick === (state.panel32 ? '32' : '16'));
   });
   syncThick32Details();
+  syncEmbedDetails();
   // На случай, если пресет/загруженная позиция заказа принесла несовместимую комбинацию
   // (задняя стенка + снятая стойка/крыша/дно) — блокирует кнопки и сбрасывает стенку так же,
   // как и ручное снятие галочки на вкладке «Внешнее».
@@ -777,6 +778,19 @@ export function bindThickness() {
       renderSectionsList();
     });
   });
+
+  // Встройка корпусных панелей — галочки «Опции» (полки — тумблером в 3D, см. itemDrag.js).
+  document.querySelectorAll('.embed-cb').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (!state.embed) state.embed = {};
+      state.embed[cb.dataset.key] = cb.checked;
+      buildFurniture();
+    });
+  });
+}
+
+export function syncEmbedDetails() {
+  document.querySelectorAll('.embed-cb').forEach(cb => { cb.checked = !!state.embed?.[cb.dataset.key]; });
 }
 
 export function bindBackWall() {

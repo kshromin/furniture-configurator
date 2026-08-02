@@ -179,6 +179,9 @@ export const state = {
   showDoors: true,
   panel32: false,             // true = все детали ЛДСП 32мм (цена ×2, кромка ×3)
   thick32: { left: false, right: false, top: false, bottom: false, dividers: false },
+  // Встройка (крепёж детали «в проём», +300 ₽) — по выбору пользователя (галочки «Опции» для
+  // корпусных панелей + тумблер по выделению полки в 3D, item.embed). По умолчанию нет нигде.
+  embed: { left: false, right: false, top: false, bottom: false, dividers: false },
   backWall: 'none',           // none | ldsp | hdf
   plinthEnabled: true,
   plinthHeight: 50,

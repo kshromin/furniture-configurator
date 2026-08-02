@@ -205,12 +205,13 @@ function describeActive() {
         lines: [
           ...(item.pinned ? ['С планкой жёсткости снизу'] : []),
           `Толщина: ${item.thick32 ? 32 : 16} мм`,
+          ...(item.embed ? ['+ встройка (+300 ₽)'] : []),
         ],
-        // Тумблер толщины прямо в инфопанели — «по выделению», как просил пользователь.
-        actions: [{
-          label: item.thick32 ? 'Сделать 16 мм' : 'Сделать 32 мм',
-          onClick: () => { item.thick32 = !item.thick32; refreshActive(); },
-        }],
+        // Тумблеры прямо в инфопанели — «по выделению», как просил пользователь.
+        actions: [
+          { label: item.thick32 ? 'Сделать 16 мм' : 'Сделать 32 мм', onClick: () => { item.thick32 = !item.thick32; refreshActive(); } },
+          { label: item.embed ? 'Убрать встройку' : '+ Встройка', onClick: () => { item.embed = !item.embed; refreshActive(); } },
+        ],
       };
     case 'rod':
       return {

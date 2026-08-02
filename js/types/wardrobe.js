@@ -393,14 +393,12 @@ export default {
       if (backWallM2 > 0) backWallType = 'ldsp';
     }
 
-    // ---------- крепёж и встройка (скрытые позиции, нигде не отображаются — только в
-    // стоимость; в будущей спецификации выйдут отдельными строками) ----------
-    // Крепёж 100₽ — к КАЖДОЙ детали ЛДСП. Встройка 300₽ — к деталям без двух сторон
-    // крепления: полки/крыша/дно, у которых сбоку нет стойки (встроенные в проём).
+    // ---------- крепёж и встройка ----------
+    // Крепёж 100₽ — к КАЖДОЙ детали ЛДСП (по умолчанию). Встройка 300₽ — ПО ВЫБОРУ пользователя:
+    // корпусные панели — галочки «Опции» (state.embed), полки — тумблер по выделению (item.embed).
     let fastenerCount = 0, embedCount = 0;
-    const sideMissing = noSideLeft || noSideRight;
-    if (!noBottom)  { fastenerCount++; if (sideMissing) embedCount++; } // дно
-    if (!noCeiling) { fastenerCount++; if (sideMissing) embedCount++; } // крыша
+    if (!noBottom)  fastenerCount++; // дно
+    if (!noCeiling) fastenerCount++; // крыша
     if (!noSideLeft)  fastenerCount++;                                  // стойки
     if (!noSideRight) fastenerCount++;
     fastenerCount += sections.length - 1;                               // перегородки
@@ -419,11 +417,17 @@ export default {
       if (state.backWall !== 'ldsp') fastenerCount++;                   // планка жёсткости
       const shelfCount = countOf(sec, 'shelf');
       fastenerCount += shelfCount;                                      // полки
-      // полка в крайней секции без боковой стойки — встроенная
-      if (sectionMissingSideSupport(sections, s)) embedCount += shelfCount;
+      embedCount += sec.items.filter(it => it.type === 'shelf' && it.embed).length; // встройка полки — флаг item.embed
       // ящики (если стоят) — сборная тумба, крепёж как одна деталь
       if (!sectionMissingSideSupport(sections, s)) fastenerCount += countOf(sec, 'drawer');
     });
+    // Встройка корпусных панелей — по галочкам «Опции» (только у реально стоящих деталей).
+    const emb = state.embed || {};
+    if (!noBottom && emb.bottom) embedCount++;
+    if (!noCeiling && emb.top) embedCount++;
+    if (!noSideLeft && emb.left) embedCount++;
+    if (!noSideRight && emb.right) embedCount++;
+    if (emb.dividers) embedCount += sections.length - 1;
     const mountPrice = fastenerCount * 100 + embedCount * 300;
 
     // Штанга для одежды — погонными метрами (ширина секции × число штанг в ней), цена ₽/пог.м
