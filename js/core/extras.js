@@ -31,8 +31,11 @@ function renderItems() {
 
 function updatePriceRow() {
   const item = currentItem();
+  const manual = !!item?.manual; // «заказная» позиция — цену и имя вводит пользователь
+  document.getElementById('extraManualFields').style.display = manual ? '' : 'none';
   const qty = Math.max(1, Number(document.getElementById('extraQty').value) || 1);
-  document.getElementById('extraPrice').textContent = item ? fmt(item.price * qty) : '0 ₽';
+  const price = manual ? (Number(document.getElementById('extraManualPrice').value) || 0) : (item ? item.price : 0);
+  document.getElementById('extraPrice').textContent = fmt(price * qty);
 }
 
 export function renderExtras() {
@@ -51,18 +54,27 @@ export function bindExtras() {
   document.getElementById('extraCategory').addEventListener('change', renderItems);
   document.getElementById('extraItem').addEventListener('change', updatePriceRow);
   document.getElementById('extraQty').addEventListener('input', updatePriceRow);
+  document.getElementById('extraManualPrice').addEventListener('input', updatePriceRow);
 
   document.getElementById('extraAddBtn').addEventListener('click', () => {
     const item = currentItem();
     if (!item) return;
     const qty = Math.max(1, Number(document.getElementById('extraQty').value) || 1);
-    const label = qty > 1 ? `${item.name} × ${qty}` : item.name;
-    addExtraItem(label, item.price * qty);
-
     const result = document.getElementById('extraResult');
-    result.textContent = `Добавлено: ${label} — ${fmt(item.price * qty)}`;
+    let name = item.name, price = item.price;
+    if (item.manual) { // «заказная» позиция — берём название и цену из полей
+      name = document.getElementById('extraManualName').value.trim();
+      price = Number(document.getElementById('extraManualPrice').value) || 0;
+      if (!name) { result.textContent = 'Укажите название заказной позиции'; return; }
+      if (price <= 0) { result.textContent = 'Укажите цену (больше 0)'; return; }
+    }
+    const label = qty > 1 ? `${name} × ${qty}` : name;
+    addExtraItem(label, price * qty);
+
+    result.textContent = `Добавлено: ${label} — ${fmt(price * qty)}`;
     setTimeout(() => { result.textContent = ''; }, 3000);
     document.getElementById('extraQty').value = 1;
+    if (item.manual) { document.getElementById('extraManualName').value = ''; document.getElementById('extraManualPrice').value = 0; }
     updatePriceRow();
   });
 }
