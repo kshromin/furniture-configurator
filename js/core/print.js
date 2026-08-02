@@ -151,4 +151,51 @@ export function bindPrint() {
     document.body.classList.add('printing');
     try { window.print(); } finally { document.body.classList.remove('printing'); }
   });
+
+  // «Сохранить в PDF» (задание «печать в файл 29,07») — сохранить смету файлом локально, а не
+  // гонять через системный диалог печати. Лист сметы рендерит браузер (кириллица «из коробки»),
+  // снимаем его html2canvas → кладём картинкой в jsPDF (у самого jsPDF без встроенного шрифта
+  // кириллицы нет). Библиотеки грузим лениво по клику (в importmap, CDN).
+  document.getElementById('printSavePdf').addEventListener('click', async e => {
+    const btn = e.currentTarget;
+    const old = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Готовим PDF…';
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')]);
+      const sheet = document.getElementById('printSheet');
+      const canvas = await html2canvas(sheet, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+      const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const availW = pageW - margin * 2;
+      const imgH = availW * canvas.height / canvas.width; // высота картинки в мм при ширине availW
+      const usableH = pageH - margin * 2;
+
+      // Одна страница или несколько: тайлим одну высокую картинку со сдвигом по Y.
+      let heightLeft = imgH;
+      let position = margin;
+      pdf.addImage(imgData, 'JPEG', margin, position, availW, imgH);
+      heightLeft -= usableH;
+      while (heightLeft > 0) {
+        position = margin - (imgH - heightLeft);
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', margin, position, availW, imgH);
+        heightLeft -= usableH;
+      }
+
+      const d = getPrintData();
+      const base = d.code || d.client?.name || 'смета';
+      pdf.save(`Смета_${base}.pdf`);
+    } catch (err) {
+      console.error('save pdf failed:', err);
+      window.alert('Не удалось сохранить PDF: ' + (err.message || err));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = old;
+    }
+  });
 }
