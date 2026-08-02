@@ -41,7 +41,7 @@ const BACK_WALL_RATE = { ldsp: 2000, hdf: 500 };
 export function updatePrice(counts) {
   const type = TYPES[state.type] || TYPES['wardrobe'];
   const {
-    korpusM2 = 0, fasadM2 = 0, doorFillPrice = 0, doorHardwarePrice = 0,
+    korpusM2 = 0, fasadM2 = 0, doorFillPrice = 0, doorHardwarePrice = 0, doorLines = [],
     fillM2 = 0, backWallM2 = 0, backWallType = state.backWall,
     meshPrice = 0, basketPrice = 0, drawerSlidePrice = 0, edgeMm = null, mountPrice = 0,
     fastenerCount = 0, embedCount = 0, rodMeterM = 0,
@@ -154,12 +154,13 @@ export function updatePrice(counts) {
 
   push('Крепёж (за деталь)', fastenerCount, 'дет.', 100, fastenerCount * 100);
   push('Встройка в проём (за деталь)', embedCount, 'дет.', 300, embedCount * 300);
-  push('Наполнение дверей', doorsN, 'дв.', null, doorFillPrice);
+  // Наполнение и профиль дверей — детально по позициям (из areas().doorLines): зеркало/стекло по м²,
+  // вертикали/горизонтали/перемычки/направляющая по пог.м, ролики — компл.
+  (doorLines || []).forEach(l => push(l.name, l.qty, l.unit, l.price, l.sum));
   push('Сетчатые полки', counts.meshShelf || 0, 'шт', null, meshPrice);
   push('Корзины', counts.basket || 0, 'шт', null, basketPrice);
   push('Задняя стенка', backWallM2, 'м²', null, backWallPrice);
   push('Направляющие ящиков', counts.drawer || 0, 'компл', null, drawerSlidePrice);
-  push('Профиль и фурнитура дверей купе', counts.door || 0, 'дв.', null, doorHardwarePrice);
   push(materials.rod?.name || 'Штанга для одежды', +rodMeterM.toFixed(2), 'пог.м', materials.rod?.pricePerM, rodPrice);
   (materials.fittings || []).forEach(f => {
     const n = f.per === 'front' ? (counts.door || 0) + (counts.drawer || 0) : (counts[f.per] || 0);

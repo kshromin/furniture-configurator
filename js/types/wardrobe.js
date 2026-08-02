@@ -138,10 +138,13 @@ export default {
     // направляющая верх+низ на всю ширину проёма (пог. м). Вид профиля и цвет — общие на все
     // двери (state.profile/profileColor), цены — прайс profilePrices по сочетанию профиль×цвет.
     let doorHardwarePrice = 0;
+    const doorLines = []; // детальные строки дверей (наполнение по видам + профиль по элементам) для спецификации
     if (state.fasadDoorType !== 'none') {
       const sliding = state.fasadDoorType === 'sliding';
       const globalFill = state.doorFill; // и купе, и распашные — выбранное наполнение (не форсим ЛДСП)
       let dividerM = 0;
+      const fillAgg = new Map(); // вид наполнения -> { m2, cost } (для строк «Наполнение дверей: <вид>»)
+      const addFill = (kind, m2, rate) => { const e = fillAgg.get(kind) || { m2: 0, cost: 0 }; e.m2 += m2; e.cost += m2 * rate; fillAgg.set(kind, e); };
       for (let i = 0; i < dc; i++) {
         const custom = state.doorCustom?.[i]; // индивидуальные перемычки/наполнение — у обоих типов
         const oneDoorM2 = (dw * doorH) / 1e6;
@@ -149,22 +152,43 @@ export default {
         if (custom) {
           const { segments, dividers } = doorCustomSegments(custom, doorH);
           const totalH = segments.reduce((s, x) => s + x.hMm, 0) || 1;
-          segments.forEach(sgm => { doorFillPrice += oneDoorM2 * (sgm.hMm / totalH) * fillRate(sgm.fill || globalFill, sgm.special, sgm.fillColor); });
+          segments.forEach(sgm => {
+            const kind = sgm.fill || globalFill;
+            const rate = fillRate(kind, sgm.special, sgm.fillColor);
+            const m2 = oneDoorM2 * (sgm.hMm / totalH);
+            doorFillPrice += m2 * rate; addFill(kind, m2, rate);
+          });
           dividerM += (dividers.length * dw) / 1000;
         } else {
-          doorFillPrice += oneDoorM2 * fillRate(globalFill, null, null);
+          const rate = fillRate(globalFill, null, null);
+          doorFillPrice += oneDoorM2 * rate; addFill(globalFill, oneDoorM2, rate);
         }
       }
+      // Строки наполнения дверей по видам (зеркало/стекло/спеццвет/ЛДСП)
+      const FILL_NAME = { mirror: 'Зеркало', glass: 'Стекло', special: 'Спеццвет', ldsp: 'ЛДСП' };
+      fillAgg.forEach((e, kind) => doorLines.push({ name: `Наполнение дверей: ${FILL_NAME[kind] || kind}`, qty: +e.m2.toFixed(2), unit: 'м²', price: e.m2 ? Math.round(e.cost / e.m2) : null, sum: e.cost }));
       // Профиль двери (вертикали + горизонтали + перемычки) — у купе И распашных. Ролики и
       // направляющая — только у купе; у распашных вместо них комплект распашной двери (отдельная
       // строка «Фурнитура распашных дверей» по swingDoorHardware, см. pricing.js).
       const cat = materials.slidingDoor || {};
       const vertM = (2 * doorH * dc) / 1000;
       const horizM = (dw * dc) / 1000;
+      const pr = el => profileRate(el);
+      const trackM = spanW / 1000;
       doorHardwarePrice =
-        vertM * profileRate(state.profile) + horizM * (profileRate('horizTop') + profileRate('horizBottom')) +
-        dividerM * profileRate('divider') +
-        (sliding ? dc * (cat.rollers?.pricePerSet || 0) + (spanW / 1000) * profileRate('track') : 0);
+        vertM * pr(state.profile) + horizM * (pr('horizTop') + pr('horizBottom')) +
+        dividerM * pr('divider') +
+        (sliding ? dc * (cat.rollers?.pricePerSet || 0) + trackM * pr('track') : 0);
+      // Строки профиля по элементам
+      const pushP = (name, m, el) => { if (m > 0) doorLines.push({ name, qty: +m.toFixed(2), unit: 'пог.м', price: pr(el), sum: m * pr(el) }); };
+      pushP('Профиль вертикальный', vertM, state.profile);
+      pushP('Профиль горизонт. верх', horizM, 'horizTop');
+      pushP('Профиль горизонт. низ', horizM, 'horizBottom');
+      pushP('Профиль перемычек', dividerM, 'divider');
+      if (sliding) {
+        pushP('Направляющая дверей', trackM, 'track');
+        if (dc > 0 && cat.rollers?.pricePerSet) doorLines.push({ name: cat.rollers.name || 'Ролики (на дверь)', qty: dc, unit: 'компл', price: cat.rollers.pricePerSet, sum: dc * cat.rollers.pricePerSet });
+      }
     }
 
     // Площадь коробов и планок (материал — корпус)
@@ -397,7 +421,7 @@ export default {
 
     return {
       korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2 + extraKorpusM2,
-      fasadM2, doorFillPrice, doorHardwarePrice,
+      fasadM2, doorFillPrice, doorHardwarePrice, doorLines,
       fillM2: fillM2 + extraFillM2, backWallM2, backWallType, meshPrice, basketPrice, drawerSlidePrice,
       edgeMm, rodMeterM,
       mountPrice, fastenerCount, embedCount, // для будущей спецификации
