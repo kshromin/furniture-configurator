@@ -143,8 +143,21 @@ export default {
       const sliding = state.fasadDoorType === 'sliding';
       const globalFill = state.doorFill; // и купе, и распашные — выбранное наполнение (не форсим ЛДСП)
       let dividerM = 0;
-      const fillAgg = new Map(); // вид наполнения -> { m2, cost } (для строк «Наполнение дверей: <вид>»)
-      const addFill = (kind, m2, rate) => { const e = fillAgg.get(kind) || { m2: 0, cost: 0 }; e.m2 += m2; e.cost += m2 * rate; fillAgg.set(kind, e); };
+      const fillAgg = new Map(); // строка наполнения (с цветом/названием) -> { m2, cost }
+      // Название строки наполнения с ЦВЕТОМ/названием: стекло — цвет из каталога, ЛДСП — цвет фасада,
+      // спеццвет — введённое пользователем название (задание: показывать цвет и имя спеццвета).
+      const glassName = id => (materials.slidingDoor?.fills?.glass?.colors || []).find(c => c.id === (id || state.doorGlassColor))?.name || '';
+      const fasadName = id => {
+        const prod = (materials.fasad?.producers || []).find(p => p.id === state.fasadProducer);
+        return (prod?.colors || []).find(x => x.id === (id || state.fasadId))?.name || getColor('fasad').name || '';
+      };
+      const fillLineName = (kind, special, colorId) => {
+        if (kind === 'mirror') return 'Наполнение дверей: Зеркало';
+        if (kind === 'glass') return ('Наполнение дверей: Стекло ' + glassName(colorId)).trim();
+        if (kind === 'special') return `Наполнение дверей: спеццвет «${special?.name || state.specialFillName || 'без названия'}»`;
+        return ('Наполнение дверей: ЛДСП ' + fasadName(colorId)).trim();
+      };
+      const addFill = (name, m2, rate) => { const e = fillAgg.get(name) || { m2: 0, cost: 0 }; e.m2 += m2; e.cost += m2 * rate; fillAgg.set(name, e); };
       for (let i = 0; i < dc; i++) {
         const custom = state.doorCustom?.[i]; // индивидуальные перемычки/наполнение — у обоих типов
         const oneDoorM2 = (dw * doorH) / 1e6;
@@ -156,17 +169,15 @@ export default {
             const kind = sgm.fill || globalFill;
             const rate = fillRate(kind, sgm.special, sgm.fillColor);
             const m2 = oneDoorM2 * (sgm.hMm / totalH);
-            doorFillPrice += m2 * rate; addFill(kind, m2, rate);
+            doorFillPrice += m2 * rate; addFill(fillLineName(kind, sgm.special, sgm.fillColor), m2, rate);
           });
           dividerM += (dividers.length * dw) / 1000;
         } else {
           const rate = fillRate(globalFill, null, null);
-          doorFillPrice += oneDoorM2 * rate; addFill(globalFill, oneDoorM2, rate);
+          doorFillPrice += oneDoorM2 * rate; addFill(fillLineName(globalFill, null, null), oneDoorM2, rate);
         }
       }
-      // Строки наполнения дверей по видам (зеркало/стекло/спеццвет/ЛДСП)
-      const FILL_NAME = { mirror: 'Зеркало', glass: 'Стекло', special: 'Спеццвет', ldsp: 'ЛДСП' };
-      fillAgg.forEach((e, kind) => doorLines.push({ name: `Наполнение дверей: ${FILL_NAME[kind] || kind}`, qty: +e.m2.toFixed(2), unit: 'м²', price: e.m2 ? Math.round(e.cost / e.m2) : null, sum: e.cost }));
+      fillAgg.forEach((e, name) => doorLines.push({ name, qty: +e.m2.toFixed(2), unit: 'м²', price: e.m2 ? Math.round(e.cost / e.m2) : null, sum: e.cost }));
       // Профиль двери (вертикали + горизонтали + перемычки) — у купе И распашных. Ролики и
       // направляющая — только у купе; у распашных вместо них комплект распашной двери (отдельная
       // строка «Фурнитура распашных дверей» по swingDoorHardware, см. pricing.js).
