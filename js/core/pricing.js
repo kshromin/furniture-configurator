@@ -130,11 +130,25 @@ export function updatePrice(counts) {
   const li = [];
   const push = (name, qty, unit, price, sum) => { if (Math.round(sum || 0) !== 0) li.push({ name, qty, unit, price, sum }); };
   const doorsN = (counts.door || 0) + (counts.swingDoor || 0);
-  push('ЛДСП корпус' + (kMat.name ? ` (${kMat.name})` : ''), korpusM2, 'м²', kMat.pricePerM2 * thickMul, korpusM2 * kMat.pricePerM2 * thickMul);
-  push('Крепёж и встройка (скрытые)', fastenerCount + embedCount, 'шт', null, mountPrice);
-  push('ЛДСП фасад' + (fMat.name ? ` (${fMat.name})` : ''), fasadM2, 'м²', fMat.pricePerM2, fasadM2 * fMat.pricePerM2);
+
+  // ЛДСП — ОДНОЙ строкой на ЦВЕТ (не по поверхности корпус/фасад/наполнение): суммируем площади
+  // всех поверхностей одного цвета. Стоимость с учётом ×2 для «в две плиты» (корпус/наполнение;
+  // фасад не удваивается) — считаем по фактическим суммам, поэтому сходится с итогом.
+  const ldsp = new Map();
+  const addLdsp = (mat, m2, mul) => {
+    if (m2 <= 0) return;
+    const key = mat.name || mat.id || '—';
+    const e = ldsp.get(key) || { name: key, m2: 0, cost: 0, rate: mat.pricePerM2 };
+    e.m2 += m2; e.cost += m2 * mat.pricePerM2 * mul; ldsp.set(key, e);
+  };
+  addLdsp(kMat, korpusM2, thickMul);
+  addLdsp(fMat, fasadM2, 1);
+  addLdsp(nMat, fillM2, thickMul);
+  ldsp.forEach(e => push(`ЛДСП ${e.name}`, +e.m2.toFixed(2), 'м²', e.rate, e.cost));
+
+  push('Крепёж (за деталь)', fastenerCount, 'дет.', 100, fastenerCount * 100);
+  push('Встройка в проём (за деталь)', embedCount, 'дет.', 300, embedCount * 300);
   push('Наполнение дверей', doorsN, 'дв.', null, doorFillPrice);
-  push('ЛДСП наполнение' + (nMat.name ? ` (${nMat.name})` : ''), fillM2, 'м²', nMat.pricePerM2 * thickMul, fillM2 * nMat.pricePerM2 * thickMul);
   push('Сетчатые полки', counts.meshShelf || 0, 'шт', null, meshPrice);
   push('Корзины', counts.basket || 0, 'шт', null, basketPrice);
   push('Задняя стенка', backWallM2, 'м²', null, backWallPrice);
@@ -145,15 +159,22 @@ export function updatePrice(counts) {
     push(f.name, n, 'шт', f.price, f.price * n);
   });
   push(materials.swingDoorHardware?.name || 'Фурнитура распашных дверей', counts.swingDoor || 0, 'дв.', materials.swingDoorHardware?.pricePerDoor, swingHwPrice);
+
+  // Кромка — по ЦВЕТУ (+ толщина 16/32), без раскладки корпус/фасад/наполнение.
+  const edge = new Map();
+  const addEdge = (mat, mm, tt) => {
+    if (!mm || mm <= 0) return;
+    const key = (mat.name || '—') + '|' + tt;
+    const e = edge.get(key) || { name: mat.name || '—', t: tt, m: 0, rate: edgeRate(mat, tt) };
+    e.m += mm / 1000; edge.set(key, e);
+  };
   if (edgeMm) {
-    [['Кромка 16 (корпус)', edgeMm.korpus16, edgeRate(kMat, 16)],
-     ['Кромка 32 (корпус)', edgeMm.korpus32, edgeRate(kMat, 32)],
-     ['Кромка 16 (фасад)',  edgeMm.fasad16,  edgeRate(fMat, 16)],
-     ['Кромка 32 (фасад)',  edgeMm.fasad32,  edgeRate(fMat, 32)],
-     ['Кромка 16 (наполнение)', edgeMm.fill16, edgeRate(nMat, 16)],
-     ['Кромка 32 (наполнение)', edgeMm.fill32, edgeRate(nMat, 32)],
-    ].forEach(([nm, mm, rate]) => push(nm, +(mm / 1000).toFixed(2), 'пог.м', rate, (mm / 1000) * rate));
+    addEdge(kMat, edgeMm.korpus16, 16); addEdge(kMat, edgeMm.korpus32, 32);
+    addEdge(fMat, edgeMm.fasad16, 16);  addEdge(fMat, edgeMm.fasad32, 32);
+    addEdge(nMat, edgeMm.fill16, 16);   addEdge(nMat, edgeMm.fill32, 32);
   }
+  edge.forEach(e => push(`Кромка ${e.name}, ${e.t}мм`, +e.m.toFixed(2), 'пог.м', e.rate, e.m * e.rate));
+
   const liSum = li.reduce((s, x) => s + x.sum, 0);
   const diff = total - liSum;
   if (Math.round(diff) !== 0) push('Прочее (сверка расчёта)', '', '', null, diff);
