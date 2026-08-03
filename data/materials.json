@@ -282,6 +282,10 @@
     "name": "Ручка ящика (произвольная)",
     "pricePerDrawer": 500
   },
+  "services": {
+    "fastener": { "name": "Крепёж (за деталь)", "price": 100 },
+    "embed": { "name": "Встройка (за деталь)", "price": 300 }
+  },
   "swingDoorHardware": {
     "name": "Фурнитура распашной двери (компл.)",
     "pricePerDoor": 500

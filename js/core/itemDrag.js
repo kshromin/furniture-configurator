@@ -46,6 +46,10 @@ let active = null;    // { kind, sectionIndex, sec, item?, itemType?, meshes }
 // на место — сбрасываем на furniture-rebuilt.
 const doorViewOffsets = new Map(); // doorIndex -> суммарный сдвиг X от построечной позиции
 window.addEventListener('furniture-rebuilt', () => doorViewOffsets.clear());
+// Любая пересборка геометрии — если что-то выделено, переподхватить его на новых мешах и обновить
+// инфопанель (толщина/размер могли поменяться: общий переключатель 16/32, смена материала и т.п.).
+// Надёжнее точечных вызовов: окно выделенной детали всегда показывает актуальные данные.
+window.addEventListener('furniture-rebuilt', () => { if (active) refreshActiveInfo(); });
 
 // Выделенная сейчас дверь (или null) — окно «Комбинированная дверь» (js/core/doorEditor.js)
 // открывается на ней; если ничего не выделено, редактор стартует с первой двери.
@@ -250,22 +254,28 @@ function describeActive() {
     const key = active.panelKey;
     // Перегородки (внутренние стойки) — каждая сама по себе: ключ 'dividers#<i>' (основной ряд) или
     // 'dividersM#<i>' (антресоль). Встройка индивидуальная (state.dividerEmbed[i], откат на общий
-    // state.embed.dividers). Толщина у перегородок общая (влияет на раскладку ширины секций) —
-    // задаётся тумблером «32 мм» в «Опциях», здесь только показываем.
+    // state.embed.dividers). Толщина 32мм — ОБЩАЯ для всех перегородок (влияет на раскладку ширины
+    // секций, поштучно нельзя) — кнопка это честно подписывает.
     if (key.startsWith('dividers')) {
       const main = key.startsWith('dividers#');
       const idx = Number(key.split('#')[1]);
       const embMap = state.dividerEmbed || (state.dividerEmbed = {});
       const embed = main ? (embMap[idx] ?? state.embed?.dividers ?? false) : (state.embed?.dividers ?? false);
+      const th = state.thick32 || (state.thick32 = {});
+      const canDouble = korpusMaterialThickness() === 16;
       const lines = [
         `Толщина: ${detailT('dividers')} мм`,
-        ...(embed ? ['+ крепёж к стене (+300 ₽)'] : []),
+        ...(embed ? ['+ встройка (+300 ₽)'] : []),
       ];
-      // Крепёж к стене задаётся индивидуально только у основного ряда (у перегородок антресоли он в
+      const actions = [];
+      // Встройка задаётся индивидуально только у основного ряда (у перегородок антресоли она в
       // расчёте не участвует — оставляем только размер).
-      const actions = main ? [
-        { label: embed ? 'Убрать крепёж к стене' : '+ Крепёж к стене', onClick: () => { embMap[idx] = !embed; refreshActive(); } },
-      ] : [];
+      if (main) actions.push({ label: embed ? 'Убрать встройку' : '+ Встройка', onClick: () => { embMap[idx] = !embed; refreshActive(); } });
+      // Толщина 32 — общая на все перегородки (state.thick32.dividers).
+      if (canDouble) actions.push({
+        label: th.dividers ? 'Сделать 16 мм (все перегородки)' : 'Сделать 32 мм (все перегородки)',
+        onClick: () => { th.dividers = !th.dividers; syncPanelThickness(); refreshActive(); },
+      });
       return { title: 'Перегородка ' + (idx + 1) + (main ? '' : ' (антресоль)'), lines, actions };
     }
     // Одиночные корпусные детали (left/right/top/bottom) — встройка + толщина 32мм по выделению.
@@ -276,10 +286,10 @@ function describeActive() {
     const canDouble = korpusMaterialThickness() === 16;
     const lines = [
       `Толщина: ${detailT(key)} мм`,
-      ...(emb[key] ? ['+ крепёж к стене (+300 ₽)'] : []),
+      ...(emb[key] ? ['+ встройка (+300 ₽)'] : []),
     ];
     const actions = [
-      { label: emb[key] ? 'Убрать крепёж к стене' : '+ Крепёж к стене', onClick: () => { emb[key] = !emb[key]; refreshActive(); } },
+      { label: emb[key] ? 'Убрать встройку' : '+ Встройка', onClick: () => { emb[key] = !emb[key]; refreshActive(); } },
     ];
     if (canDouble) actions.push(
       { label: th[key] ? 'Сделать 16 мм' : 'Сделать 32 мм', onClick: () => { th[key] = !th[key]; syncPanelThickness(); refreshActive(); } },
@@ -293,12 +303,12 @@ function describeActive() {
         lines: [
           ...(item.pinned ? ['С планкой жёсткости снизу'] : []),
           `Толщина: ${item.thick32 ? 32 : 16} мм`,
-          ...(item.embed ? ['+ крепёж к стене (+300 ₽)'] : []),
+          ...(item.embed ? ['+ встройка (+300 ₽)'] : []),
         ],
         // Тумблеры прямо в инфопанели — «по выделению», как просил пользователь.
         actions: [
           { label: item.thick32 ? 'Сделать 16 мм' : 'Сделать 32 мм', onClick: () => { item.thick32 = !item.thick32; refreshActive(); } },
-          { label: item.embed ? 'Убрать крепёж к стене' : '+ Крепёж к стене', onClick: () => { item.embed = !item.embed; refreshActive(); } },
+          { label: item.embed ? 'Убрать встройку' : '+ Встройка', onClick: () => { item.embed = !item.embed; refreshActive(); } },
         ],
       };
     case 'rod':

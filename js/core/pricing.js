@@ -45,6 +45,7 @@ export function updatePrice(counts) {
     fillM2 = 0, backWallM2 = 0, backWallType = state.backWall,
     meshPrice = 0, basketPrice = 0, drawerSlidePrice = 0, edgeMm = null, mountPrice = 0,
     fastenerCount = 0, embedCount = 0, rodMeterM = 0, handlePrice = 0, handleCount = 0,
+    drawerSlideLines = [], handleLines = [],
   } = type.areas(counts);
 
   const kMat = getColor('korpus');
@@ -157,16 +158,20 @@ export function updatePrice(counts) {
   addLdsp(nMat, fillM2, fillMul);
   ldsp.forEach(e => push(`${e.name}, ${e.th} мм`, +e.m2.toFixed(2), 'м²', e.rate, e.cost));
 
-  push('Крепёж (за деталь)', fastenerCount, 'дет.', 100, fastenerCount * 100);
-  push('Крепёж к стене (за деталь)', embedCount, 'дет.', 300, embedCount * 300);
+  const fastenerRate = materials.services?.fastener?.price ?? 100;
+  const embedRate = materials.services?.embed?.price ?? 300;
+  push(materials.services?.fastener?.name || 'Крепёж (за деталь)', fastenerCount, 'дет.', fastenerRate, fastenerCount * fastenerRate);
+  push(materials.services?.embed?.name || 'Встройка (за деталь)', embedCount, 'дет.', embedRate, embedCount * embedRate);
   // Наполнение и профиль дверей — детально по позициям (из areas().doorLines): зеркало/стекло по м²,
   // вертикали/горизонтали/перемычки/направляющая по пог.м, ролики — компл.
   (doorLines || []).forEach(l => push(l.name, l.qty, l.unit, l.price, l.sum));
   push('Сетчатые полки', counts.meshShelf || 0, 'шт', null, meshPrice);
   push('Корзины', counts.basket || 0, 'шт', null, basketPrice);
   push('Задняя стенка', backWallM2, 'м²', null, backWallPrice);
-  push('Направляющие ящиков', counts.drawer || 0, 'компл', null, drawerSlidePrice);
-  push('Ручки ящиков', handleCount, 'шт', null, handlePrice);
+  // Направляющие и ручки — построчно, с названием (тип/имя) и ценой за штуку (просьба: в смете не
+  // было ни названия ручки, ни цены за штуку). Группировка по типу/имени сделана в areas().
+  (drawerSlideLines || []).forEach(l => push(l.name, l.qty, 'компл', l.price, l.sum));
+  (handleLines || []).forEach(l => push(l.name, l.qty, 'шт', l.price, l.sum));
   push(materials.rod?.name || 'Штанга для одежды', +rodMeterM.toFixed(2), 'пог.м', materials.rod?.pricePerM, rodPrice);
   (materials.fittings || []).forEach(f => {
     const n = f.per === 'front' ? (counts.door || 0) + (counts.drawer || 0) : (counts[f.per] || 0);

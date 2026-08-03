@@ -285,6 +285,16 @@ export default {
       if (t === 'manual') return Number(sec.drawerHandlePrice) || 0;
       return materials.drawerHandle?.pricePerDrawer || 500;
     };
+    // Для спецификации — построчная разбивка направляющих и ручек: с НАЗВАНИЕМ и ЦЕНОЙ ЗА ШТУКУ
+    // (просьба «нет названия ручки и нет цены за штуку»). Группируем по (название|цена за шт).
+    const DRAWER_SLIDE_NAMES = { ball: 'шариковые', soft: 'скрытые, доводчик', push: 'скрытые, push', blum: 'скрытые BLUM' };
+    const slideGroups = new Map();   // "название|цена" -> {name, price, qty, sum}
+    const handleGroups = new Map();
+    const pushGroup = (map, name, unit) => {
+      const k = name + '|' + unit;
+      const g = map.get(k) || { name, price: unit, qty: 0, sum: 0 };
+      g.qty++; g.sum += unit; map.set(k, g);
+    };
     const innerDepth = depth - DOOR_DEPTH_ZONE;
     // Наполнение секции теперь свободно перетаскиваемые items (см. state.js), а не счётчики —
     // считаем штуки по типу; общие на тип параметры (высота/глубина/цвет) не изменились.
@@ -353,10 +363,17 @@ export default {
           fillEdge(2 * (boxDepth + 2 * boxH) + boxW);    // короб ящика — лента в цвет наполнения
           // Длина направляющей — по реальной (уже клампнутой под глубину короба) физической
           // глубине ящика, не по «желаемому» sec.drawerDepth — то же значение, что режет короб.
-          drawerSlidePrice += drawerSlideUnitPrice(sec.drawerSlideType, boxDepth);
+          const sUnit = drawerSlideUnitPrice(sec.drawerSlideType, boxDepth);
+          drawerSlidePrice += sUnit;
+          pushGroup(slideGroups, 'Направляющие ' + (DRAWER_SLIDE_NAMES[sec.drawerSlideType] || sec.drawerSlideType), sUnit);
           // Ручка ящика — 1 шт на ящик, тип/цена берутся из секции (см. drawerHandleUnitPrice).
           if ((sec.drawerHandleType || 'standard') !== 'none') {
-            handlePrice += drawerHandleUnitPrice(sec);
+            const hUnit = drawerHandleUnitPrice(sec);
+            const hName = sec.drawerHandleType === 'manual'
+              ? (sec.drawerHandleName?.trim() || 'Ручка (заказная)')
+              : (materials.drawerHandle?.name || 'Ручка ящика');
+            pushGroup(handleGroups, hName, hUnit);
+            handlePrice += hUnit;
             handleCount++;
           }
           if (offW > 0) {
@@ -453,7 +470,11 @@ export default {
     for (let d = 0; d < sections.length - 1; d++) {
       if (dimb[d] ?? emb.dividers) embedCount++;
     }
-    const mountPrice = fastenerCount * 100 + embedCount * 300;
+    // Крепёж/встройка — редактируемые услуги (materials.services), не хардкод (задание «крепёж —
+    // услуга, цена должна выгружаться/меняться»). Дефолты 100/300 — на случай старого materials.json.
+    const fastenerRate = materials.services?.fastener?.price ?? 100;
+    const embedRate = materials.services?.embed?.price ?? 300;
+    const mountPrice = fastenerCount * fastenerRate + embedCount * embedRate;
 
     // Штанга для одежды — погонными метрами (ширина секции × число штанг в ней), цена ₽/пог.м
     // (materials.rod), а не за штуку. Фланцы/крабы — по-прежнему штуками (в fittings).
@@ -464,6 +485,7 @@ export default {
       fasadM2, doorFillPrice, doorHardwarePrice, doorLines,
       fillM2: fillM2 + extraFillM2, backWallM2, backWallType, meshPrice, basketPrice, drawerSlidePrice,
       handlePrice, handleCount,
+      drawerSlideLines: [...slideGroups.values()], handleLines: [...handleGroups.values()],
       edgeMm, rodMeterM,
       mountPrice, fastenerCount, embedCount, // для будущей спецификации
     };
