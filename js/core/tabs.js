@@ -6,6 +6,7 @@ import { buildFurniture } from './build.js';
 import { buildRoom, WALL_COLORS, FLOOR_COLORS } from './room.js';
 import { showToast, showChoiceDialog } from './toast.js';
 import { renderStaticDimensions, setSelectedSection } from './dimensions.js';
+import { refreshActiveInfo } from './itemDrag.js';
 import {
   rebalanceSections, MIN_SECTION_WIDTH, maxDrawerDepth, availableMeshDepths, availableValetLengths, clampSectionSizes,
   basketSizeOptions, basketFits, requiredBasketProyom, canAddSection, canRemoveSection, basketWidths,
@@ -299,8 +300,6 @@ export function syncUIFromState() {
   document.querySelectorAll('#thicknessGroup .opt-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.thick === (state.panel32 ? '32' : '16'));
   });
-  syncThick32Details();
-  syncEmbedDetails();
   // На случай, если пресет/загруженная позиция заказа принесла несовместимую комбинацию
   // (задняя стенка + снятая стойка/крыша/дно) — блокирует кнопки и сбрасывает стенку так же,
   // как и ручное снятие галочки на вкладке «Внешнее».
@@ -767,41 +766,18 @@ export function syncThick32Details() {
 }
 
 export function bindThickness() {
+  // Толщина/крепёж отдельных деталей — теперь ТОЛЬКО по выделению детали в 3D (см. itemDrag.js),
+  // поимённых галочек «Опции» больше нет. Здесь остаётся общий переключатель 16/32 «на все».
   document.querySelectorAll('#thicknessGroup .opt-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('#thicknessGroup .opt-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.panel32 = btn.dataset.thick === '32';
-      syncThick32Details();
       buildFurniture();
       renderSectionsList(); // толщина меняет просветы/доступные размеры в карточках секций
+      refreshActiveInfo();  // выделена деталь — показать её новую толщину в инфопанели (был баг)
     });
   });
-
-  document.querySelectorAll('.thick32-cb').forEach(cb => {
-    cb.addEventListener('change', () => {
-      if (!state.thick32) state.thick32 = {};
-      state.thick32[cb.dataset.key] = cb.checked;
-      buildFurniture();
-      renderSectionsList();
-    });
-  });
-
-  // Встройка корпусных панелей — галочки «Опции» (полки — тумблером в 3D, см. itemDrag.js).
-  document.querySelectorAll('.embed-cb').forEach(cb => {
-    cb.addEventListener('change', () => {
-      if (!state.embed) state.embed = {};
-      state.embed[cb.dataset.key] = cb.checked;
-      // Общая галочка перегородок — «на все»: сбрасывает индивидуальные отметки встройки
-      // (каждая-сама-по-себе), чтобы bulk и поштучный выбор не расходились.
-      if (cb.dataset.key === 'dividers') state.dividerEmbed = {};
-      buildFurniture();
-    });
-  });
-}
-
-export function syncEmbedDetails() {
-  document.querySelectorAll('.embed-cb').forEach(cb => { cb.checked = !!state.embed?.[cb.dataset.key]; });
 }
 
 export function bindBackWall() {
@@ -971,7 +947,7 @@ export function renderSectionsList() {
             <option value="none" ${sec.drawerHandleType === 'none' ? 'selected' : ''}>Без ручки</option>
           </select>
           ${sec.drawerHandleType === 'manual' ? `
-          <input type="text" class="mini-input mini-input-wide section-drawer-handle-name-input" data-idx="${i}" value="${escAttr(sec.drawerHandleName)}" placeholder="Название ручки" title="Название ручки (в спецификацию)" autocomplete="off">
+          <input type="text" class="mini-input section-drawer-handle-name-input" data-idx="${i}" value="${escAttr(sec.drawerHandleName)}" placeholder="Название ручки" title="Название ручки (в спецификацию)" autocomplete="off">
           <input type="number" class="mini-input section-drawer-handle-price-input" data-idx="${i}" value="${sec.drawerHandlePrice || 0}" min="0" step="10" title="Цена ручки, ₽/шт" autocomplete="off">` : ''}
         </div>
         <div class="el-row" title="Торцевое вешало — крепится к полке, мышкой прыгает между полками (не двигается свободно)">

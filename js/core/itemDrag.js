@@ -11,7 +11,7 @@ import {
   clampDrawerOffsetWidth, MIN_DRAWER_OFFSET_WIDTH, MIN_DRAWER_REMAINING_WIDTH, DEFAULT_DRAWER_OFFSET_WIDTH,
 } from '../types/_wardrobe-shared.js';
 import { projectToOverlay, updateArrow, hideArrow } from './dimensions.js';
-import { renderSectionsList, selectSectionFromScene, syncThick32Details, syncEmbedDetails } from './tabs.js';
+import { renderSectionsList, selectSectionFromScene } from './tabs.js';
 // Напрямую из wardrobe.js (не через barrel — тот не реэкспортирует сам тип во избежание цикла):
 // цена одной двери для инфопанели выделенной двери.
 import { slidingDoorUnitPrice, swingDoorUnitPrice } from '../types/wardrobe.js';
@@ -184,19 +184,24 @@ const DRAWER_SLIDE_LABELS = { ball: 'шариковые', soft: 'скрытые,
 // Общий рефреш после тумблера в инфопанели (толщина полки, вертикальная/горизонтальная стойка
 // штанги — все меняют state и просят пересборку): пересобирает 3D (старые меши уничтожены),
 // переподсвечивает элемент на новых, перерисовывает саму панель с обновлёнными подписями/кнопками.
-function refreshActive() {
-  buildFurniture();
-  // После пересборки меши уничтожены — переподхватываем по типу выделения (панель/дверь/элемент секции).
-  if (active.kind === 'panel') {
-    active.meshes = lastBuildPanelMeshes.get(active.panelKey) || [];
-    // Клик по детали — основной способ (задание «вместо галочек»); держим галочки «Опции» в
-    // синхроне, чтобы обе точки управления не расходились.
-    syncThick32Details();
-    syncEmbedDetails();
-  } else if (active.kind === 'door') active.meshes = lastBuildDoorMeshes[active.doorIndex] || [];
-  else active.meshes = lastBuildItemMeshes.get(active.sectionIndex + '|' + active.item.id) || [];
+// Переподхват выделения после пересборки геометрии (меши уничтожены): по типу выделения находим
+// новые меши, подсвечиваем и обновляем инфопанель. Вызывается и извне без своей пересборки —
+// глобальная кнопка «16/32 мм» в «Опциях» меняет толщину всех деталей, и инфопанель выделенной
+// детали должна показать новую толщину (иначе «визуально 32, а в окне — нет»).
+export function refreshActiveInfo() {
+  if (!active) return;
+  if (active.kind === 'panel') active.meshes = lastBuildPanelMeshes.get(active.panelKey) || [];
+  else if (active.kind === 'door') active.meshes = lastBuildDoorMeshes[active.doorIndex] || [];
+  else if (active.kind === 'item') active.meshes = lastBuildItemMeshes.get(active.sectionIndex + '|' + active.item.id) || [];
+  else return;
+  if (!active.meshes.length) { closeActive(); return; } // выделённого больше нет после пересборки
   setHighlight(active.meshes, SELECT_EMISSIVE);
   showInfoPanel();
+}
+
+function refreshActive() {
+  buildFurniture();
+  refreshActiveInfo();
 }
 
 function describeActive() {
@@ -254,12 +259,12 @@ function describeActive() {
       const embed = main ? (embMap[idx] ?? state.embed?.dividers ?? false) : (state.embed?.dividers ?? false);
       const lines = [
         `Толщина: ${detailT('dividers')} мм`,
-        ...(embed ? ['+ встройка в проём (+300 ₽)'] : []),
+        ...(embed ? ['+ крепёж к стене (+300 ₽)'] : []),
       ];
-      // Встройка задаётся индивидуально только у основного ряда (у перегородок антресоли встройка в
+      // Крепёж к стене задаётся индивидуально только у основного ряда (у перегородок антресоли он в
       // расчёте не участвует — оставляем только размер).
       const actions = main ? [
-        { label: embed ? 'Убрать встройку' : '+ Встройка в проём', onClick: () => { embMap[idx] = !embed; refreshActive(); } },
+        { label: embed ? 'Убрать крепёж к стене' : '+ Крепёж к стене', onClick: () => { embMap[idx] = !embed; refreshActive(); } },
       ] : [];
       return { title: 'Перегородка ' + (idx + 1) + (main ? '' : ' (антресоль)'), lines, actions };
     }
@@ -271,10 +276,10 @@ function describeActive() {
     const canDouble = korpusMaterialThickness() === 16;
     const lines = [
       `Толщина: ${detailT(key)} мм`,
-      ...(emb[key] ? ['+ встройка в проём (+300 ₽)'] : []),
+      ...(emb[key] ? ['+ крепёж к стене (+300 ₽)'] : []),
     ];
     const actions = [
-      { label: emb[key] ? 'Убрать встройку' : '+ Встройка в проём', onClick: () => { emb[key] = !emb[key]; refreshActive(); } },
+      { label: emb[key] ? 'Убрать крепёж к стене' : '+ Крепёж к стене', onClick: () => { emb[key] = !emb[key]; refreshActive(); } },
     ];
     if (canDouble) actions.push(
       { label: th[key] ? 'Сделать 16 мм' : 'Сделать 32 мм', onClick: () => { th[key] = !th[key]; syncPanelThickness(); refreshActive(); } },
@@ -288,12 +293,12 @@ function describeActive() {
         lines: [
           ...(item.pinned ? ['С планкой жёсткости снизу'] : []),
           `Толщина: ${item.thick32 ? 32 : 16} мм`,
-          ...(item.embed ? ['+ встройка (+300 ₽)'] : []),
+          ...(item.embed ? ['+ крепёж к стене (+300 ₽)'] : []),
         ],
         // Тумблеры прямо в инфопанели — «по выделению», как просил пользователь.
         actions: [
           { label: item.thick32 ? 'Сделать 16 мм' : 'Сделать 32 мм', onClick: () => { item.thick32 = !item.thick32; refreshActive(); } },
-          { label: item.embed ? 'Убрать встройку' : '+ Встройка', onClick: () => { item.embed = !item.embed; refreshActive(); } },
+          { label: item.embed ? 'Убрать крепёж к стене' : '+ Крепёж к стене', onClick: () => { item.embed = !item.embed; refreshActive(); } },
         ],
       };
     case 'rod':

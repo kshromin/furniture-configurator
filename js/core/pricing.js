@@ -158,7 +158,7 @@ export function updatePrice(counts) {
   ldsp.forEach(e => push(`${e.name}, ${e.th} мм`, +e.m2.toFixed(2), 'м²', e.rate, e.cost));
 
   push('Крепёж (за деталь)', fastenerCount, 'дет.', 100, fastenerCount * 100);
-  push('Встройка в проём (за деталь)', embedCount, 'дет.', 300, embedCount * 300);
+  push('Крепёж к стене (за деталь)', embedCount, 'дет.', 300, embedCount * 300);
   // Наполнение и профиль дверей — детально по позициям (из areas().doorLines): зеркало/стекло по м²,
   // вертикали/горизонтали/перемычки/направляющая по пог.м, ролики — компл.
   (doorLines || []).forEach(l => push(l.name, l.qty, l.unit, l.price, l.sum));

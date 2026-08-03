@@ -1302,6 +1302,10 @@ html, body {
 .mini-select { width: 58px; padding-left: 2px; }
 .mini-select-wide { width: 96px; }
 
+/* Ручка ящика «ручной цены» — название и цена заметно шире мелких mini-input (задание «поля мелкие») */
+.section-drawer-handle-name-input { width: 140px; text-align: left; padding-left: 6px; padding-right: 6px; }
+.section-drawer-handle-price-input { width: 66px; }
+
 .el-row-check {
   display: flex;
   align-items: center;
