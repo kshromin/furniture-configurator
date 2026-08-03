@@ -128,15 +128,33 @@ function pickDraggable(e) {
 
 function setHighlight(meshes, hex) {
   meshes.forEach(mesh => {
-    if (!mesh.material || !mesh.material.emissive) return;
+    const mat = mesh.material;
+    if (!mat || !mat.emissive || !mat.color) return;
     if (hex !== null) {
-      if (mesh.userData._origEmissive === undefined) mesh.userData._origEmissive = mesh.material.emissive.getHex();
-      mesh.material.emissive.setHex(hex);
-    } else if (mesh.userData._origEmissive !== undefined) {
-      mesh.material.emissive.setHex(mesh.userData._origEmissive);
+      if (mesh.userData._origColor === undefined) {
+        mesh.userData._origColor = mat.color.getHex();
+        mesh.userData._origEmissive = mat.emissive.getHex();
+      }
+      // Задание Марины «подсветка полки сверху И снизу»: одно только свечение (emissive) на
+      // освещённой ВЕРХНЕЙ грани вымывалось светом почти в белый — синим читался лишь теневой
+      // низ. Поэтому красим и БАЗОВЫЙ цвет — тогда выделение видно со всех сторон.
+      mat.color.setHex(hex);
+      mat.emissive.setHex(hex);
+    } else if (mesh.userData._origColor !== undefined) {
+      mat.color.setHex(mesh.userData._origColor);
+      mat.emissive.setHex(mesh.userData._origEmissive);
+      delete mesh.userData._origColor;
       delete mesh.userData._origEmissive;
     }
   });
+}
+
+// Выделение без перетаскивания (деталь/распашная дверь): onPointerDown уже выключил орбиту камеры
+// и поставил курсор «grabbing» в расчёте на драг, но у таких элементов драга нет и pointerup-хендлер
+// (который вернул бы вращение) не навешивается — поэтому возвращаем управление камерой сразу.
+function endStaticSelect() {
+  controls.enabled = true;
+  renderer.domElement.style.cursor = '';
 }
 
 function buildDragPlane(worldAnchor) {
@@ -360,6 +378,16 @@ function showInfoPanel() {
     btn.addEventListener('click', e => { e.stopPropagation(); onClick(); });
     infoPanel.appendChild(btn);
   });
+  // Кнопка «Центрировать по вертикали» (задание Марины) — для любого вертикально позиционируемого
+  // элемента секции (полка/штанга/корзина/сетка/ящик). Стойки/крыша/дно (kind:'panel') не двигаются.
+  if (active.kind === 'item') {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn';
+    btn.style.cssText = 'margin-top:6px;width:100%';
+    btn.textContent = 'Центрировать по вертикали';
+    btn.addEventListener('click', e => { e.stopPropagation(); centerActiveItem(); });
+    infoPanel.appendChild(btn);
+  }
   // Редактируемое числовое поле прямо в инфопанели (ширина заглушки смещающего элемента, задание
   // «ящики-двери 19,07») — тот же приём, что и тумблеры-actions выше, просто с числом вместо кнопки.
   if (numberField) {
@@ -406,6 +434,23 @@ function neighborGaps(sec, itemId, lo, hi, fillBottom, fillTop) {
     if (b.lo >= hi && b.lo < aboveLo) aboveLo = b.lo;
   });
   return { belowHi, aboveLo };
+}
+
+// Кнопка «Центрировать по вертикали» (задание Марины 31,07): ставит выделённый элемент секции
+// строго по центру между ближними краями соседей сверху/снизу (сосед — любой элемент: полка,
+// корзина, штанга, перегородка…; если соседа нет — берётся граница секции). belowHi/aboveLo —
+// те же края, что у размерных стрелок, поэтому центр = их среднее.
+function centerActiveItem() {
+  if (!active || active.kind !== 'item') return;
+  const { sec, item, itemType, zone } = active;
+  const { fillBottom, fillTop } = boundsForZonePhysical(zone);
+  const h = itemPhysicalHeight(itemType, sec, item);
+  const y = currentItemY();
+  const { belowHi, aboveLo } = neighborGaps(sec, item.id, y - h / 2, y + h / 2, fillBottom, fillTop);
+  item.y = (belowHi + aboveLo) / 2;
+  refreshActive();
+  updateEditInputs();
+  renderSectionsList();
 }
 
 // Стрелка-кнопка «сдвинуть вплотную» — сидит чуть правее своего поля (то же center-anchoring
@@ -653,6 +698,7 @@ function onPointerDown(e) {
       setHighlight(meshes, SELECT_EMISSIVE);
       showInfoPanel();
       updateEditInputs();
+      endStaticSelect(); // распашная дверь не ездит — вернуть вращение камеры сразу
       return;
     }
     const worldAnchor = picked.mesh.getWorldPosition(new THREE.Vector3());
@@ -692,6 +738,7 @@ function onPointerDown(e) {
     setHighlight(meshes, SELECT_EMISSIVE);
     showInfoPanel();
     updateEditInputs();
+    endStaticSelect(); // деталь не двигается — сразу вернуть вращение камеры (иначе «залипало»)
     return;
   }
 
