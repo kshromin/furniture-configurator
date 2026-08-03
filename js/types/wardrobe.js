@@ -190,14 +190,17 @@ export default {
         vertM * pr(state.profile) + horizM * (pr('horizTop') + pr('horizBottom')) +
         dividerM * pr('divider') +
         (sliding ? dc * (cat.rollers?.pricePerSet || 0) + trackM * pr('track') : 0);
-      // Строки профиля по элементам
+      // Строки профиля по элементам — с ЦВЕТОМ профиля (и типом у вертикали).
+      const profTypeName = (cat.profiles || []).find(p => p.id === state.profile)?.name || '';
+      const profColorName = (cat.colors || []).find(c => c.id === state.profileColor)?.name || '';
+      const col = profColorName ? `, ${profColorName.toLowerCase()}` : '';
       const pushP = (name, m, el) => { if (m > 0) doorLines.push({ name, qty: +m.toFixed(2), unit: 'пог.м', price: pr(el), sum: m * pr(el) }); };
-      pushP('Профиль вертикальный', vertM, state.profile);
-      pushP('Профиль горизонт. верх', horizM, 'horizTop');
-      pushP('Профиль горизонт. низ', horizM, 'horizBottom');
-      pushP('Профиль перемычек', dividerM, 'divider');
+      pushP(`Профиль вертикальный${profTypeName ? ' ' + profTypeName.toLowerCase() : ''}${col}`, vertM, state.profile);
+      pushP(`Профиль горизонт. верх${col}`, horizM, 'horizTop');
+      pushP(`Профиль горизонт. низ${col}`, horizM, 'horizBottom');
+      pushP(`Профиль перемычек${col}`, dividerM, 'divider');
       if (sliding) {
-        pushP('Направляющая дверей', trackM, 'track');
+        pushP(`Направляющая дверей${col}`, trackM, 'track');
         if (dc > 0 && cat.rollers?.pricePerSet) doorLines.push({ name: cat.rollers.name || 'Ролики (на дверь)', qty: dc, unit: 'компл', price: cat.rollers.pricePerSet, sum: dc * cat.rollers.pricePerSet });
       }
     }
