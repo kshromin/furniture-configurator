@@ -28,7 +28,7 @@ export function bindSpecExport() {
       }
       aoa.push([]);
       aoa.push(['№', 'Наименование', 'Цена, ₽']);
-      d.items.forEach((it, i) => aoa.push([i + 1, it.label, it.total]));
+      d.items.forEach((it, i) => aoa.push([i + 1, it.label + (it.qty > 1 ? ` × ${it.qty}` : ''), it.total]));
       aoa.push([]);
       aoa.push(['', 'Итого', d.grandTotal]);
 
@@ -43,7 +43,11 @@ export function bindSpecExport() {
       // есть сверка). У прорисовок, сохранённых до появления разбивки, компонентов нет — только итог.
       const bd = [['№', 'Наименование', 'Кол-во', 'Ед.', 'Цена ₽', 'Сумма ₽']];
       d.items.forEach((it, i) => {
-        bd.push([`${i + 1}`, it.label, '', '', '', Math.round(it.total)]);
+        // Для «заказных»/доп.позиций кол-во и цена за штуку — в свои столбцы (нет компонентов-подстрок).
+        const hdrQty = it.qty != null ? it.qty : '';
+        const hdrUnit = it.qty != null ? 'шт' : '';
+        const hdrPrice = it.unitPrice != null ? it.unitPrice : '';
+        bd.push([`${i + 1}`, it.label, hdrQty, hdrUnit, hdrPrice, Math.round(it.total)]);
         (it.lineItems || []).forEach(li => bd.push(['', '    ' + li.name, li.qty, li.unit, li.price ?? '', Math.round(li.sum)]));
       });
       bd.push([]);

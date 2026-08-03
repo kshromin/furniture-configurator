@@ -68,10 +68,9 @@ export function bindExtras() {
       if (!name) { result.textContent = 'Укажите название заказной позиции'; return; }
       if (price <= 0) { result.textContent = 'Укажите цену (больше 0)'; return; }
     }
-    const label = qty > 1 ? `${name} × ${qty}` : name;
-    addExtraItem(label, price * qty);
+    addExtraItem(name, price * qty, qty, price); // чистое имя + кол-во/цена отдельно (в свои столбцы)
 
-    result.textContent = `Добавлено: ${label} — ${fmt(price * qty)}`;
+    result.textContent = `Добавлено: ${name}${qty > 1 ? ' × ' + qty : ''} — ${fmt(price * qty)}`;
     setTimeout(() => { result.textContent = ''; }, 3000);
     document.getElementById('extraQty').value = 1;
     if (item.manual) { document.getElementById('extraManualName').value = ''; document.getElementById('extraManualPrice').value = 0; }

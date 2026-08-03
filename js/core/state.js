@@ -3,7 +3,17 @@
 // syncPanelThickness() меняет толщину сразу во всей геометрии/расчётах без правки потребителей.
 // Короба-замены и выравниватели от неё не зависят (у них собственные размеры).
 export let PANEL_THICKNESS = 16;
-export function syncPanelThickness() { PANEL_THICKNESS = state.panel32 ? 32 : 16; }
+// Толщина панелей берётся из ВЫБРАННОГО корпусного материала (16/18/22/25… — параметр материала),
+// и применяется ко всей геометрии. «В две плиты» (32) допустимо ТОЛЬКО для 16мм материала; у
+// материалов другой толщины переключатель 16/32 игнорируется (толщина = из материала).
+export function korpusMaterialThickness() {
+  const prod = (materials.korpus?.producers || []).find(p => p.id === state.korpusProducer);
+  return (prod?.colors || []).find(c => c.id === state.korpusId)?.thickness || 16;
+}
+export function syncPanelThickness() {
+  const base = korpusMaterialThickness();
+  PANEL_THICKNESS = (base === 16 && state.panel32) ? 32 : base;
+}
 
 // Толщина конкретной корпусной детали: 32мм, если включён общий режим ИЛИ помечена эта деталь
 // (state.thick32, галочки «Детали 32 мм» в Опциях). Ключи: left/right (стойки), top (крыша),

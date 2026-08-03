@@ -209,8 +209,10 @@ export function updateDisplayedItem() {
 }
 
 // Доп. элемент/услуга (вкладка «Добавить к заказу») — без 3D-снапшота, только строка с ценой.
-export function addExtraItem(label, total) {
-  orderItems.push({ id: Date.now(), kind: 'extra', label, total, snapshot: null });
+export function addExtraItem(label, total, qty = 1, unitPrice = null) {
+  // label — чистое название (без «× N»); кол-во и цена за штуку хранятся отдельно, чтобы в
+  // спецификации выйти в свои столбцы «Кол-во»/«Цена», а не в название.
+  orderItems.push({ id: Date.now(), kind: 'extra', label, total, qty, unitPrice, snapshot: null });
   itemsSavedToProject = false;
   renderOrderCards();
 }
@@ -273,7 +275,7 @@ async function guardUnsavedItems(discardLabel, proceed) {
 // клиент/№ открытого проекта. Пустой комплект печатает текущую конфигурацию одной позицией.
 export function getPrintData() {
   const items = orderItems.length > 0
-    ? orderItems.map(it => ({ label: it.label, total: it.total, breakdown: it.breakdown || null, lineItems: it.lineItems || null }))
+    ? orderItems.map(it => ({ label: it.label, total: it.total, qty: it.qty, unitPrice: it.unitPrice, breakdown: it.breakdown || null, lineItems: it.lineItems || null }))
     : [{ label: describeConfig(), total: state.lastTotal || 0, breakdown: state.lastBreakdown ? { ...state.lastBreakdown } : null, lineItems: state.lastLineItems ? state.lastLineItems.map(x => ({ ...x })) : null }];
   // Номер позиции (1-based), чей снапшот сейчас показан в 3D, — картинка в печати соответствует
   // именно ей; null — на экране несохранённая конфигурация либо позиция не определена.
