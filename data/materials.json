@@ -49,15 +49,6 @@
             "edgePerM16": 150,
             "edgePerM32": 450,
             "thickness": 16
-          },
-          {
-            "id": "mdf_eterno18",
-            "name": "Этерно МДФ Белый",
-            "color": "#f2f1ec",
-            "pricePerM2": 1600,
-            "thickness": 18,
-            "edgePerM16": 180,
-            "edgePerM32": 180
           }
         ]
       },
@@ -108,6 +99,21 @@
             "edgePerM16": 150,
             "edgePerM32": 450,
             "thickness": 16
+          }
+        ]
+      },
+      {
+        "id": "eterno",
+        "name": "Этерно",
+        "colors": [
+          {
+            "id": "mdf_eterno18",
+            "name": "Этерно МДФ Белый",
+            "color": "#f2f1ec",
+            "pricePerM2": 1600,
+            "thickness": 18,
+            "edgePerM16": 180,
+            "edgePerM32": 180
           }
         ]
       }
