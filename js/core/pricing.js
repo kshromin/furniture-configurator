@@ -44,7 +44,7 @@ export function updatePrice(counts) {
     korpusM2 = 0, fasadM2 = 0, doorFillPrice = 0, doorHardwarePrice = 0, doorLines = [],
     fillM2 = 0, backWallM2 = 0, backWallType = state.backWall,
     meshPrice = 0, basketPrice = 0, drawerSlidePrice = 0, edgeMm = null, mountPrice = 0,
-    fastenerCount = 0, embedCount = 0, rodMeterM = 0,
+    fastenerCount = 0, embedCount = 0, rodMeterM = 0, handlePrice = 0, handleCount = 0,
   } = type.areas(counts);
 
   const kMat = getColor('korpus');
@@ -92,7 +92,7 @@ export function updatePrice(counts) {
   const fittingsPrice = (materials.fittings || []).reduce((sum, f) => {
     const n = f.per === 'front' ? counts.door + counts.drawer : (counts[f.per] || 0);
     return sum + f.price * n;
-  }, 0) + drawerSlidePrice + doorHardwarePrice + rodPrice + softClosePrice;
+  }, 0) + drawerSlidePrice + doorHardwarePrice + rodPrice + softClosePrice + handlePrice;
   // Фурнитура распашных дверей — отдельная позиция по счётчику swingDoor (купейные rail/ручка
   // на распашные не начисляются, см. counts в wardrobe-geometry.js). 500₽/дверь — заглушка,
   // реальная цена будет уточнена.
@@ -166,6 +166,7 @@ export function updatePrice(counts) {
   push('Корзины', counts.basket || 0, 'шт', null, basketPrice);
   push('Задняя стенка', backWallM2, 'м²', null, backWallPrice);
   push('Направляющие ящиков', counts.drawer || 0, 'компл', null, drawerSlidePrice);
+  push('Ручки ящиков', handleCount, 'шт', null, handlePrice);
   push(materials.rod?.name || 'Штанга для одежды', +rodMeterM.toFixed(2), 'пог.м', materials.rod?.pricePerM, rodPrice);
   (materials.fittings || []).forEach(f => {
     const n = f.per === 'front' ? (counts.door || 0) + (counts.drawer || 0) : (counts[f.per] || 0);

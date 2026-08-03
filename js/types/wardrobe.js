@@ -276,6 +276,15 @@ export default {
     }
 
     let fillM2 = 0, meshPrice = 0, basketPrice = 0, drawerSlidePrice = 0;
+    // Ручки ящиков (задание «ручки 30,07»): 1 на ящик, тип один на секцию (sec.drawerHandleType).
+    // 'standard' — цена из каталога (materials.drawerHandle), 'manual' — ручная цена секции, 'none' — 0.
+    let handlePrice = 0, handleCount = 0;
+    const drawerHandleUnitPrice = sec => {
+      const t = sec.drawerHandleType || 'standard';
+      if (t === 'none') return 0;
+      if (t === 'manual') return Number(sec.drawerHandlePrice) || 0;
+      return materials.drawerHandle?.pricePerDrawer || 500;
+    };
     const innerDepth = depth - DOOR_DEPTH_ZONE;
     // Наполнение секции теперь свободно перетаскиваемые items (см. state.js), а не счётчики —
     // считаем штуки по типу; общие на тип параметры (высота/глубина/цвет) не изменились.
@@ -345,6 +354,11 @@ export default {
           // Длина направляющей — по реальной (уже клампнутой под глубину короба) физической
           // глубине ящика, не по «желаемому» sec.drawerDepth — то же значение, что режет короб.
           drawerSlidePrice += drawerSlideUnitPrice(sec.drawerSlideType, boxDepth);
+          // Ручка ящика — 1 шт на ящик, тип/цена берутся из секции (см. drawerHandleUnitPrice).
+          if ((sec.drawerHandleType || 'standard') !== 'none') {
+            handlePrice += drawerHandleUnitPrice(sec);
+            handleCount++;
+          }
           if (offW > 0) {
             // Заглушка — тот же фасадный материал/толщина, что и фасад ящика (см. addOffsetFiller
             // в wardrobe-geometry.js), без короба/направляющих — отдельная панель со своей кромкой
@@ -444,6 +458,7 @@ export default {
       korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2 + blindM2 + extraKorpusM2,
       fasadM2, doorFillPrice, doorHardwarePrice, doorLines,
       fillM2: fillM2 + extraFillM2, backWallM2, backWallType, meshPrice, basketPrice, drawerSlidePrice,
+      handlePrice, handleCount,
       edgeMm, rodMeterM,
       mountPrice, fastenerCount, embedCount, // для будущей спецификации
     };

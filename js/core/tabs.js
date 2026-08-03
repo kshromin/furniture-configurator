@@ -16,6 +16,10 @@ import {
   slidingDoorsCanClear, lastBuildSectionCenters, findMinDrawerOffset, clampDrawerOffsetWidth,
 } from '../types/_wardrobe-shared.js';
 
+// Экранирование пользовательского текста в value=" ... " (название ручки «ручной цены»): помимо
+// &<> обязательно кавычку, иначе " разорвёт атрибут.
+const escAttr = s => String(s ?? '').replace(/[&<>"]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
+
 // Общий список допустимых проёмов под корзины (не привязан к конкретной выбранной ширине) —
 // добавляется в тосты о несовпадении, чтобы пользователь сразу видел все варианты, а не только
 // требование текущей корзины.
@@ -958,6 +962,14 @@ export function renderSectionsList() {
             <option value="push" ${sec.drawerSlideType === 'push' ? 'selected' : ''}>Скрытые, push</option>
             <option value="blum" ${sec.drawerSlideType === 'blum' ? 'selected' : ''}>Скрытые BLUM</option>
           </select>
+          <select class="mini-select section-drawer-handle-input" data-idx="${i}" title="Ручка ящика (1 шт на ящик)">
+            <option value="standard" ${(sec.drawerHandleType || 'standard') === 'standard' ? 'selected' : ''}>Ручка (500 ₽)</option>
+            <option value="manual" ${sec.drawerHandleType === 'manual' ? 'selected' : ''}>Ручка (ручная цена)</option>
+            <option value="none" ${sec.drawerHandleType === 'none' ? 'selected' : ''}>Без ручки</option>
+          </select>
+          ${sec.drawerHandleType === 'manual' ? `
+          <input type="text" class="mini-input mini-input-wide section-drawer-handle-name-input" data-idx="${i}" value="${escAttr(sec.drawerHandleName)}" placeholder="Название ручки" title="Название ручки (в спецификацию)" autocomplete="off">
+          <input type="number" class="mini-input section-drawer-handle-price-input" data-idx="${i}" value="${sec.drawerHandlePrice || 0}" min="0" step="10" title="Цена ручки, ₽/шт" autocomplete="off">` : ''}
         </div>
         <div class="el-row" title="Торцевое вешало — крепится к полке, мышкой прыгает между полками (не двигается свободно)">
           <span class="el-row-label">Вешало</span>
@@ -1111,6 +1123,26 @@ export function renderSectionsList() {
   container.querySelectorAll('.section-drawer-slide-input').forEach(sel => {
     sel.addEventListener('change', e => {
       state.sections[Number(e.target.dataset.idx)].drawerSlideType = e.target.value;
+      buildFurniture();
+    });
+  });
+  // Ручка ящика (задание «ручки 30,07»): тип на секцию. Смена типа перерисовывает карточку —
+  // при «ручной цене» появляются поля названия и цены, иначе прячутся.
+  container.querySelectorAll('.section-drawer-handle-input').forEach(sel => {
+    sel.addEventListener('change', e => {
+      state.sections[Number(e.target.dataset.idx)].drawerHandleType = e.target.value;
+      buildFurniture();
+      renderSectionsList();
+    });
+  });
+  container.querySelectorAll('.section-drawer-handle-name-input').forEach(inp => {
+    inp.addEventListener('input', e => {
+      state.sections[Number(e.target.dataset.idx)].drawerHandleName = e.target.value;
+    });
+  });
+  container.querySelectorAll('.section-drawer-handle-price-input').forEach(inp => {
+    inp.addEventListener('input', e => {
+      state.sections[Number(e.target.dataset.idx)].drawerHandlePrice = Number(e.target.value) || 0;
       buildFurniture();
     });
   });

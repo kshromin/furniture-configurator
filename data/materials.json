@@ -278,6 +278,10 @@
     "name": "Доводчик двери купе",
     "pricePerDoor": 500
   },
+  "drawerHandle": {
+    "name": "Ручка ящика (произвольная)",
+    "pricePerDrawer": 500
+  },
   "swingDoorHardware": {
     "name": "Фурнитура распашной двери (компл.)",
     "pricePerDoor": 500

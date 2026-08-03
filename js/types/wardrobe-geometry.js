@@ -668,13 +668,28 @@ export function buildWardrobeBox() {
     const { boxW, boxH, boxDepth } = drawerBoxSize(sw, dh, sec.drawerDepth, depth);
     const boxCenterZ = facadeZ - t / 2 - boxDepth / 2;
 
-    return [
+    const meshes = [
       addPanel(sw, dh, t, fColor, [cx, y0 + y, facadeZ], 0.9), // фасад
       addPanel(boxW, t, boxDepth, nColor, [cx, y0 + y - boxH / 2 + t / 2, boxCenterZ]),      // дно короба
       addPanel(t, boxH, boxDepth, nColor, [cx - boxW / 2 + t / 2, y0 + y, boxCenterZ]),      // левая боковина
       addPanel(t, boxH, boxDepth, nColor, [cx + boxW / 2 - t / 2, y0 + y, boxCenterZ]),      // правая боковина
       addPanel(boxW, boxH, t, nColor, [cx, y0 + y, boxCenterZ - boxDepth / 2 + t / 2]),       // задняя стенка короба
     ];
+    // Ручка (задание «ручки 30,07») — короткая индикативная полоса по центру фасада. Тип один на
+    // секцию (sec.drawerHandleType): 'standard' — тёмно-серая (произвольная, 500₽), 'manual' —
+    // красная (ручная цена, «спец»-ручка), 'none' — без ручки (push-to-open). Чуть выступает вперёд.
+    const handleType = sec.drawerHandleType || 'standard';
+    if (handleType !== 'none') {
+      const hw = Math.min(sw * 0.4, 250), hh = 22, hd = 12;
+      const geo = new THREE.BoxGeometry(hw, hh, hd);
+      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+        color: handleType === 'manual' ? 0xcc2222 : 0x444444, metalness: 0.4, roughness: 0.5,
+      }));
+      mesh.position.set(cx, y0 + y, frontZ + hd / 2);
+      furnitureGroup.add(mesh);
+      meshes.push(mesh);
+    }
+    return meshes;
   }
 
   // Тонкая планка без чёрного контура (addPanel рисует его всегда, для десятков тонких прутков
