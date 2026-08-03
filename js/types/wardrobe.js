@@ -155,7 +155,7 @@ export default {
         if (kind === 'mirror') return 'Наполнение дверей: Зеркало';
         if (kind === 'glass') return ('Наполнение дверей: Стекло ' + glassName(colorId)).trim();
         if (kind === 'special') return `Наполнение дверей: спеццвет «${special?.name || state.specialFillName || 'без названия'}»`;
-        return ('Наполнение дверей: ЛДСП ' + fasadName(colorId)).trim();
+        return ('Наполнение дверей: ' + fasadName(colorId)).trim(); // fasadName уже с «ЛДСП …»
       };
       const addFill = (name, m2, rate) => { const e = fillAgg.get(name) || { m2: 0, cost: 0 }; e.m2 += m2; e.cost += m2 * rate; fillAgg.set(name, e); };
       for (let i = 0; i < dc; i++) {

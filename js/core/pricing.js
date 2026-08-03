@@ -54,7 +54,11 @@ export function updatePrice(counts) {
   // Детали 32мм («в две плиты», state.panel32): материал ×2. Не касается фурнитуры,
   // сеток/корзин (готовые изделия), крепежа и коробов/выравнивателей. Кромка при 32мм —
   // больше не множитель ×3, а отдельная цена ленты «на 32» у цвета (см. kromkaPrice ниже).
-  const thickMul  = state.panel32 ? 2 : 1;
+  // «В две плиты» (32мм) удваивает материал ТОЛЬКО у 16мм плит; у материалов другой толщины
+  // (напр. МДФ 18мм) переключатель 16/32 не применяется — толщина это параметр материала.
+  const mulFor = mat => (state.panel32 && (mat?.thickness || 16) === 16) ? 2 : 1;
+  const thickMul = mulFor(kMat); // корпус
+  const fillMul = mulFor(nMat);  // наполнение
 
   // mountPrice — скрытые крепёж (100₽/деталь ЛДСП) и встройка (300₽/деталь без боковой опоры):
   // отдельной строки в смете нет по заданию, суммы входят в «Корпус»; количества
@@ -68,7 +72,7 @@ export function updatePrice(counts) {
   // Сетчатые полки считаются за погонный метр (своя цена на комбинацию глубина+цвет), корзины —
   // за штуку по каталогу (комбинация ширина+глубина+высота+цвет) — не за м² по общему тарифу
   // наполнения, просто добавляем уже готовые суммы в ту же строку сметы.
-  const fillPrice     = fillM2     * nMat.pricePerM2 * thickMul + meshPrice + basketPrice;
+  const fillPrice     = fillM2     * nMat.pricePerM2 * fillMul + meshPrice + basketPrice;
   // backWallType — может отличаться от state.backWall при посегментной стенке (см. wardrobe.js
   // areas()): общая стенка выключена ('none'), но конкретные сегменты по секциям — всегда ЛДСП.
   const backWallPrice = backWallM2 * (BACK_WALL_RATE[backWallType] || 0) * thickMul;
@@ -137,20 +141,21 @@ export function updatePrice(counts) {
   const push = (name, qty, unit, price, sum) => { if (Math.round(sum || 0) !== 0) li.push({ name, qty, unit, price, sum }); };
   const doorsN = (counts.door || 0) + (counts.swingDoor || 0);
 
-  // ЛДСП — ОДНОЙ строкой на ЦВЕТ (не по поверхности корпус/фасад/наполнение): суммируем площади
-  // всех поверхностей одного цвета. Стоимость с учётом ×2 для «в две плиты» (корпус/наполнение;
-  // фасад не удваивается) — считаем по фактическим суммам, поэтому сходится с итогом.
+  // Материал — ОДНОЙ строкой на «название + толщина» (не по поверхности корпус/фасад/наполнение):
+  // суммируем площади всех поверхностей одного материала. Тип пишем в названии («ЛДСП …», «МДФ …»).
+  // Стоимость с ×2 для 16мм «в две плиты» — по фактическим суммам, поэтому сходится с итогом.
   const ldsp = new Map();
   const addLdsp = (mat, m2, mul) => {
     if (m2 <= 0) return;
-    const key = mat.name || mat.id || '—';
-    const e = ldsp.get(key) || { name: key, m2: 0, cost: 0, rate: mat.pricePerM2 };
+    const th = mat.thickness || 16;
+    const key = (mat.name || mat.id || '—') + '|' + th;
+    const e = ldsp.get(key) || { name: mat.name || mat.id || '—', th, m2: 0, cost: 0, rate: mat.pricePerM2 };
     e.m2 += m2; e.cost += m2 * mat.pricePerM2 * mul; ldsp.set(key, e);
   };
   addLdsp(kMat, korpusM2, thickMul);
   addLdsp(fMat, fasadM2, 1);
-  addLdsp(nMat, fillM2, thickMul);
-  ldsp.forEach(e => push(`ЛДСП ${e.name}`, +e.m2.toFixed(2), 'м²', e.rate, e.cost));
+  addLdsp(nMat, fillM2, fillMul);
+  ldsp.forEach(e => push(`${e.name}, ${e.th} мм`, +e.m2.toFixed(2), 'м²', e.rate, e.cost));
 
   push('Крепёж (за деталь)', fastenerCount, 'дет.', 100, fastenerCount * 100);
   push('Встройка в проём (за деталь)', embedCount, 'дет.', 300, embedCount * 300);

@@ -7,43 +7,57 @@
         "colors": [
           {
             "id": "w980",
-            "name": "Белый альпийский",
+            "name": "ЛДСП Белый альпийский",
             "color": "#f4f3f0",
             "pricePerM2": 900,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           },
           {
             "id": "u727",
-            "name": "Серый камень",
+            "name": "ЛДСП Серый камень",
             "color": "#9a9a9a",
             "pricePerM2": 950,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           },
           {
             "id": "u961",
-            "name": "Графит",
+            "name": "ЛДСП Графит",
             "color": "#4a4a4a",
             "pricePerM2": 950,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           },
           {
             "id": "h3840",
-            "name": "Дуб Сонома",
+            "name": "ЛДСП Дуб Сонома",
             "color": "#c8a97a",
             "pricePerM2": 1050,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           },
           {
             "id": "h1334",
-            "name": "Орех Термо",
+            "name": "ЛДСП Орех Термо",
             "color": "#7a5c3a",
             "pricePerM2": 1100,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
+          },
+          {
+            "id": "mdf_eterno18",
+            "name": "Этерно МДФ Белый",
+            "color": "#f2f1ec",
+            "pricePerM2": 1600,
+            "thickness": 18,
+            "edgePerM16": 180,
+            "edgePerM32": 180
           }
         ]
       },
@@ -53,42 +67,47 @@
         "colors": [
           {
             "id": "t01",
-            "name": "Белый",
+            "name": "ЛДСП Белый",
             "color": "#f2f2f0",
             "pricePerM2": 650,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           },
           {
             "id": "t02",
-            "name": "Серый",
+            "name": "ЛДСП Серый",
             "color": "#b0b0b0",
             "pricePerM2": 650,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           },
           {
             "id": "t03",
-            "name": "Венге",
+            "name": "ЛДСП Венге",
             "color": "#3b2a1a",
             "pricePerM2": 700,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           },
           {
             "id": "t04",
-            "name": "Бук",
+            "name": "ЛДСП Бук",
             "color": "#d4a96a",
             "pricePerM2": 700,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           },
           {
             "id": "k1784630235_1",
-            "name": "тест",
+            "name": "ЛДСП тест",
             "pricePerM2": 1000,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           }
         ]
       }
@@ -102,35 +121,39 @@
         "colors": [
           {
             "id": "fw980",
-            "name": "Белый альпийский",
+            "name": "ЛДСП Белый альпийский",
             "color": "#f4f3f0",
             "pricePerM2": 900,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           },
           {
             "id": "fu727",
-            "name": "Серый камень",
+            "name": "ЛДСП Серый камень",
             "color": "#9a9a9a",
             "pricePerM2": 950,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           },
           {
             "id": "fu961",
-            "name": "Графит",
+            "name": "ЛДСП Графит",
             "color": "#4a4a4a",
             "pricePerM2": 950,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           },
           {
             "id": "fmirror",
-            "name": "Зеркало",
+            "name": "ЛДСП Зеркало",
             "color": "#cfe8ec",
             "pricePerM2": 1200,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           }
         ]
       },
@@ -140,27 +163,30 @@
         "colors": [
           {
             "id": "ft01",
-            "name": "Белый",
+            "name": "ЛДСП Белый",
             "color": "#f2f2f0",
             "pricePerM2": 650,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           },
           {
             "id": "ft02",
-            "name": "Серый",
+            "name": "ЛДСП Серый",
             "color": "#b0b0b0",
             "pricePerM2": 650,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           },
           {
             "id": "ft03",
-            "name": "Венге",
+            "name": "ЛДСП Венге",
             "color": "#3b2a1a",
             "pricePerM2": 700,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           }
         ]
       }
@@ -174,19 +200,21 @@
         "colors": [
           {
             "id": "nw980",
-            "name": "Белый альпийский",
+            "name": "ЛДСП Белый альпийский",
             "color": "#f4f3f0",
             "pricePerM2": 900,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           },
           {
             "id": "nh3840",
-            "name": "Дуб Сонома",
+            "name": "ЛДСП Дуб Сонома",
             "color": "#c8a97a",
             "pricePerM2": 1050,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           }
         ]
       },
@@ -196,19 +224,21 @@
         "colors": [
           {
             "id": "nt01",
-            "name": "Белый",
+            "name": "ЛДСП Белый",
             "color": "#f2f2f0",
             "pricePerM2": 650,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           },
           {
             "id": "nt04",
-            "name": "Бук",
+            "name": "ЛДСП Бук",
             "color": "#d4a96a",
             "pricePerM2": 700,
             "edgePerM16": 150,
-            "edgePerM32": 450
+            "edgePerM32": 450,
+            "thickness": 16
           }
         ]
       }
