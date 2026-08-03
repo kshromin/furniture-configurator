@@ -3,7 +3,7 @@ import { camera, renderer, controls, furnitureGroup, isFrontView, showPerspectiv
 import { state } from './state.js';
 import { buildFurniture } from './build.js';
 import {
-  lastBuildItemMeshes, lastBuildValetMeshes, lastBuildDoorMeshes, lastBuildDoorLayout,
+  lastBuildItemMeshes, lastBuildValetMeshes, lastBuildPanelMeshes, lastBuildDoorMeshes, lastBuildDoorLayout,
   lastBuildSectionCenters, lastBuildMezzanineSectionCenters, lastBuildY0,
   checkOverlap, boundsForZone, boundsForZonePhysical, secForZone, valetAnchorCandidates, resolveValetAnchorY,
   itemPhysicalBands, itemPhysicalHeight, itemBands, itemBandHeight, resolveLockedMove, absorbIntoLockedGap,
@@ -11,11 +11,11 @@ import {
   clampDrawerOffsetWidth, MIN_DRAWER_OFFSET_WIDTH, MIN_DRAWER_REMAINING_WIDTH, DEFAULT_DRAWER_OFFSET_WIDTH,
 } from '../types/_wardrobe-shared.js';
 import { projectToOverlay, updateArrow, hideArrow } from './dimensions.js';
-import { renderSectionsList, selectSectionFromScene } from './tabs.js';
+import { renderSectionsList, selectSectionFromScene, syncThick32Details, syncEmbedDetails } from './tabs.js';
 // Напрямую из wardrobe.js (не через barrel — тот не реэкспортирует сам тип во избежание цикла):
 // цена одной двери для инфопанели выделенной двери.
 import { slidingDoorUnitPrice, swingDoorUnitPrice } from '../types/wardrobe.js';
-import { materials } from './state.js';
+import { materials, korpusMaterialThickness, syncPanelThickness, detailT } from './state.js';
 import { fmt } from './pricing.js';
 
 // Свободное перетаскивание мышкой наполнения секции (полки/ящики/сетка/корзины/штанга) — во
@@ -119,6 +119,9 @@ function pickDraggable(e) {
     if (obj.userData.itemId) return { mesh: obj, kind: 'item', zone };
     if (obj.userData.itemType === 'valet') return { mesh: obj, kind: 'valet', zone };
     if (obj.userData.doorIndex !== undefined) return { mesh: obj, kind: 'door', zone };
+    // Корпусная деталь (задание «клик по детали») — стойка/крыша/дно/перегородка: выделяется
+    // последней (нет itemId/doorIndex), даёт тумблеры встройки и толщины 32мм в инфопанели.
+    if (obj.userData.panelKey) return { mesh: obj, kind: 'panel', panelKey: obj.userData.panelKey, zone };
   }
   return null;
 }
@@ -152,7 +155,15 @@ const DRAWER_SLIDE_LABELS = { ball: 'шариковые', soft: 'скрытые,
 // переподсвечивает элемент на новых, перерисовывает саму панель с обновлёнными подписями/кнопками.
 function refreshActive() {
   buildFurniture();
-  active.meshes = lastBuildItemMeshes.get(active.sectionIndex + '|' + active.item.id) || [];
+  // После пересборки меши уничтожены — переподхватываем по типу выделения (панель/дверь/элемент секции).
+  if (active.kind === 'panel') {
+    active.meshes = lastBuildPanelMeshes.get(active.panelKey) || [];
+    // Клик по детали — основной способ (задание «вместо галочек»); держим галочки «Опции» в
+    // синхроне, чтобы обе точки управления не расходились.
+    syncThick32Details();
+    syncEmbedDetails();
+  } else if (active.kind === 'door') active.meshes = lastBuildDoorMeshes[active.doorIndex] || [];
+  else active.meshes = lastBuildItemMeshes.get(active.sectionIndex + '|' + active.item.id) || [];
   setHighlight(active.meshes, SELECT_EMISSIVE);
   showInfoPanel();
 }
@@ -197,6 +208,27 @@ function describeActive() {
         },
       }],
     };
+  }
+  // Корпусная деталь (задание «клик по детали») — стойка/крыша/дно/перегородка. Тумблеры встройки
+  // (state.embed[key]) и толщины 32мм (state.thick32[key]) — «по выделению», как у полки. Режим
+  // 32мм доступен только материалам 16мм (у Этерно 18/22/25 переключатель прячем).
+  if (kind === 'panel') {
+    const key = active.panelKey;
+    const NAMES = { left: 'Левая стойка', right: 'Правая стойка', top: 'Крыша', bottom: 'Дно', dividers: 'Перегородка' };
+    const emb = state.embed || (state.embed = {});
+    const th = state.thick32 || (state.thick32 = {});
+    const canDouble = korpusMaterialThickness() === 16;
+    const lines = [
+      `Толщина: ${detailT(key)} мм`,
+      ...(emb[key] ? ['+ встройка в проём (+300 ₽)'] : []),
+    ];
+    const actions = [
+      { label: emb[key] ? 'Убрать встройку' : '+ Встройка в проём', onClick: () => { emb[key] = !emb[key]; refreshActive(); } },
+    ];
+    if (canDouble) actions.push(
+      { label: th[key] ? 'Сделать 16 мм' : 'Сделать 32 мм', onClick: () => { th[key] = !th[key]; syncPanelThickness(); refreshActive(); } },
+    );
+    return { title: NAMES[key] || 'Деталь', lines, actions };
   }
   switch (itemType) {
     case 'shelf':
@@ -647,6 +679,19 @@ function onPointerDown(e) {
     updateEditInputs(); // прячет поля просветов, если остались от прежнего выделения
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
+    return;
+  }
+
+  // Корпусная деталь (задание «клик по детали») — только выделение + инфопанель с тумблерами
+  // встройки/толщины (панели не двигаются). Все меши этого ключа подсвечиваются (перегородок
+  // может быть несколько). Размер детали в панель добавляет showInfoPanel (фича компа).
+  if (picked.kind === 'panel') {
+    const key = picked.panelKey;
+    const meshes = lastBuildPanelMeshes.get(key) || [picked.mesh];
+    active = { kind: 'panel', panelKey: key, meshes };
+    setHighlight(meshes, SELECT_EMISSIVE);
+    showInfoPanel();
+    updateEditInputs();
     return;
   }
 

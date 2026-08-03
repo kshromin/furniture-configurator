@@ -257,6 +257,9 @@ export function buildSlidingDoor(x, y, z, w, h, fillColor, doorIndex) {
 // сборки, не дублируя формулу расчёта cursorX/y0 здесь и там.
 export let lastBuildItemMeshes = new Map();
 export let lastBuildValetMeshes = new Map();
+// Корпусные панели (стойки/крыша/дно/перегородки) — для выделения кликом (задание «клик по детали»):
+// panelKey ('left'|'right'|'top'|'bottom'|'dividers') -> меши. Тумблеры встройки/32мм по выделению.
+export let lastBuildPanelMeshes = new Map();
 // Двери купе (задание «двери-начали 20,07»): lastBuildDoorMeshes[i] — меши i-й двери (рамка+
 // наполнение), lastBuildDoorLayout — раскладка ряда для драга вдоль направляющей (границы
 // проёма, ширина двери, рельса и построечный X-центр каждой двери). Драг — только просмотр:
@@ -384,6 +387,7 @@ export function buildWardrobeBox() {
   const t = PANEL_THICKNESS;
   lastBuildItemMeshes = new Map();
   lastBuildValetMeshes = new Map();
+  lastBuildPanelMeshes = new Map();
   lastBuildDoorMeshes = [];
   lastBuildDoorLayout = null;
   lastBuildSectionCenters = [];
@@ -423,10 +427,15 @@ export function buildWardrobeBox() {
 
   // Толщина каждой корпусной детали своя — 16 или 32мм (галочки «Детали 32 мм» / общий режим)
   const tB = detailT('bottom'), tT = detailT('top'), tL = detailT('left'), tR = detailT('right');
-  if (!noBottom)    addPanel(width, tB, depth, kColor, [0, y0 + tB / 2, 0]);
-  if (!noCeiling)   addPanel(width, tT, depth, kColor, [0, y0 + height - alTopH - tT / 2, 0]);
-  if (!noSideLeft)  addPanel(tL, stojkaH, depth, kColor, [-width / 2 + alLeftW + tL / 2, stojkaCenterY, 0]);
-  if (!noSideRight) addPanel(tR, stojkaH, depth, kColor, [width / 2 - alRightW - tR / 2, stojkaCenterY, 0]);
+  // Пометить панель для выделения кликом (задание «клик по детали»): panelKey -> меши.
+  const tagPanel = (mesh, key) => {
+    if (mesh) { mesh.userData.panelKey = key; const a = lastBuildPanelMeshes.get(key) || []; a.push(mesh); lastBuildPanelMeshes.set(key, a); }
+    return mesh;
+  };
+  if (!noBottom)    tagPanel(addPanel(width, tB, depth, kColor, [0, y0 + tB / 2, 0]), 'bottom');
+  if (!noCeiling)   tagPanel(addPanel(width, tT, depth, kColor, [0, y0 + height - alTopH - tT / 2, 0]), 'top');
+  if (!noSideLeft)  tagPanel(addPanel(tL, stojkaH, depth, kColor, [-width / 2 + alLeftW + tL / 2, stojkaCenterY, 0]), 'left');
+  if (!noSideRight) tagPanel(addPanel(tR, stojkaH, depth, kColor, [width / 2 - alRightW - tR / 2, stojkaCenterY, 0]), 'right');
   if (state.alignerLeft)  addPanel(alLeftW,  stojkaH, t, kColor, [-width / 2 + alLeftW / 2, stojkaCenterY, alignZ]);
   if (state.alignerRight) addPanel(alRightW, stojkaH, t, kColor, [width / 2 - alRightW / 2, stojkaCenterY, alignZ]);
   if (state.alignerTop)   addPanel(width, alTopH, t, kColor, [0, y0 + height - alTopH / 2, alignZ]);
@@ -503,7 +512,7 @@ export function buildWardrobeBox() {
       sectionCenters.push(cursorX + sec.width / 2);
       cursorX += sec.width;
       if (i < sections.length - 1) {
-        addPanel(tDiv, mainDividerH, innerDepth, nColor, [cursorX + tDiv / 2, mainDividerCenterY, innerZ]);
+        tagPanel(addPanel(tDiv, mainDividerH, innerDepth, nColor, [cursorX + tDiv / 2, mainDividerCenterY, innerZ]), 'dividers');
         cursorX += tDiv;
       }
     });
@@ -527,7 +536,7 @@ export function buildWardrobeBox() {
       mezzSectionCenters.push(cursorX + sec.width / 2);
       cursorX += sec.width;
       if (i < mezzSections.length - 1) {
-        addPanel(tDiv, mezzDividerH, innerDepth, nColor, [cursorX + tDiv / 2, mezzDividerCenterY, innerZ]);
+        tagPanel(addPanel(tDiv, mezzDividerH, innerDepth, nColor, [cursorX + tDiv / 2, mezzDividerCenterY, innerZ]), 'dividers');
         cursorX += tDiv;
       }
     });

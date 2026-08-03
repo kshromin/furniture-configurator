@@ -749,7 +749,7 @@ function thick32SideEligible(key) {
   return !state[noKey] || state[replaceKey] === 'planka';
 }
 
-function syncThick32Details() {
+export function syncThick32Details() {
   // При общем режиме 32мм точечные галочки бессмысленны — блокируем и приглушаем.
   const panelMode = state.panel32;
   document.querySelectorAll('.thick32-cb').forEach(cb => {
