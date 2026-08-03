@@ -357,6 +357,22 @@
           </div>
 
           <div class="field checkbox-field">
+            <label><input type="checkbox" id="blindLeft"> Глухая часть слева</label>
+          </div>
+          <div id="blindLeftField" style="display:none;margin-top:6px">
+            <div class="dim-label-row"><label>Ширина глухой части</label><input type="number" autocomplete="off" class="dim-input" id="blindLeftWVal" min="66" max="650" step="1" value="650"></div>
+            <input type="range" id="blindLeftW" min="66" max="650" step="1" value="650">
+          </div>
+
+          <div class="field checkbox-field">
+            <label><input type="checkbox" id="blindRight"> Глухая часть справа</label>
+          </div>
+          <div id="blindRightField" style="display:none;margin-top:6px">
+            <div class="dim-label-row"><label>Ширина глухой части</label><input type="number" autocomplete="off" class="dim-input" id="blindRightWVal" min="66" max="650" step="1" value="650"></div>
+            <input type="range" id="blindRightW" min="66" max="650" step="1" value="650">
+          </div>
+
+          <div class="field checkbox-field">
             <label><input type="checkbox" id="noCeiling"> Без крыши</label>
           </div>
           <div class="side-replace-block" id="topReplaceBlock" style="display:none">

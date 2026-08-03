@@ -218,6 +218,9 @@ export default {
     const rightBoxM2  = elemM2(state.noSideRight, state.rightReplace,  state.rightBoxW,  false);
     const topBoxM2    = elemM2(state.noCeiling,   state.topReplace,    state.topBoxH,    true);
     const bottomBoxM2 = elemM2(state.noBottom,    state.bottomReplace, state.bottomBoxH, true);
+    // Глухая часть — считается как вертикальный короб (та же формула площади, стойка сохранена).
+    const blindBoxM2 = (w) => (w * H * 2 + w * DOOR_DEPTH_ZONE * 2 + H * DOOR_DEPTH_ZONE) / 1e6;
+    const blindM2 = (state.blindLeft ? blindBoxM2(state.blindLeftW) : 0) + (state.blindRight ? blindBoxM2(state.blindRightW) : 0);
 
     // Выравнивающие элементы — та же геометрия, что и addPanel в buildWardrobeBox
     const alignerM2 =
@@ -438,7 +441,7 @@ export default {
     const rodMeterM = sections.reduce((s, sec) => s + sec.items.filter(it => it.type === 'rod').length * sec.width, 0) / 1000;
 
     return {
-      korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2 + extraKorpusM2,
+      korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2 + blindM2 + extraKorpusM2,
       fasadM2, doorFillPrice, doorHardwarePrice, doorLines,
       fillM2: fillM2 + extraFillM2, backWallM2, backWallType, meshPrice, basketPrice, drawerSlidePrice,
       edgeMm, rodMeterM,

@@ -93,8 +93,10 @@ export function effectiveDoorSpan() {
   // Тип «Двери купе» — корпуса нет, периметр (планка/короб/нет) активен ВСЕГДА, поэтому сторона
   // условно «убрана» на всех сторонах (off() берёт leftReplace/короб напрямую, как и в геометрии типа).
   const sd = state.type === 'sliding-doors';
-  const leftOff   = off(noSideLeft  || sd, leftReplace,   leftBoxW,   alignerLeft,  alignerLeftW, tL);
-  const rightOff  = off(noSideRight || sd, rightReplace,  rightBoxW,  alignerRight, alignerRightW, tR);
+  // «Глухая часть» сужает дверной проём на свою ширину (стойка при этом сохраняется — она в
+  // stojka*Off ниже, глухая часть туда НЕ входит).
+  const leftOff   = off(noSideLeft  || sd, leftReplace,   leftBoxW,   alignerLeft,  alignerLeftW, tL) + (state.blindLeft  ? state.blindLeftW  : 0);
+  const rightOff  = off(noSideRight || sd, rightReplace,  rightBoxW,  alignerRight, alignerRightW, tR) + (state.blindRight ? state.blindRightW : 0);
   const topOff    = off(noCeiling   || sd, topReplace,    topBoxH,    alignerTop,   alignerTopH,  tT);
   const bottomOff = off(noBottom    || sd, bottomReplace, bottomBoxH, false,        0,            tB);
 

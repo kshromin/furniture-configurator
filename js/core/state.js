@@ -202,6 +202,10 @@ export const state = {
   alignerLeft: false,  alignerLeftW: 50,
   alignerRight: false, alignerRightW: 50,
   alignerTop: false,   alignerTopH: 50,
+  // «Глухая часть» слева/справа (задание «глухая часть 29,07»): тот же короб ЛДСП, но СТОЙКА
+  // остаётся, а дверной проём сужается на ширину глухой части. Ширина по умолч./макс — 650.
+  blindLeft: false,  blindLeftW: 650,
+  blindRight: false, blindRightW: 650,
   fasadDoorType: 'sliding',  // sliding | swing | none
   doorCount: null,           // null = авто; число — выбор пользователя (если допустим для пролёта)
   doorSoftClose: [],         // индексы дверей КУПЕ с доводчиком (галочка на дверь, itemDrag.js), цена — за дверь

@@ -549,6 +549,11 @@ export function buildWardrobeBox() {
   drawSideElem(state.noSideLeft,  state.leftReplace,  state.leftBoxW,  -width / 2 + (state.leftReplace === 'box' ? state.leftBoxW : tL) / 2, tL);
   drawSideElem(state.noSideRight, state.rightReplace, state.rightBoxW,  width / 2 - (state.rightReplace === 'box' ? state.rightBoxW : tR) / 2, tR);
 
+  // Глухая часть — короб ЛДСП сразу за стойкой (стойка сохранена, см. effectiveDoorSpan: сужает
+  // только дверной проём). Позиция — от внутренней грани стойки (stojka*Off) внутрь.
+  if (state.blindLeft)  addPanel(state.blindLeftW,  totalH, DOOR_DEPTH_ZONE, kColor, [-width / 2 + stojkaLeftOff  + state.blindLeftW  / 2, totalH / 2, elemZ]);
+  if (state.blindRight) addPanel(state.blindRightW, totalH, DOOR_DEPTH_ZONE, kColor, [ width / 2 - stojkaRightOff - state.blindRightW / 2, totalH / 2, elemZ]);
+
   if (state.noCeiling) {
     const h = state.topReplace === 'box' ? state.topBoxH : tT;
     if (state.topReplace !== 'none')

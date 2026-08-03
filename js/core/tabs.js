@@ -270,7 +270,7 @@ export function syncUIFromState() {
   // (вызван из renderSectionsList() выше) — отдельного чекбокса больше нет.
   setSlider('mezzanineHeight', state.mezzanineHeight);
 
-  ['noSideLeft', 'noSideRight', 'noCeiling', 'noBottom', 'alignerLeft', 'alignerRight', 'alignerTop'].forEach(key => {
+  ['noSideLeft', 'noSideRight', 'noCeiling', 'noBottom', 'alignerLeft', 'alignerRight', 'alignerTop', 'blindLeft', 'blindRight'].forEach(key => {
     const el = document.getElementById(key);
     if (el) el.checked = state[key];
   });
@@ -280,6 +280,10 @@ export function syncUIFromState() {
   setSlider('alignerLeftW', state.alignerLeftW);
   setSlider('alignerRightW', state.alignerRightW);
   setSlider('alignerTopH', state.alignerTopH);
+  document.getElementById('blindLeftField').style.display  = state.blindLeft  ? 'block' : 'none';
+  document.getElementById('blindRightField').style.display = state.blindRight ? 'block' : 'none';
+  setSlider('blindLeftW', state.blindLeftW);
+  setSlider('blindRightW', state.blindRightW);
   syncPerimeter();
   // «Двери купе» — глубина не нужна (изделие плоское), поле скрываем.
   const depthField = document.getElementById('depthField');
@@ -1637,6 +1641,10 @@ export function bindVariantControls() {
   bindAligner('alignerLeft',  'alignerLeftField',  'alignerLeftW',  'alignerLeftW');
   bindAligner('alignerRight', 'alignerRightField', 'alignerRightW', 'alignerRightW');
   bindAligner('alignerTop',   'alignerTopField',   'alignerTopH',   'alignerTopH');
+  // Глухая часть слева/справа — та же механика (галочка + поле ширины, макс 650): короб ЛДСП,
+  // стойка сохраняется, дверной проём сужается (см. effectiveDoorSpan/wardrobe-geometry).
+  bindAligner('blindLeft',  'blindLeftField',  'blindLeftW',  'blindLeftW');
+  bindAligner('blindRight', 'blindRightField', 'blindRightW', 'blindRightW');
 
   // Выравнивающий элемент имеет смысл только вместе со стойкой/крышей — если её сняли
   // («Без левой стойки» и т.п.), соответствующий выравнивающий элемент отключаем и блокируем.
