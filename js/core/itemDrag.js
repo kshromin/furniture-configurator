@@ -303,9 +303,23 @@ function describeActive() {
   }
 }
 
+// Габарит выделенного элемента (Ш×В×Г, мм) — bounding box всех его мешей. Сцена в мм, поэтому
+// размер оси = размер детали. Для «показ размера детали при выделении» (задача 2).
+function activeSizeMm() {
+  if (!active || !active.meshes || !active.meshes.length) return null;
+  const box = new THREE.Box3();
+  active.meshes.forEach(m => box.expandByObject(m));
+  if (box.isEmpty()) return null;
+  const s = new THREE.Vector3();
+  box.getSize(s);
+  return { w: Math.round(s.x), h: Math.round(s.y), d: Math.round(s.z) };
+}
+
 function showInfoPanel() {
   const { title, lines, actions, numberField } = describeActive();
-  infoPanel.innerHTML = `<div class="drag-info-panel-title">${title}</div>${lines.map(l => `<div>${l}</div>`).join('')}`;
+  const size = activeSizeMm();
+  const sizeLine = size ? `<div>Размер: ${size.w}×${size.h}×${size.d} мм</div>` : '';
+  infoPanel.innerHTML = `<div class="drag-info-panel-title">${title}</div>${sizeLine}${lines.map(l => `<div>${l}</div>`).join('')}`;
   (actions || []).forEach(({ label, onClick }) => {
     const btn = document.createElement('button');
     btn.className = 'opt-btn';
