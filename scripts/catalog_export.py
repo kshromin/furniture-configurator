@@ -52,15 +52,15 @@ def load():
 # rows — список списков значений в порядке headers. Ключ `_key` — последняя колонка (скрыта).
 
 def cat_ldsp(d):
-    headers = ['Поверхность', 'Производитель', 'Название', 'Цена ₽/м²', 'Файл текстуры', '_key']
+    headers = ['Поверхность', 'Производитель', 'Название', 'Толщина, мм', 'Цена ₽/м²', 'Файл текстуры', '_key']
     rows = []
     for key, label in SURFACES:
         for prod in d[key]['producers']:
             for c in prod['colors']:
-                rows.append([label, prod['name'], c['name'], c['pricePerM2'], c.get('texture', ''),
-                             f"ldsp:{key}:{prod['id']}:{c['id']}"])
-    return dict(title='ЛДСП', headers=headers, rows=rows, price_cols=[4], hidden_cols=[6],
-                widths=[14, 18, 26, 12, 20, 28])
+                rows.append([label, prod['name'], c['name'], c.get('thickness', 16), c['pricePerM2'],
+                             c.get('texture', ''), f"ldsp:{key}:{prod['id']}:{c['id']}"])
+    return dict(title='ЛДСП', headers=headers, rows=rows, price_cols=[5], hidden_cols=[7],
+                widths=[14, 18, 26, 12, 12, 20, 28])
 
 
 def cat_edge(d):
@@ -144,6 +144,21 @@ def cat_hardware(d):
     rows.append([sw['name'], 'за дверь', sw['pricePerDoor'], 'swing'])
     ro = d['slidingDoor']['rollers']
     rows.append([ro['name'], 'за дверь', ro['pricePerSet'], 'rollers'])
+    # Штанга, доводчик, ручка ящика, крепёж, встройка — тоже редактируемые позиции (цена меняется
+    # выгрузкой/загрузкой, как и всё остальное; крепёж/встройка — услуги в data['services']).
+    rod = d.get('rod')
+    if rod:
+        rows.append([rod['name'], 'за пог.м', rod['pricePerM'], 'rod'])
+    sc = d.get('doorSoftClose')
+    if sc:
+        rows.append([sc['name'], 'за дверь', sc['pricePerDoor'], 'softclose'])
+    dh = d.get('drawerHandle')
+    if dh:
+        rows.append([dh['name'], 'за ящик', dh['pricePerDrawer'], 'handle'])
+    for sid in ('fastener', 'embed'):
+        sv = d.get('services', {}).get(sid)
+        if sv:
+            rows.append([sv['name'], 'за деталь', sv['price'], f'service:{sid}'])
     return dict(title='Фурнитура', headers=headers, rows=rows, price_cols=[3], hidden_cols=[4],
                 widths=[44, 14, 12, 18])
 

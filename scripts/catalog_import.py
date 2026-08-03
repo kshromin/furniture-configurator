@@ -27,7 +27,7 @@ MANUAL = 'вручную'
 
 # лист → индексы колонок (1-based): key_col, price_col (None если нет), extra {поле: колонка}
 SHEETS = {
-    'ЛДСП':              dict(key=6, price=4, extra={'texture': 5}),
+    'ЛДСП':              dict(key=7, price=5, extra={'thickness': 4, 'texture': 6}),
     'Кромка':            dict(key=5, price=4),
     'Наполнение дверей': dict(key=4, price=3),
     'Профили купе':      dict(key=4, price=3),
@@ -68,7 +68,8 @@ def new_ldsp(data, vals, ctx):
     name = str(vals[2] or '').strip()
     if not name:
         return f'{ctx}: пустое название цвета'
-    p = num(vals[3])
+    th = num(vals[3])                 # толщина, мм (колонка добавлена)
+    p = num(vals[4])                  # цена ₽/м²
     if p is None:
         return f'{ctx}: цена не число'
     prods = data[surf]['producers']
@@ -78,10 +79,10 @@ def new_ldsp(data, vals, ctx):
         prod = {'id': pid, 'name': str(vals[1] or pid), 'colors': []}
         prods.append(prod)
     cid = slugify(name, {c['id'] for c in prod['colors']}, 'col')
-    color = {'id': cid, 'name': name, 'color': '', 'pricePerM2': p,
-             'edgePerM16': 0, 'edgePerM32': 0}  # кромки заводятся пустыми (автосоздание §1.2)
-    if vals[4]:
-        color['texture'] = str(vals[4])
+    color = {'id': cid, 'name': name, 'color': '', 'thickness': int(th) if (th and th > 0) else 16,
+             'pricePerM2': p, 'edgePerM16': 0, 'edgePerM32': 0}  # кромки заводятся пустыми (автосоздание §1.2)
+    if vals[5]:
+        color['texture'] = str(vals[5])
     prod['colors'].append(color)
     return None
 
@@ -188,6 +189,9 @@ def apply_row(data, key, price, extra, errctx):
             c['pricePerM2'] = pval
             if extra.get('texture') not in (None, ''):
                 c['texture'] = str(extra['texture'])
+            th = num(extra.get('thickness'))
+            if th is not None and th > 0:
+                c['thickness'] = int(th)
         elif tag == 'edge':
             _, surface, prodid, colid, plate = parts
             c = find_color(data, surface, prodid, colid)
@@ -251,6 +255,14 @@ def apply_row(data, key, price, extra, errctx):
             data['swingDoorHardware']['pricePerDoor'] = pval
         elif tag == 'rollers':
             data['slidingDoor']['rollers']['pricePerSet'] = pval
+        elif tag == 'rod':
+            data['rod']['pricePerM'] = pval
+        elif tag == 'softclose':
+            data['doorSoftClose']['pricePerDoor'] = pval
+        elif tag == 'handle':
+            data['drawerHandle']['pricePerDrawer'] = pval
+        elif tag == 'service':
+            data.setdefault('services', {}).setdefault(parts[1], {})['price'] = pval
         elif tag == 'addon':
             _, grp, item = parts
             g = next((x for x in data['extras'] if x['id'] == grp), None)
