@@ -792,6 +792,9 @@ export function bindThickness() {
     cb.addEventListener('change', () => {
       if (!state.embed) state.embed = {};
       state.embed[cb.dataset.key] = cb.checked;
+      // Общая галочка перегородок — «на все»: сбрасывает индивидуальные отметки встройки
+      // (каждая-сама-по-себе), чтобы bulk и поштучный выбор не расходились.
+      if (cb.dataset.key === 'dividers') state.dividerEmbed = {};
       buildFurniture();
     });
   });

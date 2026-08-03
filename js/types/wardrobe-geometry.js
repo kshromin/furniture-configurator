@@ -258,7 +258,8 @@ export function buildSlidingDoor(x, y, z, w, h, fillColor, doorIndex) {
 export let lastBuildItemMeshes = new Map();
 export let lastBuildValetMeshes = new Map();
 // Корпусные панели (стойки/крыша/дно/перегородки) — для выделения кликом (задание «клик по детали»):
-// panelKey ('left'|'right'|'top'|'bottom'|'dividers') -> меши. Тумблеры встройки/32мм по выделению.
+// panelKey -> меши. 'left'|'right'|'top'|'bottom' — по одной детали; перегородки поимённо, каждая
+// сама по себе: 'dividers#<i>' (основной ряд) и 'dividersM#<i>' (антресоль). Тумблеры по выделению.
 export let lastBuildPanelMeshes = new Map();
 // Двери купе (задание «двери-начали 20,07»): lastBuildDoorMeshes[i] — меши i-й двери (рамка+
 // наполнение), lastBuildDoorLayout — раскладка ряда для драга вдоль направляющей (границы
@@ -512,7 +513,7 @@ export function buildWardrobeBox() {
       sectionCenters.push(cursorX + sec.width / 2);
       cursorX += sec.width;
       if (i < sections.length - 1) {
-        tagPanel(addPanel(tDiv, mainDividerH, innerDepth, nColor, [cursorX + tDiv / 2, mainDividerCenterY, innerZ]), 'dividers');
+        tagPanel(addPanel(tDiv, mainDividerH, innerDepth, nColor, [cursorX + tDiv / 2, mainDividerCenterY, innerZ]), 'dividers#' + i);
         cursorX += tDiv;
       }
     });
@@ -536,7 +537,7 @@ export function buildWardrobeBox() {
       mezzSectionCenters.push(cursorX + sec.width / 2);
       cursorX += sec.width;
       if (i < mezzSections.length - 1) {
-        tagPanel(addPanel(tDiv, mezzDividerH, innerDepth, nColor, [cursorX + tDiv / 2, mezzDividerCenterY, innerZ]), 'dividers');
+        tagPanel(addPanel(tDiv, mezzDividerH, innerDepth, nColor, [cursorX + tDiv / 2, mezzDividerCenterY, innerZ]), 'dividersM#' + i);
         cursorX += tDiv;
       }
     });

@@ -447,7 +447,12 @@ export default {
     if (!noCeiling && emb.top) embedCount++;
     if (!noSideLeft && emb.left) embedCount++;
     if (!noSideRight && emb.right) embedCount++;
-    if (emb.dividers) embedCount += sections.length - 1;
+    // Встройка перегородок — индивидуально по каждой (state.dividerEmbed[i]); если у перегородки
+    // нет своей отметки, берётся общий тумблер emb.dividers (задание «каждая стойка сама по себе»).
+    const dimb = state.dividerEmbed || {};
+    for (let d = 0; d < sections.length - 1; d++) {
+      if (dimb[d] ?? emb.dividers) embedCount++;
+    }
     const mountPrice = fastenerCount * 100 + embedCount * 300;
 
     // Штанга для одежды — погонными метрами (ширина секции × число штанг в ней), цена ₽/пог.м

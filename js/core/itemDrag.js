@@ -87,6 +87,19 @@ snapAboveBtn.title = 'Сдвинуть вплотную к соседу свер
 snapBelowBtn.addEventListener('click', e => { e.stopPropagation(); snapGap(true); });
 snapAboveBtn.addEventListener('click', e => { e.stopPropagation(); snapGap(false); });
 
+// Кнопка «центрировать» (задание Марины): функция ПОСТРОЕНИЯ, поэтому живёт на чертеже — маленькая
+// кнопка того же типа, что стрелки-снапы, в их же столбце, между ▲ и ▼ (инфопанель слева-сверху
+// остаётся чисто информативной). Ставит элемент строго между соседями сверху/снизу.
+const centerBtn = document.createElement('button');
+centerBtn.textContent = '◎';
+centerBtn.title = 'Центрировать между соседями сверху и снизу';
+centerBtn.type = 'button';
+centerBtn.className = 'dim-snap-btn';
+centerBtn.style.display = 'none';
+centerBtn.addEventListener('pointerdown', e => e.stopPropagation());
+overlay.appendChild(centerBtn);
+centerBtn.addEventListener('click', e => { e.stopPropagation(); centerActiveItem(); });
+
 // Антресоли (задание «антресоли 19,07») — свой ряд секций (state.mezzanineSections), независимая
 // от основного нумерация sectionIndex с нуля, поэтому центр по X ищем в своём массиве координат.
 function centerForZone(zone, sectionIndex) {
@@ -227,12 +240,32 @@ function describeActive() {
       }],
     };
   }
-  // Корпусная деталь (задание «клик по детали») — стойка/крыша/дно/перегородка. Тумблеры встройки
-  // (state.embed[key]) и толщины 32мм (state.thick32[key]) — «по выделению», как у полки. Режим
-  // 32мм доступен только материалам 16мм (у Этерно 18/22/25 переключатель прячем).
+  // Корпусная деталь (задание «клик по детали») — стойка/крыша/дно/перегородка.
   if (kind === 'panel') {
     const key = active.panelKey;
-    const NAMES = { left: 'Левая стойка', right: 'Правая стойка', top: 'Крыша', bottom: 'Дно', dividers: 'Перегородка' };
+    // Перегородки (внутренние стойки) — каждая сама по себе: ключ 'dividers#<i>' (основной ряд) или
+    // 'dividersM#<i>' (антресоль). Встройка индивидуальная (state.dividerEmbed[i], откат на общий
+    // state.embed.dividers). Толщина у перегородок общая (влияет на раскладку ширины секций) —
+    // задаётся тумблером «32 мм» в «Опциях», здесь только показываем.
+    if (key.startsWith('dividers')) {
+      const main = key.startsWith('dividers#');
+      const idx = Number(key.split('#')[1]);
+      const embMap = state.dividerEmbed || (state.dividerEmbed = {});
+      const embed = main ? (embMap[idx] ?? state.embed?.dividers ?? false) : (state.embed?.dividers ?? false);
+      const lines = [
+        `Толщина: ${detailT('dividers')} мм`,
+        ...(embed ? ['+ встройка в проём (+300 ₽)'] : []),
+      ];
+      // Встройка задаётся индивидуально только у основного ряда (у перегородок антресоли встройка в
+      // расчёте не участвует — оставляем только размер).
+      const actions = main ? [
+        { label: embed ? 'Убрать встройку' : '+ Встройка в проём', onClick: () => { embMap[idx] = !embed; refreshActive(); } },
+      ] : [];
+      return { title: 'Перегородка ' + (idx + 1) + (main ? '' : ' (антресоль)'), lines, actions };
+    }
+    // Одиночные корпусные детали (left/right/top/bottom) — встройка + толщина 32мм по выделению.
+    // 32мм доступен только материалам 16мм (у Этерно 18/22/25 переключатель прячем).
+    const NAMES = { left: 'Левая стойка', right: 'Правая стойка', top: 'Крыша', bottom: 'Дно' };
     const emb = state.embed || (state.embed = {});
     const th = state.thick32 || (state.thick32 = {});
     const canDouble = korpusMaterialThickness() === 16;
@@ -378,16 +411,6 @@ function showInfoPanel() {
     btn.addEventListener('click', e => { e.stopPropagation(); onClick(); });
     infoPanel.appendChild(btn);
   });
-  // Кнопка «Центрировать по вертикали» (задание Марины) — для любого вертикально позиционируемого
-  // элемента секции (полка/штанга/корзина/сетка/ящик). Стойки/крыша/дно (kind:'panel') не двигаются.
-  if (active.kind === 'item') {
-    const btn = document.createElement('button');
-    btn.className = 'opt-btn';
-    btn.style.cssText = 'margin-top:6px;width:100%';
-    btn.textContent = 'Центрировать по вертикали';
-    btn.addEventListener('click', e => { e.stopPropagation(); centerActiveItem(); });
-    infoPanel.appendChild(btn);
-  }
   // Редактируемое числовое поле прямо в инфопанели (ширина заглушки смещающего элемента, задание
   // «ящики-двери 19,07») — тот же приём, что и тумблеры-actions выше, просто с числом вместо кнопки.
   if (numberField) {
@@ -499,11 +522,12 @@ function updateEditInputs() {
     aboveInput.style.display = 'none';
     snapBelowBtn.style.display = 'none';
     snapAboveBtn.style.display = 'none';
+    centerBtn.style.display = 'none';
     hideArrow('drag-below');
     hideArrow('drag-above');
     return;
   }
-  if (active.kind === 'hsupport') { updateHSupportInputs(); return; }
+  if (active.kind === 'hsupport') { centerBtn.style.display = 'none'; updateHSupportInputs(); return; }
   const { sec, item, itemType, sectionIndex, zone } = active;
   // Физические границы (поверхность дна/низ крыши) — те же, что у статичных размерных линий.
   const { fillBottom, fillTop } = boundsForZonePhysical(zone);
@@ -533,6 +557,11 @@ function updateEditInputs() {
   if (document.activeElement !== aboveInput) aboveInput.value = Math.round(aboveLo - hi);
   updateArrow('drag-above', cx, lastBuildY0 + hi, lastBuildY0 + aboveLo);
   positionSnapBtn(snapAboveBtn, abovePos);
+
+  // Кнопка центрирования — в том же столбце, что стрелки-снапы, но по центру самого элемента
+  // (между ▼ снизу и ▲ сверху). Прячется за камерой, как и стрелки.
+  const centerPos = projectToOverlay(cx, lastBuildY0 + (lo + hi) / 2, 0);
+  positionSnapBtn(centerBtn, centerPos);
 }
 
 // Коммит числа для ручки перемычки — просто клампит в допустимый диапазон (никаких соседей/
@@ -645,6 +674,7 @@ function closeActive() {
   aboveInput.style.display = 'none';
   snapBelowBtn.style.display = 'none';
   snapAboveBtn.style.display = 'none';
+  centerBtn.style.display = 'none';
   hideArrow('drag-below');
   hideArrow('drag-above');
   active = null;
