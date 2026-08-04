@@ -402,10 +402,12 @@ export default {
       // структурной полки).
       if (state.backWall !== 'ldsp') fillM2 += (sw * STIFFENER_HEIGHT) / 1e6; // жёсткость — вертикальная пластина, площадь ширина×высота
       sec.items.filter(it => it.type === 'shelf').forEach(it => {
-        fillM2 += (sw * innerDepth) / 1e6;
+        // Индивидуальная глубина полки (задание «инд. глубина 3,08») — площадь по ней, а не по полной.
+        const shelfD = Math.min(innerDepth, Math.max(70, it.depth ?? innerDepth));
+        fillM2 += (sw * shelfD) / 1e6;
         fillEdge(sw, it.thick32); // передний торец полки; у полки 32мм — лента «на 32»
         if (!state.panel32 && it.thick32) { // полка 32мм: материал ×2 (кромка — выше, вся в ведре 32)
-          extraFillM2 += (sw * innerDepth) / 1e6;
+          extraFillM2 += (sw * shelfD) / 1e6;
         }
       });
     });

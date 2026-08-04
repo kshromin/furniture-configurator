@@ -967,7 +967,12 @@ export function buildWardrobeBox() {
             // Толщина полки — по материалу (itemThickT): общий режим 32 удваивает любой материал,
             // поштучный item.thick32 — только у 16мм. Раньше был хардкод 32 → на 18мм ломалось.
             const shelfT = itemThickT(item);
-            const mesh = addPanel(sw, shelfT, innerDepth, nColor, [cx, y0 + item.y, innerZ]);
+            // Индивидуальная глубина полки (задание «инд. глубина 3,08»): по умолчанию во всю
+            // глубину наполнения, можно уменьшить до 70мм; прижата к задней стенке. Клампится под
+            // текущую глубину конструкции (если та стала меньше сохранённой item.depth).
+            const shelfD = Math.min(innerDepth, Math.max(70, item.depth ?? innerDepth));
+            const shelfZ = (innerZ - innerDepth / 2) + shelfD / 2;
+            const mesh = addPanel(sw, shelfT, shelfD, nColor, [cx, y0 + item.y, shelfZ]);
             tag(mesh, item);
             totalShelves += 1;
             break;

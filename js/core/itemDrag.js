@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { camera, renderer, controls, furnitureGroup, isFrontView, showPerspectiveView } from './scene.js';
 import { state } from './state.js';
 import { buildFurniture } from './build.js';
+import { DOOR_DEPTH_ZONE } from '../types/wardrobe-constants.js';
 import {
   lastBuildItemMeshes, lastBuildValetMeshes, lastBuildPanelMeshes, lastBuildDoorMeshes, lastBuildDoorLayout,
   lastBuildSectionCenters, lastBuildMezzanineSectionCenters, lastBuildY0,
@@ -311,6 +312,7 @@ function describeActive() {
       // Толщина полки — по материалу (itemThickT), не хардкод: на 18мм показываем 18, а не 16.
       // Поштучный «32 мм» — только для 16мм материала (у 18/22/25 кнопку прячем).
       const canDouble = allPlates16();
+      const shelfMaxD = state.depth - DOOR_DEPTH_ZONE; // макс. глубина наполнения (= внутр. глубина)
       return {
         title: item.pinned ? 'Полка (опорная)' : 'Полка',
         lines: [
@@ -324,6 +326,14 @@ function describeActive() {
           ...(canDouble ? [{ label: item.thick32 ? 'Сделать 16 мм' : 'Сделать 32 мм', onClick: () => { item.thick32 = !item.thick32; refreshActive(); } }] : []),
           { label: item.embed ? 'Убрать встройку' : '+ Встройка', onClick: () => { item.embed = !item.embed; refreshActive(); } },
         ],
+        // Индивидуальная глубина полки (задание «инд. глубина 3,08») — редактируемое поле, 70…макс.
+        numberField: {
+          label: 'Глубина, мм',
+          value: Math.min(shelfMaxD, item.depth ?? shelfMaxD),
+          min: 70,
+          max: shelfMaxD,
+          onChange: v => { item.depth = Math.min(shelfMaxD, Math.max(70, v)); refreshActive(); },
+        },
       };
     }
     case 'rod':
