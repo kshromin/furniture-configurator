@@ -349,6 +349,11 @@ def build_workbook(data, chosen_keys):
         for r in spec['rows']:
             ws.append(r)
             ws.cell(row=ws.max_row, column=PRICE_COL).fill = price_fill
+            # «Цвет (hex)» (колонка 11) — заливаем ячейку САМИМ цветом, чтобы видеть его глазами
+            # (задание: «чтоб я видел визуально цвет»). Для текстур цвета обычно нет — ячейка пустая.
+            hexv = str(r[10] or '')
+            if hexv.startswith('#') and len(hexv) == 7:
+                ws.cell(row=ws.max_row, column=11).fill = PatternFill('solid', fgColor='FF' + hexv[1:].upper())
     return wb
 
 
