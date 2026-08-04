@@ -16,6 +16,7 @@ import { initAuth, bindLoginForm, auth } from './core/auth.js';
 import { supabase } from './core/supabaseClient.js';
 import { bindCabinetControls, openCabinetModal } from './core/cabinet.js';
 import { bindUsersControls, openUsersModal } from './core/users.js';
+import { bindProfileControls } from './core/profile.js';
 import { renderAdminOrders } from './core/admin.js';
 import { initItemDrag } from './core/itemDrag.js';
 import { initDimensions } from './core/dimensions.js';
@@ -51,6 +52,7 @@ async function loadMaterials() {
 
 async function init() {
   bindLoginForm();
+  bindProfileControls();
   await initAuth();
 
   // Каталог — из компании пользователя (Supabase) с фолбэком на локальный (см. loadMaterials()).
