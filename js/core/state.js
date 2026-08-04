@@ -3,27 +3,33 @@
 // syncPanelThickness() меняет толщину сразу во всей геометрии/расчётах без правки потребителей.
 // Короба-замены и выравниватели от неё не зависят (у них собственные размеры).
 export let PANEL_THICKNESS = 16;
-// Толщина панелей берётся из ВЫБРАННОГО корпусного материала (16/18/22/25… — параметр материала),
-// и применяется ко всей геометрии. «В две плиты» (32) допустимо ТОЛЬКО для 16мм материала; у
-// материалов другой толщины переключатель 16/32 игнорируется (толщина = из материала).
+// Толщина панелей берётся из ВЫБРАННОГО корпусного материала (16/18/22/25… — параметр материала).
+// «В две плиты» — ОБЩИЙ режим (state.panel32) удваивает ЛЮБОЙ материал (16→32, 18→36 и т.д.), см.
+// задание п.7. ПОШТУЧНЫЙ «32» (по выделению детали/полки) — только для 16мм материала.
 export function korpusMaterialThickness() {
   const prod = (materials.korpus?.producers || []).find(p => p.id === state.korpusProducer);
   return (prod?.colors || []).find(c => c.id === state.korpusId)?.thickness || 16;
 }
 export function syncPanelThickness() {
   const base = korpusMaterialThickness();
-  PANEL_THICKNESS = (base === 16 && state.panel32) ? 32 : base;
+  PANEL_THICKNESS = state.panel32 ? base * 2 : base;
 }
 
-// Толщина конкретной корпусной детали. Базовая толщина берётся из ВЫБРАННОГО корпусного материала
-// (16/18/22/25… — параметр материала, korpusMaterialThickness). У материалов НЕ 16мм переключатель
-// 16/32 не применяется — деталь имеет толщину материала. У 16мм: 32мм, если включён общий режим ИЛИ
-// помечена эта деталь (state.thick32 «Детали 32 мм» / item.thick32 у полки).
-// Ключи: left/right (стойки), top (крыша), bottom (дно), dividers (перегородки).
+// Толщина конкретной корпусной детали. Общий режim panel32 удваивает любой материал; поштучный
+// thick32[key] — только у 16мм. Ключи: left/right (стойки), top (крыша), bottom (дно), dividers.
 export function detailT(key) {
   const base = korpusMaterialThickness();
-  if (base !== 16) return base;
-  return (state.panel32 || state.thick32?.[key]) ? 32 : 16;
+  if (state.panel32) return base * 2;
+  if (base === 16 && state.thick32?.[key]) return 32;
+  return base;
+}
+
+// Толщина полки (item.thick32 — поштучный тумблер по выделению полки). Тот же принцип, что detailT.
+export function itemThickT(item) {
+  const base = korpusMaterialThickness();
+  if (state.panel32) return base * 2;
+  if (base === 16 && item?.thick32) return 32;
+  return base;
 }
 
 export let materials = { korpus: { producers: [] }, fasad: { producers: [] }, fill: { producers: [] }, fittings: [], meshShelf: [], presets: [] };

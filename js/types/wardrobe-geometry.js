@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { state, materials, PANEL_THICKNESS, detailT } from '../core/state.js';
+import { state, materials, PANEL_THICKNESS, detailT, itemThickT } from '../core/state.js';
 import { addPanel, furnitureGroup } from '../core/scene.js';
 import { getColor } from '../core/materials.js';
 import { DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_SHELF_GAP, meshDepths, valetLengths, basketWidths, basketDepthsFor } from './wardrobe-constants.js';
@@ -964,9 +964,9 @@ export function buildWardrobeBox() {
         if (zone === 'mezzanine' && (item.type === 'drawer' || item.type === 'basket')) return;
         switch (item.type) {
           case 'shelf': {
-            // Полка может быть индивидуально помечена 32мм (item.thick32 — тумблер в инфопанели
-            // при выделении полки в 3D); при общем режиме 32 t и так 32.
-            const shelfT = item.thick32 ? 32 : t;
+            // Толщина полки — по материалу (itemThickT): общий режим 32 удваивает любой материал,
+            // поштучный item.thick32 — только у 16мм. Раньше был хардкод 32 → на 18мм ломалось.
+            const shelfT = itemThickT(item);
             const mesh = addPanel(sw, shelfT, innerDepth, nColor, [cx, y0 + item.y, innerZ]);
             tag(mesh, item);
             totalShelves += 1;
@@ -1085,7 +1085,7 @@ export function buildWardrobeBox() {
           const stiffenerZ = -depth / 2 + STIFFENER_THICKNESS / 2;
           const stiffenerY = pinnedItem.y - t / 2 - STIFFENER_HEIGHT / 2;
           const stiffenerMesh = addPanel(sw, STIFFENER_HEIGHT, STIFFENER_THICKNESS, nColor, [cx, y0 + stiffenerY, stiffenerZ]);
-          tag(stiffenerMesh, pinnedItem);
+          tag(stiffenerMesh, pinnedItem, { stiffener: true }); // метка — чтобы не учитывать в размере полки (п.6)
         }
       }
     });

@@ -15,7 +15,7 @@ import { renderSectionsList, selectSectionFromScene } from './tabs.js';
 // Напрямую из wardrobe.js (не через barrel — тот не реэкспортирует сам тип во избежание цикла):
 // цена одной двери для инфопанели выделенной двери.
 import { slidingDoorUnitPrice, swingDoorUnitPrice } from '../types/wardrobe.js';
-import { materials, korpusMaterialThickness, syncPanelThickness, detailT } from './state.js';
+import { materials, korpusMaterialThickness, syncPanelThickness, detailT, itemThickT } from './state.js';
 import { fmt } from './pricing.js';
 
 // Свободное перетаскивание мышкой наполнения секции (полки/ящики/сетка/корзины/штанга) — во
@@ -297,20 +297,24 @@ function describeActive() {
     return { title: NAMES[key] || 'Деталь', lines, actions };
   }
   switch (itemType) {
-    case 'shelf':
+    case 'shelf': {
+      // Толщина полки — по материалу (itemThickT), не хардкод: на 18мм показываем 18, а не 16.
+      // Поштучный «32 мм» — только для 16мм материала (у 18/22/25 кнопку прячем).
+      const canDouble = korpusMaterialThickness() === 16;
       return {
         title: item.pinned ? 'Полка (опорная)' : 'Полка',
         lines: [
           ...(item.pinned ? ['С планкой жёсткости снизу'] : []),
-          `Толщина: ${item.thick32 ? 32 : 16} мм`,
+          `Толщина: ${itemThickT(item)} мм`,
           ...(item.embed ? ['+ встройка (+300 ₽)'] : []),
         ],
         // Тумблеры прямо в инфопанели — «по выделению», как просил пользователь.
         actions: [
-          { label: item.thick32 ? 'Сделать 16 мм' : 'Сделать 32 мм', onClick: () => { item.thick32 = !item.thick32; refreshActive(); } },
+          ...(canDouble ? [{ label: item.thick32 ? 'Сделать 16 мм' : 'Сделать 32 мм', onClick: () => { item.thick32 = !item.thick32; refreshActive(); } }] : []),
           { label: item.embed ? 'Убрать встройку' : '+ Встройка', onClick: () => { item.embed = !item.embed; refreshActive(); } },
         ],
       };
+    }
     case 'rod':
       return {
         title: 'Штанга',
@@ -401,22 +405,52 @@ function describeActive() {
   }
 }
 
-// Габарит выделенного элемента (Ш×В×Г, мм) — bounding box всех его мешей. Сцена в мм, поэтому
-// размер оси = размер детали. Для «показ размера детали при выделении» (задача 2).
-function activeSizeMm() {
-  if (!active || !active.meshes || !active.meshes.length) return null;
+// Габарит набора мешей (bbox Ш×В×Г, мм). Сцена в мм, поэтому размер оси = размер детали.
+function bboxSize(meshes) {
+  if (!meshes || !meshes.length) return null;
   const box = new THREE.Box3();
-  active.meshes.forEach(m => box.expandByObject(m));
+  meshes.forEach(m => box.expandByObject(m));
   if (box.isEmpty()) return null;
   const s = new THREE.Vector3();
   box.getSize(s);
   return { w: Math.round(s.x), h: Math.round(s.y), d: Math.round(s.z) };
 }
+// Две наибольшие оси (наименьшую — толщину — опускаем): у деталей/полок толщина показана отдельной
+// строкой, дублировать её в размере не нужно (задание п.1).
+function faceTwo(s) {
+  const dims = [s.w, s.h, s.d].sort((a, b) => b - a);
+  return `${dims[0]}×${dims[1]}`;
+}
+// Строка размера в инфопанели — своя логика на тип элемента (задание по инфопанели, пп.1,3,4,5,6).
+function sizeLineHtml() {
+  if (!active) return '';
+  const m = active.meshes;
+  if (active.kind === 'panel') {                                   // деталь: две грани без толщины (п.1)
+    const s = bboxSize(m); return s ? `<div>Размер: ${faceTwo(s)} мм</div>` : '';
+  }
+  if (active.kind === 'item') {
+    if (active.itemType === 'shelf') {                             // полка: без планки жёсткости (п.6), без толщины (п.1)
+      const s = bboxSize(m.filter(x => !x.userData?.stiffener));
+      return s ? `<div>Размер: ${faceTwo(s)} мм</div>` : '';
+    }
+    if (active.itemType === 'mesh') {                              // сетчатая полка: только длина (глубина — отдельно, п.5)
+      const s = bboxSize(m); return s ? `<div>Длина: ${s.w} мм</div>` : '';
+    }
+    if (active.itemType === 'rod') {                              // штанга: длины прутков, без габарита 40×40 (пп.3,4)
+      let hx = 0, vy = 0; const box = new THREE.Box3(); const v = new THREE.Vector3();
+      (m || []).forEach(x => { box.setFromObject(x); box.getSize(v); hx = Math.max(hx, v.x); vy = Math.max(vy, v.y); });
+      return active.item?.verticalSupport
+        ? `<div>Труба 1: ${Math.round(hx)} мм</div><div>Труба 2: ${Math.round(vy)} мм</div>`
+        : `<div>Длина трубы: ${Math.round(hx)} мм</div>`;
+    }
+    return '';                                                     // ящик/корзина/вешало — свои строки в lines
+  }
+  return '';                                                        // двери и пр. — без общего размера
+}
 
 function showInfoPanel() {
   const { title, lines, actions, numberField } = describeActive();
-  const size = activeSizeMm();
-  const sizeLine = size ? `<div>Размер: ${size.w}×${size.h}×${size.d} мм</div>` : '';
+  const sizeLine = sizeLineHtml();
   infoPanel.innerHTML = `<div class="drag-info-panel-title">${title}</div>${sizeLine}${lines.map(l => `<div>${l}</div>`).join('')}`;
   (actions || []).forEach(({ label, onClick }) => {
     const btn = document.createElement('button');
