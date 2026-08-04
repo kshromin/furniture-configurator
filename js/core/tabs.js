@@ -297,18 +297,7 @@ export function syncUIFromState() {
   document.querySelectorAll('#backWallGroup .opt-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.back === state.backWall);
   });
-  // «32 мм» («в две плиты») осмыслено только для 16мм плит — если корпус ИЛИ наполнение не 16,
-  // переключатель убираем и снимаем режим 32 (нельзя быть в 32 на не-16 плите).
-  const thickBlock = document.getElementById('thicknessBlock');
-  if (allPlates16()) {
-    if (thickBlock) thickBlock.style.display = '';
-    document.querySelectorAll('#thicknessGroup .opt-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.thick === (state.panel32 ? '32' : '16'));
-    });
-  } else {
-    if (state.panel32) state.panel32 = false; // не-16: 32 недоступно (detailT и так вернёт толщину материала)
-    if (thickBlock) thickBlock.style.display = 'none';
-  }
+  syncThicknessBlock();
   // На случай, если пресет/загруженная позиция заказа принесла несовместимую комбинацию
   // (задняя стенка + снятая стойка/крыша/дно) — блокирует кнопки и сбрасывает стенку так же,
   // как и ручное снятие галочки на вкладке «Внешнее».
@@ -773,6 +762,23 @@ export function syncThick32Details() {
     cb.checked = eligible ? !!state.thick32?.[key] : false;
   });
 }
+
+// «32 мм» («в две плиты») осмыслено только для 16мм плит — если корпус ИЛИ наполнение не 16,
+// переключатель прячем и снимаем режим 32. Вешается на furniture-rebuilt: смена материала
+// (renderSwatches) зовёт только buildFurniture, не syncUIFromState — иначе блок бы не прятался.
+function syncThicknessBlock() {
+  const block = document.getElementById('thicknessBlock');
+  if (allPlates16()) {
+    if (block) block.style.display = '';
+    document.querySelectorAll('#thicknessGroup .opt-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.thick === (state.panel32 ? '32' : '16'));
+    });
+  } else {
+    if (state.panel32) state.panel32 = false; // не-16: 32 недоступно (detailT и так вернёт толщину материала)
+    if (block) block.style.display = 'none';
+  }
+}
+window.addEventListener('furniture-rebuilt', syncThicknessBlock);
 
 export function bindThickness() {
   // Толщина/крепёж отдельных деталей — теперь ТОЛЬКО по выделению детали в 3D (см. itemDrag.js),
