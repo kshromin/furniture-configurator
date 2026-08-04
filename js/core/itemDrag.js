@@ -398,7 +398,8 @@ function describeActive() {
     case 'basket':
       return {
         title: 'Сетчатая корзина',
-        lines: [`Размер: ${sec.basketWidth}×${sec.basketDepth}×${sec.basketHeight} мм`, `Цвет: ${COLOR_LABELS[sec.basketColor] || sec.basketColor}`],
+        // Две разные величины: сама корзина (из настроек) и место/проём под неё (габарит, см. sizeLineHtml).
+        lines: [`Корзина: ${sec.basketWidth}×${sec.basketDepth}×${sec.basketHeight} мм`, `Цвет: ${COLOR_LABELS[sec.basketColor] || sec.basketColor}`],
       };
     default:
       return { title: itemType, lines: [] };
@@ -443,7 +444,10 @@ function sizeLineHtml() {
         ? `<div>Труба 1: ${Math.round(hx)} мм</div><div>Труба 2: ${Math.round(vy)} мм</div>`
         : `<div>Длина трубы: ${Math.round(hx)} мм</div>`;
     }
-    return '';                                                     // ящик/корзина/вешало — свои строки в lines
+    if (active.itemType === 'basket') {                           // корзина: габарит = место/проём под неё
+      const s = bboxSize(m); return s ? `<div>Проём под корзину: ${s.w}×${s.h}×${s.d} мм</div>` : '';
+    }
+    return '';                                                     // ящик/вешало — свои строки в lines
   }
   return '';                                                        // двери и пр. — без общего размера
 }
