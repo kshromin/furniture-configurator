@@ -31,6 +31,8 @@ function renderModal() {
       <div class="users-form-row">
         <input id="uAddLogin" class="mini-input users-inp" placeholder="Логин (напр. ivanov)">
         <input id="uAddPass"  class="mini-input users-inp" placeholder="Пароль">
+        <input id="uAddNick"  class="mini-input users-inp" maxlength="10" placeholder="Ник (необяз.)">
+        <input id="uAddJob"   class="mini-input users-inp" maxlength="10" placeholder="Должность (необяз.)">
         <input id="uAddName"  class="mini-input users-inp" placeholder="ФИО (необяз.)">
         <input id="uAddPhone" class="mini-input users-inp" placeholder="Телефон (необяз.)">
         <button id="uAddBtn" class="opt-btn users-add-btn" type="button">Создать</button>
@@ -57,7 +59,7 @@ async function loadUsers() {
   const list = $('usersList');
   list.innerHTML = '<div class="users-msg">Загрузка...</div>';
   const { data, error } = await supabase.from('profiles')
-    .select('id, email, full_name, phone, is_active, is_company_admin')
+    .select('id, email, full_name, nick, job_title, phone, is_active, is_company_admin')
     .eq('company_id', auth.profile?.company_id).order('email');
   if (error) { list.innerHTML = `<div class="users-msg err">Ошибка: ${esc(error.message)}</div>`; return; }
   list.innerHTML = (data || []).map(u => u.id === editingUserId ? editRow(u) : viewRow(u)).join('')
@@ -72,10 +74,11 @@ function viewRow(u) {
   const blockBtn = self ? '' : (u.is_active
     ? `<button class="opt-btn" data-block="${u.id}" data-to="false">Блок</button>`
     : `<button class="opt-btn" data-block="${u.id}" data-to="true">Разблок</button>`);
+  const jobTag = u.job_title ? `<span class="user-tag">${esc(u.job_title)}</span>` : '';
   return `<div class="user-row">
     <div class="user-main">
-      <div class="user-name">${esc(u.full_name || '—')} ${tag}</div>
-      <div class="user-sub">${esc(u.email)}${u.phone ? ' · ' + esc(u.phone) : ''}</div>
+      <div class="user-name">${esc(u.nick || u.full_name || '—')} ${jobTag} ${tag}</div>
+      <div class="user-sub">${esc(u.email)}${u.phone ? ' · ' + esc(u.phone) : ''}${u.full_name ? ' · ' + esc(u.full_name) : ''}</div>
     </div>
     <div class="user-status">${badge}</div>
     <div class="user-actions">
@@ -87,6 +90,8 @@ function viewRow(u) {
 function editRow(u) {
   return `<div class="user-row user-row-edit">
     <div class="users-form-row">
+      <input id="eNick" class="mini-input users-inp" maxlength="10" value="${esc(u.nick || '')}" placeholder="Ник">
+      <input id="eJob" class="mini-input users-inp" maxlength="10" value="${esc(u.job_title || '')}" placeholder="Должность">
       <input id="eName" class="mini-input users-inp" value="${esc(u.full_name || '')}" placeholder="ФИО">
       <input id="ePhone" class="mini-input users-inp" value="${esc(u.phone || '')}" placeholder="Телефон">
       <input id="ePass" class="mini-input users-inp" placeholder="Новый пароль (если менять)">
@@ -115,18 +120,20 @@ async function createUser() {
   const password = $('uAddPass').value;
   if (!email || !password) { msg.className = 'users-msg err'; msg.textContent = 'Нужны логин и пароль'; return; }
   $('uAddBtn').disabled = true; msg.className = 'users-msg'; msg.textContent = 'Создаём...';
-  const r = await callFn({ email, password, full_name: $('uAddName').value.trim(), phone: $('uAddPhone').value.trim() });
+  const r = await callFn({ email, password, full_name: $('uAddName').value.trim(), phone: $('uAddPhone').value.trim(),
+    nick: $('uAddNick').value.trim(), job_title: $('uAddJob').value.trim() });
   $('uAddBtn').disabled = false;
   if (!r.ok) { msg.className = 'users-msg err'; msg.textContent = r.error; return; }
   msg.className = 'users-msg ok'; msg.textContent = 'Создан: ' + (r.data.email || '');
-  ['uAddLogin', 'uAddPass', 'uAddName', 'uAddPhone'].forEach(id => $(id).value = '');
+  ['uAddLogin', 'uAddPass', 'uAddNick', 'uAddJob', 'uAddName', 'uAddPhone'].forEach(id => $(id).value = '');
   loadUsers();
 }
 
 async function saveUser(id, btn) {
   const msg = $('eMsg');
   btn.disabled = true; msg.className = 'users-msg'; msg.textContent = 'Сохраняем...';
-  const body = { user_id: id, full_name: $('eName').value.trim(), phone: $('ePhone').value.trim() };
+  const body = { user_id: id, full_name: $('eName').value.trim(), phone: $('ePhone').value.trim(),
+    nick: $('eNick').value.trim(), job_title: $('eJob').value.trim() };
   if ($('ePass').value) body.password = $('ePass').value;
   const r = await callFn(body);
   if (!r.ok) { msg.className = 'users-msg err'; msg.textContent = r.error; btn.disabled = false; return; }

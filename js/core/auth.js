@@ -1,6 +1,21 @@
 import { supabase } from './supabaseClient.js';
+import { needsProfileCompletion, openProfileModal } from './profile.js';
 
 export const auth = { session: null, profile: null };
+
+// Имя в чипе аккаунта: ник → ФИО → часть e-mail (ник — отображаемое имя, задание «доп. поля»).
+// Вынесено, чтобы profile.js мог обновить чип после сохранения профиля.
+export function refreshAccountName() {
+  const acc = document.getElementById('currentAccount');
+  if (!acc) return;
+  const loggedIn = !!auth.session;
+  acc.style.display = loggedIn ? '' : 'none';
+  if (!loggedIn) return;
+  const email = auth.session?.user?.email || '';
+  const nameEl = document.getElementById('currentAccountName');
+  if (nameEl) nameEl.textContent = auth.profile?.nick || auth.profile?.full_name || email.split('@')[0] || '—';
+  acc.title = 'Аккаунт: ' + email + (auth.profile?.job_title ? ' · ' + auth.profile.job_title : '');
+}
 
 async function loadProfile(userId) {
   const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
@@ -18,20 +33,14 @@ function setGates(loggedIn) {
   if (usersBtn) usersBtn.style.display = (loggedIn && auth.profile?.is_company_admin) ? '' : 'none';
   const logoutBtn = document.getElementById('sidebarLogoutBtn');
   if (logoutBtn) logoutBtn.style.display = loggedIn ? '' : 'none';
-  // Всегда видно, в каком аккаунте сидишь. Имя = full_name, иначе ник (часть e-mail до «@»).
-  const acc = document.getElementById('currentAccount');
-  if (acc) {
-    acc.style.display = loggedIn ? '' : 'none';
-    if (loggedIn) {
-      const email = auth.session?.user?.email || '';
-      const nameEl = document.getElementById('currentAccountName');
-      if (nameEl) nameEl.textContent = auth.profile?.full_name || email.split('@')[0] || '—';
-      acc.title = 'Аккаунт: ' + email;
-    }
-  }
+  // Всегда видно, в каком аккаунте сидишь (ник → ФИО → e-mail).
+  refreshAccountName();
   // Индикатор процесса виден только после входа (текст обновляет order.js/updateKitBar).
   const proc = document.getElementById('processIndicator');
   if (proc) proc.style.display = loggedIn ? '' : 'none';
+  // Первый вход: ник/должность не заполнены — обязательная модалка дозаполнения (не закрыть, пока
+  // не заполнит). Позже правится по клику на чип аккаунта (см. profile.js).
+  if (loggedIn && needsProfileCompletion()) openProfileModal(true);
 }
 
 // id пользователя, под которым сейчас инициализировано приложение. undefined = ещё не знаем.

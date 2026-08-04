@@ -41,28 +41,60 @@ Deno.serve(async (req) => {
   if (!callerProfile || callerProfile.is_active === false) return json({ error: 'Аккаунт неактивен' }, 403);
   const isSuper = !!callerProfile.is_admin;
   const isCompanyAdmin = !!callerProfile.is_company_admin;
-  if (!isSuper && !isCompanyAdmin) return json({ error: 'Недостаточно прав' }, 403);
 
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
+  // Само-правка: любой пользователь может дозаполнить/изменить СВОЙ профиль (ник/должность/ФИО/телефон)
+  // — задание «доп. поля пользователя». Служебные поля (is_active/is_company_admin) при этом недоступны.
+  const isSelfEdit = !!body.user_id && String(body.user_id) === caller.id;
+  if (!isSuper && !isCompanyAdmin && !isSelfEdit) return json({ error: 'Недостаточно прав' }, 403);
+
+  // Валидация и проверка уникальности ника в рамках компании (без учёта регистра, исключая себя).
+  const validateNick = async (raw: unknown, companyId: string | null, selfId: string) => {
+    const nick = String(raw ?? '').trim();
+    if (nick.length > 10) return { error: 'Ник — максимум 10 символов' };
+    if (nick && companyId) {
+      let q = admin.from('profiles').select('id').eq('company_id', companyId).ilike('nick', nick).limit(1);
+      if (selfId) q = q.neq('id', selfId);
+      const { data: dupe } = await q;
+      if (dupe && dupe.length) return { error: 'Такой ник в компании уже занят' };
+    }
+    return { value: nick || null };
+  };
 
   // ── ПРАВКА существующего пользователя ─────────────────────────────────────
   if (body.user_id) {
     const { data: target } = await admin
       .from('profiles').select('company_id').eq('id', body.user_id).single();
     if (!target) return json({ error: 'Пользователь не найден' }, 404);
-    if (!isSuper && target.company_id !== callerProfile.company_id)
+    const canManage = isSuper || (isCompanyAdmin && target.company_id === callerProfile.company_id);
+    if (!canManage && !isSelfEdit)
       return json({ error: 'Можно править только пользователей своей компании' }, 403);
 
     const patch: Record<string, unknown> = {};
     if (body.full_name !== undefined) patch.full_name = body.full_name || null;
     if (body.phone !== undefined) patch.phone = body.phone || null;
-    if (body.is_active !== undefined) patch.is_active = !!body.is_active;
+    if (body.nick !== undefined) {
+      const r = await validateNick(body.nick, target.company_id, String(body.user_id));
+      if (r.error) return json({ error: r.error }, 409);
+      patch.nick = r.value;
+    }
+    if (body.job_title !== undefined) {
+      const jt = String(body.job_title ?? '').trim();
+      if (jt.length > 10) return json({ error: 'Должность — максимум 10 символов' }, 400);
+      patch.job_title = jt || null;
+    }
+    // Служебные поля — только управляющим (при само-правке недоступны).
+    if (canManage && body.is_active !== undefined) patch.is_active = !!body.is_active;
     if (isSuper && body.is_company_admin !== undefined) patch.is_company_admin = !!body.is_company_admin;
     if (Object.keys(patch).length) {
       const { error: uErr } = await admin.from('profiles').update(patch).eq('id', body.user_id);
-      if (uErr) return json({ error: 'Не удалось обновить профиль: ' + uErr.message }, 500);
+      if (uErr) {
+        const dup = /duplicate key|profiles_nick_company_uniq|23505/i.test(uErr.message);
+        return json({ error: dup ? 'Такой ник в компании уже занят' : 'Не удалось обновить профиль: ' + uErr.message }, dup ? 409 : 500);
+      }
     }
-    if (body.password) {
+    // Пароль: управляющий — любому своему пользователю; сам пользователь — себе.
+    if (body.password && (canManage || isSelfEdit)) {
       const { error: pErr } = await admin.auth.admin.updateUserById(String(body.user_id), { password: String(body.password) });
       if (pErr) return json({ error: 'Не удалось сменить пароль: ' + pErr.message }, 400);
     }
@@ -70,12 +102,18 @@ Deno.serve(async (req) => {
   }
 
   // ── СОЗДАНИЕ пользователя ─────────────────────────────────────────────────
-  const { email, password, full_name, phone, company_id, is_company_admin } = body;
+  const { email, password, full_name, phone, nick, job_title, company_id, is_company_admin } = body;
   if (!email || !password) return json({ error: 'Нужны логин/email и пароль' }, 400);
 
   const targetCompanyId = isSuper ? company_id : callerProfile.company_id;
   const targetIsCompanyAdmin = isSuper ? !!is_company_admin : false;
   if (!targetCompanyId) return json({ error: 'Не указана компания' }, 400);
+
+  // Ник/должность (необязательны при создании — пользователь дозаполнит сам при первом входе).
+  const nickChk = nick !== undefined ? await validateNick(nick, String(targetCompanyId), '') : { value: null };
+  if (nickChk.error) return json({ error: nickChk.error }, 409);
+  const newJobTitle = String(job_title ?? '').trim();
+  if (newJobTitle.length > 10) return json({ error: 'Должность — максимум 10 символов' }, 400);
 
   const { data: company } = await admin
     .from('companies').select('slug, max_users, is_active').eq('id', targetCompanyId).single();
@@ -100,6 +138,8 @@ Deno.serve(async (req) => {
     is_company_admin: targetIsCompanyAdmin,
     full_name: full_name ?? null,
     phone: phone ?? null,
+    nick: nickChk.value,
+    job_title: newJobTitle || null,
     is_active: true,
   }).eq('id', created.user.id);
   if (updErr)
