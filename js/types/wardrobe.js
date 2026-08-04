@@ -104,7 +104,14 @@ export default {
     } = effectiveDoorSpan();
     const stojkaH = height - stojkaTopOff - stojkaBottomOff;
 
-    let korpusM2 = korpusBoxAreaM2(sections.length - 1, height, {
+    // Перегородки в площади короба — «долями» по глубине (задание «инд. глубина»): полная перегородка
+    // = 1 (как раньше), укороченная — пропорционально меньше, чтобы экономия материала попадала в цену.
+    const innerFD = depth - DOOR_DEPTH_ZONE;
+    let dividerFactor = 0;
+    for (let i = 0; i < sections.length - 1; i++) {
+      dividerFactor += Math.min(innerFD, Math.max(70, state.dividerDepths?.[i] ?? innerFD)) / innerFD;
+    }
+    let korpusM2 = korpusBoxAreaM2(dividerFactor, height, {
       top: noCeiling, bottom: noBottom, left: noSideLeft, right: noSideRight,
     }, stojkaH);
     if (plinthH > 0) {
