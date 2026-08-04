@@ -437,12 +437,27 @@ function sizeLineHtml() {
     if (active.itemType === 'mesh') {                              // сетчатая полка: только длина (глубина — отдельно, п.5)
       const s = bboxSize(m); return s ? `<div>Длина: ${s.w} мм</div>` : '';
     }
-    if (active.itemType === 'rod') {                              // штанга: длины прутков, без габарита 40×40 (пп.3,4)
-      let hx = 0, vy = 0; const box = new THREE.Box3(); const v = new THREE.Vector3();
-      (m || []).forEach(x => { box.setFromObject(x); box.getSize(v); hx = Math.max(hx, v.x); vy = Math.max(vy, v.y); });
-      return active.item?.verticalSupport
-        ? `<div>Труба 1: ${Math.round(hx)} мм</div><div>Труба 2: ${Math.round(vy)} мм</div>`
-        : `<div>Длина трубы: ${Math.round(hx)} мм</div>`;
+    if (active.itemType === 'rod') {                              // штанга: длины труб узла, без габарита 40×40
+      const item = active.item; const box = new THREE.Box3(); const v = new THREE.Vector3();
+      const xSize = x => { box.setFromObject(x); box.getSize(v); return v.x; };
+      if (!item?.verticalSupport) {                               // одиночная штанга — просто длина
+        let mainX = 0; (m || []).forEach(x => { mainX = Math.max(mainX, xSize(x)); });
+        return `<div>Длина трубы: ${Math.round(mainX)} мм</div>`;
+      }
+      // Узел из труб: 1 — горизонтальная штанга, 2 — вертикальная стойка, 3/4 — перемычки влево/вправо
+      // (перемычки помечены userData.hSupportSide). Длина перемычки = x-габарит её трубы.
+      let mainX = 0, leftX = 0, rightX = 0; const vBox = new THREE.Box3();
+      (m || []).forEach(x => {
+        const side = x.userData?.hSupportSide;
+        if (side === 'left') leftX = Math.max(leftX, xSize(x));
+        else if (side === 'right') rightX = Math.max(rightX, xSize(x));
+        else { mainX = Math.max(mainX, xSize(x)); vBox.expandByObject(x); } // вертикаль сегментирована — берём общий y-габарит
+      });
+      let vLen = 0; if (!vBox.isEmpty()) { vBox.getSize(v); vLen = Math.round(v.y); }
+      const rows = [`<div>Труба 1: ${Math.round(mainX)} мм</div>`, `<div>Труба 2: ${vLen} мм</div>`];
+      if (item.horizontalSupportLeft) rows.push(`<div>Труба 3: ${Math.round(leftX)} мм</div>`);
+      if (item.horizontalSupportRight) rows.push(`<div>Труба 4: ${Math.round(rightX)} мм</div>`);
+      return rows.join('');
     }
     if (active.itemType === 'basket') {                           // корзина: габарит = место/проём под неё
       const s = bboxSize(m); return s ? `<div>Проём под корзину: ${s.w}×${s.h}×${s.d} мм</div>` : '';
