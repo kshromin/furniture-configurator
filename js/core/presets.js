@@ -78,12 +78,25 @@ function applyUserTemplate(tpl) {
   resetHistory();
 }
 
+// Скрытие предустановленных шаблонов «из списка» (задание): каталог (materials.presets) —
+// общий/админский, физически из него не удаляем; прячем локально по названию (localStorage).
+const HIDDEN_KEY = 'hiddenPresets';
+function loadHidden() { try { return JSON.parse(localStorage.getItem(HIDDEN_KEY)) || []; } catch { return []; } }
+function hidePreset(name) {
+  const h = loadHidden();
+  if (!h.includes(name)) h.push(name);
+  localStorage.setItem(HIDDEN_KEY, JSON.stringify(h));
+  renderPresets();
+}
+
 export function renderPresets() {
   const container = document.getElementById('presets');
   if (!container) return;
   container.innerHTML = '';
-  // Шаблоны типов «в разработке» скрываем — шаблон открыл бы заблокированный тип.
-  (materials.presets || []).filter(p => p.type === 'wardrobe').forEach(p => {
+  const hidden = loadHidden();
+  // Шаблоны типов «в разработке» скрываем — шаблон открыл бы заблокированный тип. Плюс скрытые
+  // пользователем предустановленные (по названию) не показываем.
+  (materials.presets || []).filter(p => p.type === 'wardrobe' && !hidden.includes(p.name)).forEach(p => {
     const card = document.createElement('div');
     card.className = 'preset-card';
     const typeName = TYPES[p.type]?.name || p.type;
@@ -91,10 +104,15 @@ export function renderPresets() {
     card.innerHTML = `
       <div class="preset-card-name">${p.name}</div>
       <div class="preset-card-desc">${typeName} · ${p.width}×${p.height}×${p.depth} мм</div>
+      <button class="preset-del-btn" title="Убрать из списка">×</button>
     `;
     card.addEventListener('click', () => {
       applyPreset(p);
       document.querySelector('[data-tab="type"]').click();
+    });
+    card.querySelector('.preset-del-btn').addEventListener('click', e => {
+      e.stopPropagation();
+      hidePreset(p.name);
     });
     container.appendChild(card);
   });
