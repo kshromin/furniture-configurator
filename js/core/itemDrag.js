@@ -16,6 +16,7 @@ import { renderSectionsList, selectSectionFromScene } from './tabs.js';
 // цена одной двери для инфопанели выделенной двери.
 import { slidingDoorUnitPrice, swingDoorUnitPrice } from '../types/wardrobe.js';
 import { materials, syncPanelThickness, detailT, itemThickT, allPlates16 } from './state.js';
+import { getColor } from './materials.js';
 import { fmt } from './pricing.js';
 
 // Свободное перетаскивание мышкой наполнения секции (полки/ящики/сетка/корзины/штанга) — во
@@ -185,6 +186,13 @@ function buildDragPlane(worldAnchor) {
 const COLOR_LABELS = { silver: 'серебро/хром', white: 'белый', black: 'чёрный' };
 const DRAWER_SLIDE_LABELS = { ball: 'шариковые', soft: 'скрытые, доводчик', push: 'скрытые, push', blum: 'скрытые BLUM' };
 
+// Строка «Материал: <цвет-квадратик> название» для выделенной детали (корпус/наполнение).
+function matLine(group) {
+  const c = getColor(group);
+  const chip = `<span style="display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid #aaa;background:${c.color || '#ccc'};vertical-align:-1px;margin-right:5px"></span>`;
+  return `Материал: ${chip}${c.name || '—'}`;
+}
+
 // Общий рефреш после тумблера в инфопанели (толщина полки, вертикальная/горизонтальная стойка
 // штанги — все меняют state и просят пересборку): пересобирает 3D (старые меши уничтожены),
 // переподсвечивает элемент на новых, перерисовывает саму панель с обновлёнными подписями/кнопками.
@@ -264,6 +272,7 @@ function describeActive() {
       const th = state.thick32 || (state.thick32 = {});
       const canDouble = allPlates16();
       const lines = [
+        matLine('fill'),
         `Толщина: ${detailT('dividers')} мм`,
         ...(embed ? ['+ встройка (+300 ₽)'] : []),
       ];
@@ -285,6 +294,7 @@ function describeActive() {
     const th = state.thick32 || (state.thick32 = {});
     const canDouble = allPlates16();
     const lines = [
+      matLine('korpus'),
       `Толщина: ${detailT(key)} мм`,
       ...(emb[key] ? ['+ встройка (+300 ₽)'] : []),
     ];
@@ -304,6 +314,7 @@ function describeActive() {
       return {
         title: item.pinned ? 'Полка (опорная)' : 'Полка',
         lines: [
+          matLine('fill'),
           ...(item.pinned ? ['С планкой жёсткости снизу'] : []),
           `Толщина: ${itemThickT(item)} мм`,
           ...(item.embed ? ['+ встройка (+300 ₽)'] : []),
