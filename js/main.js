@@ -1,6 +1,6 @@
 import { state, materials, setMaterials, markStateSafe, captureDefaultState } from './core/state.js';
 import { renderProducerSelect } from './core/materials.js';
-import { renderPresets } from './core/presets.js';
+import { renderPresets, saveCurrentAsTemplate } from './core/presets.js';
 import { buildFurniture } from './core/build.js';
 import {
   bindTypeButtons, bindSlider, bindFasadTab, bindVariantControls,
@@ -69,6 +69,7 @@ async function init() {
   renderProducerSelect('fill',   'fillProducer',   'fillSwatches');
 
   renderPresets();
+  document.getElementById('saveTemplateBtn')?.addEventListener('click', saveCurrentAsTemplate);
 
   bindTabSwitching();
   bindTypeButtons();

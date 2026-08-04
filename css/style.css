@@ -973,6 +973,15 @@ html, body {
 
 .preset-card:hover { border-color: #2f6fed; background: #eef3ff; }
 
+/* Пользовательские шаблоны (задание «сохранять шаблоны 3,08») — свой оттенок + кнопка удаления. */
+.preset-card-user { position: relative; border-color: #cdd9f5; background: #f6f9ff; }
+.preset-del-btn {
+  position: absolute; top: 4px; right: 6px;
+  border: none; background: none; color: #aab; font-size: 17px; line-height: 1;
+  cursor: pointer; padding: 2px 4px;
+}
+.preset-del-btn:hover { color: #c0392b; }
+
 .preset-card-name {
   font-size: 13px;
   font-weight: 700;

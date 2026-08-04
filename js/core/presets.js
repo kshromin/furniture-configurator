@@ -42,6 +42,42 @@ export function applyPreset(p) {
   resetHistory(); // другой пресет — не откатываться в историю прежнего дизайна (см. history.js)
 }
 
+// ── Пользовательские шаблоны (задание «сохранять шаблоны 3,08») ────────────────────────────────
+// «Та прорисовка, что нравится» сохраняется в шаблон и запускается быстрым нажатием. Храним ПОЛНЫЙ
+// снимок state (как позиции заказа) в localStorage — на эту машину/браузер (один пользователь).
+const USER_TPL_KEY = 'userTemplates';
+function loadUserTemplates() {
+  try { return JSON.parse(localStorage.getItem(USER_TPL_KEY)) || []; } catch { return []; }
+}
+function saveUserTemplates(list) { localStorage.setItem(USER_TPL_KEY, JSON.stringify(list)); }
+
+// Сохранить текущую прорисовку как шаблон (имя спрашиваем; дефолт — тип+габариты).
+export function saveCurrentAsTemplate() {
+  const def = `${TYPES[state.type]?.name || state.type} ${state.width}×${state.height}`;
+  const name = (window.prompt('Название шаблона:', def) || '').trim();
+  if (!name) return;
+  const list = loadUserTemplates();
+  list.push({
+    id: Date.now(), name, type: state.type,
+    width: state.width, height: state.height, depth: state.depth,
+    snapshot: JSON.parse(JSON.stringify(state)),
+  });
+  saveUserTemplates(list);
+  renderPresets();
+}
+function deleteUserTemplate(id) {
+  saveUserTemplates(loadUserTemplates().filter(t => t.id !== id));
+  renderPresets();
+}
+// Быстрый старт из шаблона — восстановить полный снимок state.
+function applyUserTemplate(tpl) {
+  Object.assign(state, JSON.parse(JSON.stringify(tpl.snapshot)));
+  syncUIFromState();
+  buildFurniture();
+  markStateSafe();
+  resetHistory();
+}
+
 export function renderPresets() {
   const container = document.getElementById('presets');
   if (!container) return;
@@ -59,6 +95,26 @@ export function renderPresets() {
     card.addEventListener('click', () => {
       applyPreset(p);
       document.querySelector('[data-tab="type"]').click();
+    });
+    container.appendChild(card);
+  });
+
+  // Пользовательские шаблоны (сохранённые прорисовки) — после предустановленных, с удалением.
+  loadUserTemplates().forEach(tpl => {
+    const card = document.createElement('div');
+    card.className = 'preset-card preset-card-user';
+    const typeName = TYPES[tpl.type]?.name || tpl.type;
+    card.innerHTML = `
+      <div class="preset-card-name">${tpl.name}</div>
+      <div class="preset-card-desc">${typeName} · ${tpl.width}×${tpl.height}×${tpl.depth} мм · мой шаблон</div>
+      <button class="preset-del-btn" title="Удалить шаблон">×</button>`;
+    card.addEventListener('click', () => {
+      applyUserTemplate(tpl);
+      document.querySelector('[data-tab="type"]').click();
+    });
+    card.querySelector('.preset-del-btn').addEventListener('click', e => {
+      e.stopPropagation();
+      deleteUserTemplate(tpl.id);
     });
     container.appendChild(card);
   });
