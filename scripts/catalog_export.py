@@ -51,6 +51,7 @@ ELEMENT_LABELS = {'horizTop': 'Горизонт верхний', 'horizBottom': 
 # Какие поля СЛЕДУЮТ из самой позиции (не из catalogMeta): их правка в Excel не сохраняется —
 # позиция задаётся ключом. Ключ таблицы — тег ключа (часть до первого «:»).
 DERIVED = {
+    'ldsp':   {'h', 'hex', 'dep', 'producer'},  # толщина/hex/производитель пишутся в саму позицию; в meta — длина/ширина (макс. размер детали)
     'ldspm':  {'h', 'hex', 'producer'},  # высота = толщина плиты, hex/производитель — из базы
     'edge':   {'h', 'dep'},          # высота = плита 16/32, «от чего зависит» = ключ ЛДСП
     'dfill':  {'hex'},
@@ -107,10 +108,22 @@ def row(d, key, name='', color='', unit='', price='', producer='', h='', l='', w
 
 # ── Построители категорий: возвращают dict(title, rows) ─────────────────────────────────────
 
+def ldsp_gid_of(prod, c):
+    """Стабильный id материала (НЕ из имени): свой gid, иначе детерминированно из id первого члена."""
+    return c.get('gid') or f"{prod['id']}__{c['id']}"
+
+
+def ldsp_color_disp(name):
+    """В столбце «Цвет» — без слова «ЛДСП» (оно и так в «Названии»)."""
+    n = str(name or '')
+    return n[5:].strip() if n.lower().startswith('лдсп ') else n
+
+
 def cat_ldsp(d):
-    # Одна строка на материал (производитель+название+толщина); поверхности — столбцы да/нет.
-    # В едином формате: «Название» = вид материала (ЛДСП), «Цвет» = название цвета.
-    groups = {}  # (произв., цвет, толщина) -> {price, texture, hex, surf:set(), order}
+    # Одна строка на материал (группа по производитель+имя+толщина через все поверхности);
+    # поверхности — столбцы да/нет. Ключ = стабильный gid (не из имени) → правка имени = обновление
+    # той же позиции, без дублей. «Название» = ЛДСП, «Цвет» = название цвета без слова «ЛДСП».
+    groups = {}  # (произв., имя, толщина) -> {gid, price, texture, hex, cname, surf:set(), order}
     seq = 0
     for surf, _lbl in SURFACES:
         for prod in d[surf]['producers']:
@@ -118,16 +131,19 @@ def cat_ldsp(d):
                 k = (prod['name'], c['name'], c.get('thickness', 16))
                 g = groups.get(k)
                 if g is None:
-                    g = {'price': c['pricePerM2'], 'texture': c.get('texture', ''),
-                         'hex': c.get('color', ''), 'surf': set(), 'order': seq}
+                    g = {'gid': ldsp_gid_of(prod, c), 'price': c['pricePerM2'],
+                         'texture': c.get('texture', ''), 'hex': c.get('color', ''),
+                         'cname': c['name'], 'surf': set(), 'order': seq}
                     seq += 1
                     groups[k] = g
+                elif c.get('gid'):
+                    g['gid'] = c['gid']  # сохранённый gid приоритетнее выведенного
                 g['surf'].add(surf)
     yn = lambda s, g: 'да' if s in g['surf'] else 'нет'
     rows = []
     for (pname, cname, th), g in sorted(groups.items(), key=lambda kv: kv[1]['order']):
-        key = f"ldspm:{pname}|{cname}|{th}"
-        rows.append(row(d, key, name='ЛДСП', color=cname, unit=U_M2, price=g['price'],
+        key = f"ldsp:{g['gid']}"
+        rows.append(row(d, key, name='ЛДСП', color=ldsp_color_disp(cname), unit=U_M2, price=g['price'],
                         producer=pname, h=th, hexv=g['hex'], korpus=yn('korpus', g),
                         fasad=yn('fasad', g), fill=yn('fill', g), texture=g['texture']))
     return dict(title='ЛДСП', rows=rows)

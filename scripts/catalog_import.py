@@ -64,11 +64,12 @@ def new_ldsp(data, e, ctx):
     # Единый формат: Производитель | Название(«ЛДСП») | Цвет | Ед.изм | Цена | Высота(=толщина) |
     # … | Корпус | Фасад | Наполнение (да/нет) | Файл текстуры. Материал заводится во все «да».
     pname = str(e.get('producer') or '').strip()
-    cname = str(e.get('color') or '').strip()
-    if not cname:
+    disp = str(e.get('color') or '').strip()
+    if not disp:
         return f'{ctx}: пустой цвет (колонка «Цвет»)'
     if not pname:
         return f'{ctx}: пустой производитель'
+    cname = disp if disp.lower().startswith('лдсп') else ('ЛДСП ' + disp)  # «Цвет» без «ЛДСП» — вернуть в имя
     th = int(num(e.get('h')) or 16)
     p = num(e.get('price'))
     if p is None:
@@ -76,9 +77,12 @@ def new_ldsp(data, e, ctx):
     surfaces = [('korpus', e.get('korpus')), ('fasad', e.get('fasad')), ('fill', e.get('fill'))]
     if not any(is_yes(v) for _, v in surfaces):
         return f'{ctx}: не отмечена ни одна поверхность (Корпус/Фасад/Наполнение)'
+    existing = {c.get('gid') for s in ('korpus', 'fasad', 'fill')
+                for prod in data[s]['producers'] for c in prod['colors'] if c.get('gid')}
+    gid = slugify(f'{pname}_{cname}_{th}', existing, 'ldsp')  # новый стабильный gid
     for surf, flag in surfaces:
         if is_yes(flag):
-            upsert_ldsp(data, surf, pname, cname, th, p, e.get('texture'))  # кромки заводятся пустыми
+            create_ldsp_member(data, surf, gid, pname, cname, th, p, e.get('texture'), e.get('hex'))
     return None
 
 
@@ -224,6 +228,52 @@ def upsert_ldsp(data, surface, prod_name, col_name, thickness, price, texture, h
     prod['colors'].append(col)
 
 
+def ensure_ldsp_gids(data):
+    """Присвоить каждому материалу ЛДСП общий стабильный gid (группа по производитель+имя+толщина
+    через все поверхности). Детерминированно = id первого встреченного члена (korpus→fasad→fill),
+    поэтому совпадает с тем, что выводит экспорт до первой загрузки. Идемпотентно."""
+    order = ('korpus', 'fasad', 'fill')
+    gids = {}  # (произв., имя, толщина) -> gid
+    for surf in order:  # сперва подхватить уже проставленные gid
+        for prod in data.get(surf, {}).get('producers', []):
+            for c in prod['colors']:
+                k = (prod['name'], c['name'], int(c.get('thickness', 16)))
+                if c.get('gid') and k not in gids:
+                    gids[k] = c['gid']
+    for surf in order:
+        for prod in data.get(surf, {}).get('producers', []):
+            for c in prod['colors']:
+                k = (prod['name'], c['name'], int(c.get('thickness', 16)))
+                gids.setdefault(k, f"{prod['id']}__{c['id']}")
+                c['gid'] = gids[k]
+
+
+def find_ldsp_by_gid(data, gid):
+    """Все члены материала (по поверхностям) с этим gid: список (surface, prod, color)."""
+    out = []
+    for surf in ('korpus', 'fasad', 'fill'):
+        for prod in data.get(surf, {}).get('producers', []):
+            for c in prod['colors']:
+                if c.get('gid') == gid:
+                    out.append((surf, prod, c))
+    return out
+
+
+def create_ldsp_member(data, surf, gid, pname, cname, th, price, texture, hexv):
+    """Завести материал в указанной поверхности с общим gid (когда поставили «да», а члена не было)."""
+    prod = next((p for p in data[surf]['producers'] if p['name'] == pname), None)
+    if prod is None:
+        pid = slugify(pname or 'prod', {p['id'] for p in data[surf]['producers']}, 'prod')
+        prod = {'id': pid, 'name': str(pname or pid), 'colors': []}
+        data[surf]['producers'].append(prod)
+    cid = slugify(cname, {c['id'] for c in prod['colors']}, 'col')
+    col = {'id': cid, 'gid': gid, 'name': cname, 'color': str(hexv or ''), 'thickness': int(th),
+           'pricePerM2': price, 'edgePerM16': 0, 'edgePerM32': 0}
+    if texture not in (None, ''):
+        col['texture'] = str(texture)
+    prod['colors'].append(col)
+
+
 def apply_row(data, key, price, extra, errctx):
     """Применить одну строку к data (мутирует). Возвращает текст ошибки или None."""
     if key in TEMPLATE_KEYS:
@@ -244,15 +294,43 @@ def apply_row(data, key, price, extra, errctx):
             return f'{errctx}: отрицательная цена'
 
     try:
-        if tag == 'ldspm':
-            # Одна строка = один материал; поверхности да/нет. Существующие ищем по имени (id не
-            # трогаем — сохранённые прорисовки не ломаются), «да» без записи — создаём, «нет» с
-            # записью — удаляем.
+        if tag == 'ldsp' and len(parts) == 2:
+            # НОВЫЙ формат: ldsp:<gid> — правка по СТАБИЛЬНОМУ id. Правка ЛЮБОГО столбца (имя/цвет/
+            # цена/толщина/hex/да-нет) = обновление ТОЙ ЖЕ позиции, без дублей (задание «формат
+            # выгрузки»). «Цвет» — без слова «ЛДСП», возвращаем префикс в имя.
+            gid = parts[1]
             pname = str(extra.get('producer') or '').strip()
-            cname = str(extra.get('color') or '').strip()   # «Цвет» — название цвета материала
+            disp = str(extra.get('color') or '').strip()
+            if not disp:
+                return f'{errctx}: пустой цвет ЛДСП (колонка «Цвет»)'
+            cname = disp if disp.lower().startswith('лдсп') else ('ЛДСП ' + disp)
+            th = int(num(extra.get('h')) or 16)
+            tex, hexv = extra.get('texture'), extra.get('hex')
+            members = find_ldsp_by_gid(data, gid)
+            for surf, prod, c in members:            # обновляем ВСЕ поля существующих членов
+                c['name'] = cname
+                c['pricePerM2'] = pval
+                c['thickness'] = th
+                if hexv not in (None, ''):
+                    c['color'] = str(hexv)
+                if tex not in (None, ''):
+                    c['texture'] = str(tex)
+            present = {s for s, _, _ in members}
+            for surf in ('korpus', 'fasad', 'fill'):  # да/нет по поверхностям
+                want = is_yes(extra.get(surf))
+                if want and surf not in present:
+                    create_ldsp_member(data, surf, gid, pname, cname, th, pval, tex, hexv)
+                elif not want and surf in present:
+                    sp, sc = next((p, c) for s, p, c in members if s == surf)
+                    sp['colors'].remove(sc)
+        elif tag == 'ldspm':
+            # ЛЕГАСИ (выгрузка сессии 67): одна строка = материал, поиск по имени. Оставлено для
+            # загрузки прежних файлов; новые выгрузки идут форматом ldsp:<gid> выше.
+            pname = str(extra.get('producer') or '').strip()
+            cname = str(extra.get('color') or '').strip()
             if not pname or not cname:
                 return f'{errctx}: пустой производитель/цвет ЛДСП'
-            th = int(num(extra.get('h')) or 16)             # «Высота, мм» = толщина плиты
+            th = int(num(extra.get('h')) or 16)
             tex = extra.get('texture')
             for surf in ('korpus', 'fasad', 'fill'):
                 if is_yes(extra.get(surf)):
@@ -262,7 +340,7 @@ def apply_row(data, key, price, extra, errctx):
                     if col is not None:
                         prod['colors'].remove(col)
         elif tag == 'ldsp':
-            # старый формат (одна строка на поверхность) — на случай загрузки прежней выгрузки
+            # очень старый формат (одна строка на поверхность): ldsp:surface:prodid:colid
             _, surface, prodid, colid = parts
             c = find_color(data, surface, prodid, colid)
             if c is None:
@@ -384,6 +462,7 @@ def main():
     with open(DST, encoding='utf-8') as f:
         original = json.load(f)
     data = copy.deepcopy(original)
+    ensure_ldsp_gids(data)  # проставить стабильные gid материалам (для правки по ключу)
 
     wb = openpyxl.load_workbook(path, data_only=True)
     errors, applied, created, skipped_new = [], 0, 0, 0
