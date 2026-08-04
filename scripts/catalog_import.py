@@ -27,7 +27,8 @@ MANUAL = 'вручную'
 
 # лист → индексы колонок (1-based): key_col, price_col (None если нет), extra {поле: колонка}
 SHEETS = {
-    'ЛДСП':              dict(key=7, price=5, extra={'thickness': 4, 'texture': 6}),
+    'ЛДСП':              dict(key=9, price=4, extra={'producer': 1, 'name': 2, 'thickness': 3,
+                                                    'texture': 5, 'korpus': 6, 'fasad': 7, 'fill': 8}),
     'Кромка':            dict(key=5, price=4),
     'Наполнение дверей': dict(key=4, price=3),
     'Профили купе':      dict(key=4, price=3),
@@ -62,28 +63,25 @@ def slugify(name, existing, prefix='item'):
 
 # ── Создатели НОВЫХ позиций (строка без _key) по имени листа ─────────────────────────────────
 def new_ldsp(data, vals, ctx):
-    surf = REV_SURFACE.get(str(vals[0] or '').strip().lower())
-    if not surf:
-        return f'{ctx}: неизвестная поверхность «{vals[0]}»'
-    name = str(vals[2] or '').strip()
-    if not name:
+    # Формат «одна строка на материал»: Производитель, Название, Толщина, Цена, Текстура,
+    # Корпус, Фасад, Наполнение (да/нет). Название заводится один раз — создаётся во всех «да».
+    pname = str(vals[0] or '').strip()
+    cname = str(vals[1] or '').strip()
+    if not cname:
         return f'{ctx}: пустое название цвета'
-    th = num(vals[3])                 # толщина, мм (колонка добавлена)
-    p = num(vals[4])                  # цена ₽/м²
+    if not pname:
+        return f'{ctx}: пустой производитель'
+    th = int(num(vals[2]) or 16)
+    p = num(vals[3])
     if p is None:
         return f'{ctx}: цена не число'
-    prods = data[surf]['producers']
-    prod = next((x for x in prods if x['name'] == vals[1]), None)
-    if prod is None:
-        pid = slugify(vals[1] or 'prod', {x['id'] for x in prods}, 'prod')
-        prod = {'id': pid, 'name': str(vals[1] or pid), 'colors': []}
-        prods.append(prod)
-    cid = slugify(name, {c['id'] for c in prod['colors']}, 'col')
-    color = {'id': cid, 'name': name, 'color': '', 'thickness': int(th) if (th and th > 0) else 16,
-             'pricePerM2': p, 'edgePerM16': 0, 'edgePerM32': 0}  # кромки заводятся пустыми (автосоздание §1.2)
-    if vals[5]:
-        color['texture'] = str(vals[5])
-    prod['colors'].append(color)
+    tex = vals[4]
+    surfaces = [('korpus', vals[5]), ('fasad', vals[6]), ('fill', vals[7])]
+    if not any(is_yes(v) for _, v in surfaces):
+        return f'{ctx}: не отмечена ни одна поверхность (Корпус/Фасад/Наполнение)'
+    for surf, flag in surfaces:
+        if is_yes(flag):
+            upsert_ldsp(data, surf, pname, cname, th, p, tex)  # кромки заводятся пустыми (автосоздание §1.2)
     return None
 
 
@@ -161,6 +159,42 @@ def find_color(data, surface, prodid, colid):
     return None
 
 
+YES_WORDS = {'да', 'yes', '1', '+', 'true', 'x', 'х', '✓', 'v'}
+def is_yes(v):
+    return str(v or '').strip().lower() in YES_WORDS
+
+
+def find_ldsp(data, surface, prod_name, col_name, thickness):
+    """Ищет (производитель, цвет) по ЧЕЛОВЕЧЕСКИМ полям — id сохраняется (не пересоздаём). Возвращает
+    (producer_dict|None, color_dict|None)."""
+    prod = next((p for p in data.get(surface, {}).get('producers', []) if p['name'] == prod_name), None)
+    if prod is None:
+        return None, None
+    col = next((c for c in prod['colors']
+                if c['name'] == col_name and int(c.get('thickness', 16)) == int(thickness)), None)
+    return prod, col
+
+
+def upsert_ldsp(data, surface, prod_name, col_name, thickness, price, texture):
+    """Обновить цену/текстуру существующего цвета (id сохраняется) или создать новый в этой поверхности."""
+    prod, col = find_ldsp(data, surface, prod_name, col_name, thickness)
+    if col is not None:
+        col['pricePerM2'] = price
+        if texture not in (None, ''):
+            col['texture'] = str(texture)
+        return
+    if prod is None:
+        pid = slugify(prod_name or 'prod', {p['id'] for p in data[surface]['producers']}, 'prod')
+        prod = {'id': pid, 'name': str(prod_name or pid), 'colors': []}
+        data[surface]['producers'].append(prod)
+    cid = slugify(col_name, {c['id'] for c in prod['colors']}, 'col')
+    col = {'id': cid, 'name': col_name, 'color': '', 'thickness': int(thickness),
+           'pricePerM2': price, 'edgePerM16': 0, 'edgePerM32': 0}
+    if texture not in (None, ''):
+        col['texture'] = str(texture)
+    prod['colors'].append(col)
+
+
 def apply_row(data, key, price, extra, errctx):
     """Применить одну строку к data (мутирует). Возвращает текст ошибки или None."""
     if key in TEMPLATE_KEYS:
@@ -181,7 +215,25 @@ def apply_row(data, key, price, extra, errctx):
             return f'{errctx}: отрицательная цена'
 
     try:
-        if tag == 'ldsp':
+        if tag == 'ldspm':
+            # Одна строка = один материал; поверхности да/нет. Существующие ищем по имени (id не
+            # трогаем — сохранённые прорисовки не ломаются), «да» без записи — создаём, «нет» с
+            # записью — удаляем.
+            pname = str(extra.get('producer') or '').strip()
+            cname = str(extra.get('name') or '').strip()
+            if not pname or not cname:
+                return f'{errctx}: пустой производитель/название ЛДСП'
+            th = int(num(extra.get('thickness')) or 16)
+            tex = extra.get('texture')
+            for surf in ('korpus', 'fasad', 'fill'):
+                if is_yes(extra.get(surf)):
+                    upsert_ldsp(data, surf, pname, cname, th, pval, tex)
+                else:
+                    prod, col = find_ldsp(data, surf, pname, cname, th)
+                    if col is not None:
+                        prod['colors'].remove(col)
+        elif tag == 'ldsp':
+            # старый формат (одна строка на поверхность) — на случай загрузки прежней выгрузки
             _, surface, prodid, colid = parts
             c = find_color(data, surface, prodid, colid)
             if c is None:
@@ -189,14 +241,12 @@ def apply_row(data, key, price, extra, errctx):
             c['pricePerM2'] = pval
             if extra.get('texture') not in (None, ''):
                 c['texture'] = str(extra['texture'])
-            th = num(extra.get('thickness'))
-            if th is not None and th > 0:
-                c['thickness'] = int(th)
         elif tag == 'edge':
             _, surface, prodid, colid, plate = parts
             c = find_color(data, surface, prodid, colid)
             if c is None:
-                return f'{errctx}: не найден цвет ЛДСП для кромки {key}'
+                return None  # цвет мог быть убран с этой поверхности через да/нет в листе ЛДСП —
+                             # кромка для него больше не нужна (кромка хранится в самом цвете), пропускаем
             c['edgePerM16' if plate == '16' else 'edgePerM32'] = pval
         elif tag == 'dfill':
             fills = data['slidingDoor']['fills']

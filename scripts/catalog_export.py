@@ -36,7 +36,10 @@ HELP_TEXT = [
     '   наполнение дверей, профили, сетки, корзины, доп.элементы).',
     '5. Листы: ЛДСП (корпус/фасад/наполнение), Кромка, Наполнение дверей, Профили купе, Цвета профилей,',
     '   Сетчатые полки, Корзины, Направляющие, Фурнитура, Доп.элементы. Порядок колонок не менять.',
-    '6. ЛДСП: вид задаёт текстура («Файл текстуры» = имя jpg из data/textures); цвет-hex опционален.',
+    '6. ЛДСП: ОДНА строка = один материал (производитель+название+толщина). Столбцы «Корпус/Фасад/',
+    '   Наполнение» — да/нет: где этот материал доступен. Название и цена задаются один раз и',
+    '   применяются ко всем отмеченным разделам. «да» без записи — заведётся; «нет» с записью — уберётся.',
+    '   Вид задаёт текстура («Файл текстуры» = имя jpg из data/textures).',
     '7. Кромка привязана к цвету ЛДСП (колонка «Цвет ЛДСП») и толщине плиты (16/32).',
     '8. Когда закончили — сохраните и запустите загрузку (catalog_import.py).',
 ]
@@ -52,15 +55,31 @@ def load():
 # rows — список списков значений в порядке headers. Ключ `_key` — последняя колонка (скрыта).
 
 def cat_ldsp(d):
-    headers = ['Поверхность', 'Производитель', 'Название', 'Толщина, мм', 'Цена ₽/м²', 'Файл текстуры', '_key']
-    rows = []
-    for key, label in SURFACES:
-        for prod in d[key]['producers']:
+    # Одна строка на материал (производитель+название+толщина); поверхности — столбцы да/нет. Так
+    # название заводится ОДИН раз и дублируется по разделам (просьба пользователя). Цена/текстура —
+    # одна на материал (берётся из первой поверхности по порядку корпус→фасад→наполнение).
+    headers = ['Производитель', 'Название', 'Толщина, мм', 'Цена ₽/м²', 'Файл текстуры',
+               'Корпус', 'Фасад', 'Наполнение', '_key']
+    groups = {}  # (произв., название, толщина) -> {price, texture, surf:set(), order}
+    seq = 0
+    for surf, _lbl in SURFACES:
+        for prod in d[surf]['producers']:
             for c in prod['colors']:
-                rows.append([label, prod['name'], c['name'], c.get('thickness', 16), c['pricePerM2'],
-                             c.get('texture', ''), f"ldsp:{key}:{prod['id']}:{c['id']}"])
-    return dict(title='ЛДСП', headers=headers, rows=rows, price_cols=[5], hidden_cols=[7],
-                widths=[14, 18, 26, 12, 12, 20, 28])
+                k = (prod['name'], c['name'], c.get('thickness', 16))
+                g = groups.get(k)
+                if g is None:
+                    g = {'price': c['pricePerM2'], 'texture': c.get('texture', ''), 'surf': set(), 'order': seq}
+                    seq += 1
+                    groups[k] = g
+                g['surf'].add(surf)
+    yn = lambda s, g: 'да' if s in g['surf'] else 'нет'
+    rows = []
+    for (pname, cname, th), g in sorted(groups.items(), key=lambda kv: kv[1]['order']):
+        rows.append([pname, cname, th, g['price'], g['texture'],
+                     yn('korpus', g), yn('fasad', g), yn('fill', g),
+                     f"ldspm:{pname}|{cname}|{th}"])
+    return dict(title='ЛДСП', headers=headers, rows=rows, price_cols=[4], hidden_cols=[9],
+                widths=[18, 26, 12, 12, 20, 9, 9, 12, 30])
 
 
 def cat_edge(d):
