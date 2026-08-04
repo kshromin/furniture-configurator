@@ -129,7 +129,16 @@ export function clampSectionSizes(sections, depth) {
   const meshAvail = availableMeshDepths(depth);
   const valetAvail = availableValetLengths(depth);
   const { fillBottom, fillTop } = sectionVerticalBounds();
-  sections.forEach(sec => {
+  const isMezz = sections === state.mezzanineSections;
+  sections.forEach((sec, si) => {
+    // Каскад от подрезки перегородки (задание «инд. глубина 3,08»): если эффективная глубина
+    // секции (min глубин граничных перегородок) меньше глубины элемента — элемент ИСЧЕЗАЕТ
+    // (упрощённый вариант — без подбора меньшего размера направляющих/глубины).
+    const effD = sectionEffectiveDepth(si, sections.length, isMezz);
+    if (sec.drawerDepth > effD) sec.items = sec.items.filter(it => it.type !== 'drawer');
+    if (sec.meshDepth   > effD) sec.items = sec.items.filter(it => it.type !== 'mesh');
+    if (sec.basketDepth > effD) sec.items = sec.items.filter(it => it.type !== 'basket');
+    if (sec.valet && sec.valetLength > effD) sec.valet = 0;
     if (sec.drawerDepth > maxDD) sec.drawerDepth = maxDD;
     // Если ни одна глубина сетчатой полки больше не влезает — убираем сетчатые полки из items
     // (та же логика, что у корзины ниже); раньше молча падало на MESH_DEPTHS[0], хотя полка уже
@@ -595,12 +604,12 @@ export function buildWardrobeBox() {
   const frontZ = depth / 2 - DOOR_DEPTH_ZONE;
   let totalShelves = 0, totalDrawers = 0, totalRod = 0, totalRodSupports = 0, totalHorizontalSupports = 0, totalMeshShelves = 0, totalValet = 0, totalBaskets = 0;
 
-  function addRod(cx, y, sw) {
+  function addRod(cx, y, sw, zCenter = innerZ) {
     const rodGeo = new THREE.CylinderGeometry(ROD_RADIUS, ROD_RADIUS, sw, 24);
     const rodMat = new THREE.MeshStandardMaterial({ color: ROD_COLOR, metalness: 0.9, roughness: 0.15 });
     const rodMesh = new THREE.Mesh(rodGeo, rodMat);
     rodMesh.rotation.z = Math.PI / 2;
-    rodMesh.position.set(cx, y0 + y, innerZ);
+    rodMesh.position.set(cx, y0 + y, zCenter);
     furnitureGroup.add(rodMesh);
     return rodMesh;
   }
@@ -1022,13 +1031,16 @@ export function buildWardrobeBox() {
             break;
           }
           case 'rod': {
-            const mesh = addRod(cx, item.y, sw);
+            // Штанга — по центру ОСТАВШЕЙСЯ глубины секции (каскад от подрезки перегородки).
+            const rodEffD = sectionEffectiveDepth(s, zoneSections.length, zone === 'mezzanine');
+            const rodZ = (innerZ - innerDepth / 2) + rodEffD / 2;
+            const mesh = addRod(cx, item.y, sw, rodZ);
             tag(mesh, item);
             totalRod += 1;
             // Торцевые фланцы — на концах штанги, впритык к боковым стойкам/перегородкам (тот же
             // размах sw, что и у самой трубы).
-            tag(addFlange(cx - sw / 2, item.y, innerZ, 'x'), item);
-            tag(addFlange(cx + sw / 2, item.y, innerZ, 'x'), item);
+            tag(addFlange(cx - sw / 2, item.y, rodZ, 'x'), item);
+            tag(addFlange(cx + sw / 2, item.y, rodZ, 'x'), item);
             if (item.verticalSupport) {
               const surfaceY = nearestSupportSurfaceY(sec, item, zFillBottomPhysical);
               // Левая и правая перемычки полностью независимы — свой краб, своя высота стыка с
