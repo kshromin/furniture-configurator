@@ -155,20 +155,6 @@
         </button>
       </div>
 
-      <div class="field-group">
-        <div class="field">
-          <div class="dim-label-row"><label>Ширина</label><input type="number" autocomplete="off" class="dim-input" id="widthVal" min="400" max="5000" step="10" value="1800"></div>
-          <input type="range" id="width" min="400" max="5000" step="10" value="1800">
-        </div>
-        <div class="field">
-          <div class="dim-label-row"><label>Высота</label><input type="number" autocomplete="off" class="dim-input" id="heightVal" min="600" max="3200" step="10" value="2400"></div>
-          <input type="range" id="height" min="600" max="3200" step="10" value="2400">
-        </div>
-        <div class="field" id="depthField">
-          <div class="dim-label-row"><label>Глубина</label><input type="number" autocomplete="off" class="dim-input" id="depthVal" min="200" max="1000" step="10" value="600"></div>
-          <input type="range" id="depth" min="200" max="1000" step="10" value="600">
-        </div>
-      </div>
 
       <!-- Комната (визуализация вокруг шкафа, задание «стены 26,07») -->
       <div class="field-group" id="roomBlock">
@@ -215,6 +201,21 @@
     <!-- 2. Внешнее исполнение -->
     <div class="tab-pane" id="tab-variant">
       <div class="pane-title">Внешнее исполнение</div>
+
+      <div class="field-group">
+        <div class="field">
+          <div class="dim-label-row"><label>Ширина</label><input type="number" autocomplete="off" class="dim-input" id="widthVal" min="400" max="5000" step="10" value="1800"></div>
+          <input type="range" id="width" min="400" max="5000" step="10" value="1800">
+        </div>
+        <div class="field">
+          <div class="dim-label-row"><label>Высота</label><input type="number" autocomplete="off" class="dim-input" id="heightVal" min="600" max="3200" step="10" value="2400"></div>
+          <input type="range" id="height" min="600" max="3200" step="10" value="2400">
+        </div>
+        <div class="field" id="depthField">
+          <div class="dim-label-row"><label>Глубина</label><input type="number" autocomplete="off" class="dim-input" id="depthVal" min="200" max="1000" step="10" value="600"></div>
+          <input type="range" id="depth" min="200" max="1000" step="10" value="600">
+        </div>
+      </div>
 
       <div class="field-group" data-variant-ctx="doors">
         <button class="toggle-doors-btn" id="toggleDoorsBtn">
