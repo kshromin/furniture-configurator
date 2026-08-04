@@ -942,8 +942,8 @@ export function renderSectionsList() {
             <option value="blum" ${sec.drawerSlideType === 'blum' ? 'selected' : ''}>Скрытые BLUM</option>
           </select>
           <select class="mini-select section-drawer-handle-input" data-idx="${i}" title="Ручка ящика (1 шт на ящик)">
-            <option value="standard" ${(sec.drawerHandleType || 'standard') === 'standard' ? 'selected' : ''}>Ручка (500 ₽)</option>
-            <option value="manual" ${sec.drawerHandleType === 'manual' ? 'selected' : ''}>Ручка (ручная цена)</option>
+            <option value="standard" ${(sec.drawerHandleType || 'standard') === 'standard' ? 'selected' : ''}>Ручка (${materials.drawerHandle?.pricePerDrawer || 500} ₽)</option>
+            <option value="manual" ${sec.drawerHandleType === 'manual' ? 'selected' : ''}>Ручка (своя цена)</option>
             <option value="none" ${sec.drawerHandleType === 'none' ? 'selected' : ''}>Без ручки</option>
           </select>
           ${sec.drawerHandleType === 'manual' ? `

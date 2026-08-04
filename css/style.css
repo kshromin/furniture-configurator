@@ -1306,6 +1306,10 @@ html, body {
 .section-drawer-handle-name-input { width: 140px; text-align: left; padding-left: 6px; padding-right: 6px; }
 .section-drawer-handle-price-input { width: 66px; }
 
+/* Селекты направляющих и ручки — во всю подпись, без обрезки «Скрыт…»/«Без руч…» (задание «не красиво») */
+.section-drawer-slide-input { width: 148px; text-align: left; padding-left: 6px; }
+.section-drawer-handle-input { width: 150px; text-align: left; padding-left: 6px; }
+
 .el-row-check {
   display: flex;
   align-items: center;
