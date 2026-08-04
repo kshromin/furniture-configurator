@@ -1,11 +1,18 @@
 # -*- coding: utf-8 -*-
-# Выгрузка ассортимента/цен конфигуратора в Excel — НОВЫЙ, под схему DATA-SCHEMA v0.2
-# (задание «выгрузки 23,07», Этап 2 плана «первым делом»). Заменяет prices_export.py, который
-# несовместим со структурой профилей после сессии 56.
+# Выгрузка ассортимента/цен конфигуратора в Excel — ЕДИНЫЙ формат колонок (шаблон пользователя
+# «Выгрузки/шаблон.xlsx», задание 4.08). Категории = отдельные листы (вариант «А»), но набор и
+# порядок колонок ОДИНАКОВЫЙ на всех листах — что не относится к категории, остаётся пустым.
 #
-# Модель: «позиционная» — каждая цена = строка со стабильным служебным ключом `_key` (скрыт; по нему
-# импорт находит позицию), человекочитаемыми колонками и ЖЁЛТОЙ колонкой цены. Категории = листы.
-# Ручная цена = слово «вручную» (маркер manual). Данные читаются из data/materials.json.
+# Колонки (см. HEADERS): ключ | производитель | название | цвет | ед.изм | ЦЕНА | высота | длинна |
+# ширина | от чего зависит | цвет(hex) | Корпус | Фасад | Наполнение | файл текстуры.
+# Ключ теперь ВИДИМЫЙ (первая колонка) — по нему загрузка находит позицию.
+# Ручная цена = слово «вручную». Данные — из data/materials.json.
+#
+# Поля, которых в базе нет (производитель у неплитных категорий, габариты листа/хлыста и т.п.),
+# хранятся в data['catalogMeta'][ключ] = {producer,h,l,w,dep,hex}: в первой выгрузке они пустые,
+# пользователь заполняет в Excel, загрузка сохраняет обратно. Поля, которые СЛЕДУЮТ из самой
+# позиции (толщина плиты, длина направляющей, размеры корзины, глубина сетки, hex профиля…),
+# выводятся из базы и в meta не пишутся — см. DERIVED и «Справку» в книге.
 #
 # Запуск:
 #   python catalog_export.py                 → окно с галочками (какие категории) + окно «куда сохранить»
@@ -26,22 +33,51 @@ SLIDE_TYPES = {'ball': 'Шариковые', 'soft': 'С доводчиком', 
 METAL_COLORS = {'white': 'Белый', 'silver': 'Серебро', 'black': 'Чёрный'}
 MANUAL = 'вручную'  # маркер ручной цены (DATA-SCHEMA: price = "manual")
 
+# Общие для всех листов колонки (порядок менять нельзя — по нему читает catalog_import.py).
+HEADERS = ['Артикул/ид/key', 'Производитель', 'Название', 'Цвет', 'Ед.изм', 'Цена',
+           'Высота, мм', 'Длинна, мм', 'Ширина, мм', 'От чего зависит', 'Цвет (hex)',
+           'Корпус', 'Фасад', 'Наполнение', 'Файл текстуры']
+WIDTHS = [34, 16, 24, 24, 10, 10, 12, 12, 12, 30, 12, 8, 8, 12, 18]
+PRICE_COL = 6
+
+# Единицы измерения
+U_M2, U_M, U_PC, U_SET, U_PART = 'кв.м', 'пог.м', 'шт', 'комплект', 'деталь'
+PER_UNIT = {'item': 'изделие', 'shelf': 'полка', 'rod': 'штанга', 'rodFlange': 'фланец',
+            'set': U_SET, 'door': 'дверь', 'drawer': 'ящик'}
+# Названия «общих» элементов профиля (вертикальные берут имя из каталога профилей)
+ELEMENT_LABELS = {'horizTop': 'Горизонт верхний', 'horizBottom': 'Горизонт нижний',
+                  'divider': 'Перемычка', 'track': 'Направляющая'}
+
+# Какие поля СЛЕДУЮТ из самой позиции (не из catalogMeta): их правка в Excel не сохраняется —
+# позиция задаётся ключом. Ключ таблицы — тег ключа (часть до первого «:»).
+DERIVED = {
+    'ldspm':  {'h', 'hex', 'producer'},  # высота = толщина плиты, hex/производитель — из базы
+    'edge':   {'h', 'dep'},          # высота = плита 16/32, «от чего зависит» = ключ ЛДСП
+    'dfill':  {'hex'},
+    'prof':   {'hex'},               # hex — из каталога цветов профиля
+    'profcol': {'hex'},
+    'mesh':   {'w'},                 # ширина = глубина полки
+    'basket': {'h', 'l', 'w'},       # высота/длина/ширина — размеры корзины из ключа
+    'slide':  {'l'},                 # длина направляющей
+}
+
 HELP_TEXT = [
-    'Ассортимент и цены — как пользоваться (схема v0.2)',
+    'Ассортимент и цены — как пользоваться (единый формат, 4.08)',
     '',
-    '1. Каждая строка — одна ценовая позиция. Меняйте числа в ЖЁЛТОЙ колонке цены (без «₽» и пробелов).',
-    '2. Скрытые колонки «_key» не трогать — по ним загрузка находит позицию.',
-    '3. «вручную» в колонке цены = позиция с ручной ценой (пользователь вводит цену при заказе).',
-    '4. Новая строка внизу листа без «_key» = новая позиция (где это разрешено — ЛДСП, кромка,',
-    '   наполнение дверей, профили, сетки, корзины, доп.элементы).',
-    '5. Листы: ЛДСП (корпус/фасад/наполнение), Кромка, Наполнение дверей, Профили купе, Цвета профилей,',
-    '   Сетчатые полки, Корзины, Направляющие, Фурнитура, Доп.элементы. Порядок колонок не менять.',
-    '6. ЛДСП: ОДНА строка = один материал (производитель+название+толщина). Столбцы «Корпус/Фасад/',
-    '   Наполнение» — да/нет: где этот материал доступен. Название и цена задаются один раз и',
-    '   применяются ко всем отмеченным разделам. «да» без записи — заведётся; «нет» с записью — уберётся.',
-    '   Вид задаёт текстура («Файл текстуры» = имя jpg из data/textures).',
-    '7. Кромка привязана к цвету ЛДСП (колонка «Цвет ЛДСП») и толщине плиты (16/32).',
-    '8. Когда закончили — сохраните и запустите загрузку (catalog_import.py).',
+    '1. Колонки ОДИНАКОВЫЕ на всех листах; что не относится к категории — пустое. Порядок не менять.',
+    '2. Каждая строка — одна позиция. «Артикул/ид/key» — по нему загрузка находит позицию, не менять.',
+    '3. Цена — ЖЁЛТАЯ колонка (числом, без «₽» и пробелов). «вручную» = цену вводит пользователь при заказе.',
+    '4. Пустые «Производитель», габариты (высота/длинна/ширина), «От чего зависит» — заполняйте:',
+    '   они сохранятся при загрузке (в базе таких полей раньше не было).',
+    '5. Габариты, которые СЛЕДУЮТ из самой позиции, менять здесь бесполезно (вернутся при выгрузке):',
+    '   толщина плиты ЛДСП и кромки, длина направляющей, размеры корзины, глубина сетчатой полки.',
+    '   Такие размеры задаются самой позицией — заведите новую строку с нужным размером.',
+    '6. Новая строка внизу листа без ключа = новая позиция (ЛДСП, наполнение дверей, сетки, корзины,',
+    '   доп.элементы). На остальных листах новые строки пропускаются.',
+    '7. ЛДСП: одна строка = один материал; «Корпус/Фасад/Наполнение» — да/нет, где он доступен.',
+    '   «да» без записи — заведётся, «нет» с записью — уберётся. Вид задаёт «Файл текстуры».',
+    '8. Кромка привязана к материалу ЛДСП — см. «От чего зависит» (ключ ЛДСП) и высоту (плита 16/32).',
+    '9. Когда закончили — сохраните файл и запустите загрузку («Загрузить цены.bat»).',
 ]
 
 
@@ -50,17 +86,31 @@ def load():
         return json.load(f)
 
 
-# ── Построители категорий ──────────────────────────────────────────────────────────────────
-# Каждый возвращает dict: title, headers, rows, price_cols(1-based), hidden_cols, widths.
-# rows — список списков значений в порядке headers. Ключ `_key` — последняя колонка (скрыта).
+def meta_of(d, key):
+    return (d.get('catalogMeta') or {}).get(key, {})
+
+
+def row(d, key, name='', color='', unit='', price='', producer='', h='', l='', w='',
+        dep='', hexv='', korpus='', fasad='', fill='', texture=''):
+    """Строка в едином формате. Пустые «свободные» поля добираются из catalogMeta по ключу."""
+    m = meta_of(d, key)
+    return [key,
+            producer or m.get('producer', ''),
+            name, color, unit, price,
+            h if h != '' else m.get('h', ''),
+            l if l != '' else m.get('l', ''),
+            w if w != '' else m.get('w', ''),
+            dep or m.get('dep', ''),
+            hexv or m.get('hex', ''),
+            korpus, fasad, fill, texture]
+
+
+# ── Построители категорий: возвращают dict(title, rows) ─────────────────────────────────────
 
 def cat_ldsp(d):
-    # Одна строка на материал (производитель+название+толщина); поверхности — столбцы да/нет. Так
-    # название заводится ОДИН раз и дублируется по разделам (просьба пользователя). Цена/текстура —
-    # одна на материал (берётся из первой поверхности по порядку корпус→фасад→наполнение).
-    headers = ['Производитель', 'Название', 'Толщина, мм', 'Цена ₽/м²', 'Файл текстуры',
-               'Корпус', 'Фасад', 'Наполнение', '_key']
-    groups = {}  # (произв., название, толщина) -> {price, texture, surf:set(), order}
+    # Одна строка на материал (производитель+название+толщина); поверхности — столбцы да/нет.
+    # В едином формате: «Название» = вид материала (ЛДСП), «Цвет» = название цвета.
+    groups = {}  # (произв., цвет, толщина) -> {price, texture, hex, surf:set(), order}
     seq = 0
     for surf, _lbl in SURFACES:
         for prod in d[surf]['producers']:
@@ -68,130 +118,131 @@ def cat_ldsp(d):
                 k = (prod['name'], c['name'], c.get('thickness', 16))
                 g = groups.get(k)
                 if g is None:
-                    g = {'price': c['pricePerM2'], 'texture': c.get('texture', ''), 'surf': set(), 'order': seq}
+                    g = {'price': c['pricePerM2'], 'texture': c.get('texture', ''),
+                         'hex': c.get('color', ''), 'surf': set(), 'order': seq}
                     seq += 1
                     groups[k] = g
                 g['surf'].add(surf)
     yn = lambda s, g: 'да' if s in g['surf'] else 'нет'
     rows = []
     for (pname, cname, th), g in sorted(groups.items(), key=lambda kv: kv[1]['order']):
-        rows.append([pname, cname, th, g['price'], g['texture'],
-                     yn('korpus', g), yn('fasad', g), yn('fill', g),
-                     f"ldspm:{pname}|{cname}|{th}"])
-    return dict(title='ЛДСП', headers=headers, rows=rows, price_cols=[4], hidden_cols=[9],
-                widths=[18, 26, 12, 12, 20, 9, 9, 12, 30])
+        key = f"ldspm:{pname}|{cname}|{th}"
+        rows.append(row(d, key, name='ЛДСП', color=cname, unit=U_M2, price=g['price'],
+                        producer=pname, h=th, hexv=g['hex'], korpus=yn('korpus', g),
+                        fasad=yn('fasad', g), fill=yn('fill', g), texture=g['texture']))
+    return dict(title='ЛДСП', rows=rows)
 
 
 def cat_edge(d):
-    headers = ['Цвет ЛДСП', 'Поверхность', 'Плита', 'Цена ₽/пог.м', '_key']
     rows = []
-    for key, label in SURFACES:
-        for prod in d[key]['producers']:
+    for surf, _label in SURFACES:
+        for prod in d[surf]['producers']:
             for c in prod['colors']:
+                th = c.get('thickness', 16)
                 for plate, field in ((16, 'edgePerM16'), (32, 'edgePerM32')):
                     if field in c:
-                        rows.append([c['name'], label, plate, c[field],
-                                     f"edge:{key}:{prod['id']}:{c['id']}:{plate}"])
-    return dict(title='Кромка', headers=headers, rows=rows, price_cols=[4], hidden_cols=[5],
-                widths=[26, 14, 8, 14, 30])
+                        key = f"edge:{surf}:{prod['id']}:{c['id']}:{plate}"
+                        rows.append(row(d, key, name='Кромка', color=c['name'], unit=U_M,
+                                        price=c[field], h=plate,
+                                        dep=f"ldspm:{prod['name']}|{c['name']}|{th}"))
+    return dict(title='Кромка', rows=rows)
 
 
 def cat_door_fill(d):
-    headers = ['Вид', 'Название', 'Цена ₽/м²', '_key']
     fills = d['slidingDoor']['fills']
-    rows = [['Зеркало', fills['mirror'].get('name', 'Зеркало'), fills['mirror']['pricePerM2'], 'dfill:mirror']]
+    rows = [row(d, 'dfill:mirror', name='Зеркало', color=fills['mirror'].get('name', 'Зеркало'),
+                unit=U_M2, price=fills['mirror']['pricePerM2'])]
     for c in fills.get('glass', {}).get('colors', []):
-        rows.append(['Стекло', c['name'], c['pricePerM2'], f"dfill:glass:{c['id']}"])
+        rows.append(row(d, f"dfill:glass:{c['id']}", name='Стекло', color=c['name'], unit=U_M2,
+                        price=c['pricePerM2'], hexv=c.get('color', '')))
     # шаблон ручной позиции «спеццвет» (единая механика manual)
-    rows.append(['Стекло', 'Спеццвет (ручная цена)', MANUAL, 'dfill:special'])
-    return dict(title='Наполнение дверей', headers=headers, rows=rows, price_cols=[3], hidden_cols=[4],
-                widths=[12, 26, 12, 20])
+    rows.append(row(d, 'dfill:special', name='Стекло', color='Спеццвет (ручная цена)',
+                    unit=U_M2, price=MANUAL))
+    return dict(title='Наполнение дверей', rows=rows)
 
 
 def cat_profile(d):
-    headers = ['Профиль', 'Цвет', 'Цена ₽/пог.м', '_key']
     prof = {p['id']: p['name'] for p in d['slidingDoor']['profiles']}
-    col = {c['id']: c['name'] for c in d['slidingDoor']['colors']}
+    cols = {c['id']: c for c in d['slidingDoor']['colors']}
     rows = []
     for pp in d['slidingDoor'].get('profilePrices', []):
-        rows.append([prof.get(pp['element'], pp['element']), col.get(pp['color'], pp['color']),
-                     pp['pricePerM'], f"prof:{pp['element']}:{pp['color']}"])
-    return dict(title='Профили купе', headers=headers, rows=rows, price_cols=[3], hidden_cols=[4],
-                widths=[18, 14, 14, 24])
+        el = pp['element']
+        label = ELEMENT_LABELS.get(el) or (prof.get(el, el) + ' вертикальный')
+        c = cols.get(pp['color'], {})
+        rows.append(row(d, f"prof:{el}:{pp['color']}", name=label, color=c.get('name', pp['color']),
+                        unit=U_M, price=pp['pricePerM'], hexv=c.get('hex', '')))
+    return dict(title='Профили купе', rows=rows)
 
 
 def cat_profile_colors(d):
-    headers = ['Название', 'Цвет (hex)', '_key']
-    rows = [[c['name'], c.get('hex', ''), f"profcol:{c['id']}"] for c in d['slidingDoor']['colors']]
-    return dict(title='Цвета профилей', headers=headers, rows=rows, price_cols=[], hidden_cols=[3],
-                widths=[20, 12, 16])
+    rows = [row(d, f"profcol:{c['id']}", name='Цвет профиля', color=c['name'], hexv=c.get('hex', ''))
+            for c in d['slidingDoor']['colors']]
+    return dict(title='Цвета профилей', rows=rows)
 
 
 def cat_mesh(d):
-    headers = ['Название', 'Глубина, мм', 'Цвет', 'Цена ₽/пог.м', '_key']
-    rows = [[m['name'], m['depth'], METAL_COLORS.get(m['color'], m['color']), m['pricePerM'],
-             f"mesh:{m['depth']}:{m['color']}"] for m in d['meshShelf']]
-    return dict(title='Сетчатые полки', headers=headers, rows=rows, price_cols=[4], hidden_cols=[5],
-                widths=[22, 12, 12, 14, 18])
+    rows = [row(d, f"mesh:{m['depth']}:{m['color']}", name=m['name'],
+                color=METAL_COLORS.get(m['color'], m['color']), unit=U_M, price=m['pricePerM'],
+                w=m['depth']) for m in d['meshShelf']]
+    return dict(title='Сетчатые полки', rows=rows)
 
 
 def cat_basket(d):
-    headers = ['Ширина', 'Глубина', 'Высота', 'Цвет', 'Цена ₽/шт', '_key']
-    rows = [[b['width'], b['depth'], b['height'], METAL_COLORS.get(b['color'], b['color']), b['price'],
-             f"basket:{b['width']}:{b['depth']}:{b['height']}:{b['color']}"] for b in d['basket']]
-    return dict(title='Корзины', headers=headers, rows=rows, price_cols=[5], hidden_cols=[6],
-                widths=[10, 10, 10, 12, 12, 22])
+    rows = [row(d, f"basket:{b['width']}:{b['depth']}:{b['height']}:{b['color']}", name='Корзина',
+                color=METAL_COLORS.get(b['color'], b['color']), unit=U_PC, price=b['price'],
+                h=b['height'], l=b['width'], w=b['depth']) for b in d['basket']]
+    return dict(title='Корзины', rows=rows)
 
 
 def cat_slide(d):
-    headers = ['Тип', 'Длина, мм', 'Цена ₽/компл.', '_key']
-    rows = [[SLIDE_TYPES.get(s['type'], s['type']), s['length'], s['price'], f"slide:{s['type']}:{s['length']}"]
-            for s in d['drawerSlide']]
-    return dict(title='Направляющие', headers=headers, rows=rows, price_cols=[3], hidden_cols=[4],
-                widths=[16, 12, 14, 18])
+    rows = [row(d, f"slide:{s['type']}:{s['length']}",
+                name=SLIDE_TYPES.get(s['type'], s['type']) + ' направляющие', unit=U_PC,
+                price=s['price'], l=s['length']) for s in d['drawerSlide']]
+    return dict(title='Направляющие', rows=rows)
 
 
 def cat_hardware(d):
-    # Фурнитура и авто-комплекты: единица зависит от `per` (за штуку/изделие/дверь…) — показываем колонкой.
-    per_label = {'item': 'за изделие', 'shelf': 'за полку', 'rod': 'за штангу', 'rodFlange': 'за фланец',
-                 'set': 'за комплект', 'door': 'за дверь'}
-    headers = ['Позиция', 'За что', 'Цена ₽', '_key']
     rows = []
     for it in d['fittings']:
-        rows.append([it['name'], per_label.get(it.get('per'), it.get('per', 'за шт')), it['price'], f"fit:{it['id']}"])
+        rows.append(row(d, f"fit:{it['id']}", name=it['name'],
+                        unit=PER_UNIT.get(it.get('per'), U_PC), price=it['price']))
     sw = d['swingDoorHardware']
-    rows.append([sw['name'], 'за дверь', sw['pricePerDoor'], 'swing'])
+    rows.append(row(d, 'swing', name=sw['name'], unit='дверь', price=sw['pricePerDoor']))
     ro = d['slidingDoor']['rollers']
-    rows.append([ro['name'], 'за дверь', ro['pricePerSet'], 'rollers'])
-    # Штанга, доводчик, ручка ящика, крепёж, встройка — тоже редактируемые позиции (цена меняется
-    # выгрузкой/загрузкой, как и всё остальное; крепёж/встройка — услуги в data['services']).
+    rows.append(row(d, 'rollers', name=ro['name'], unit=U_SET, price=ro['pricePerSet']))
     rod = d.get('rod')
     if rod:
-        rows.append([rod['name'], 'за пог.м', rod['pricePerM'], 'rod'])
+        rows.append(row(d, 'rod', name=rod['name'], unit=U_M, price=rod['pricePerM']))
     sc = d.get('doorSoftClose')
     if sc:
-        rows.append([sc['name'], 'за дверь', sc['pricePerDoor'], 'softclose'])
+        rows.append(row(d, 'softclose', name=sc['name'], unit='дверь', price=sc['pricePerDoor']))
     dh = d.get('drawerHandle')
     if dh:
-        rows.append([dh['name'], 'за ящик', dh['pricePerDrawer'], 'handle'])
-    for sid in ('fastener', 'embed'):
-        sv = d.get('services', {}).get(sid)
-        if sv:
-            rows.append([sv['name'], 'за деталь', sv['price'], f'service:{sid}'])
-    return dict(title='Фурнитура', headers=headers, rows=rows, price_cols=[3], hidden_cols=[4],
-                widths=[44, 14, 12, 18])
+        rows.append(row(d, 'handle', name=dh['name'], unit='ящик', price=dh['pricePerDrawer']))
+    return dict(title='Фурнитура', rows=rows)
+
+
+def cat_service(d):
+    # Услуги — отдельным листом (в шаблоне «Далее УСЛУГИ»): считаются автоматически по правилам
+    # приложения, единица — за что берётся плата.
+    rows = []
+    for sid, sv in (d.get('services') or {}).items():
+        rows.append(row(d, f'service:{sid}', name=sv.get('name', sid), unit=U_PART, price=sv.get('price', 0)))
+    return dict(title='Услуги', rows=rows)
 
 
 def cat_addon(d):
-    headers = ['Группа', 'Название', 'Цена ₽/шт', '_key']
+    # «Название» = группа (Доставка/Монтаж/…), «Цвет» = конкретная позиция (как в шаблоне).
     rows = []
     for grp in d['extras']:
         for it in grp['items']:
-            rows.append([grp['name'], it['name'], it['price'], f"addon:{grp['id']}:{it['id']}"])
+            key = f"addon:{grp['id']}:{it['id']}"
+            price = MANUAL if it.get('manual') else it['price']
+            rows.append(row(d, key, name=grp['name'], color=it['name'], unit=U_PC, price=price))
     # шаблон ручной «заказной» позиции
-    rows.append(['Доп. элементы', 'Заказная позиция (ручная цена)', MANUAL, 'addon:custom:manual'])
-    return dict(title='Доп.элементы', headers=headers, rows=rows, price_cols=[3], hidden_cols=[4],
-                widths=[20, 40, 12, 22])
+    rows.append(row(d, 'addon:custom:manual', name='Доп. элементы',
+                    color='Заказная позиция (ручная цена)', unit=U_PC, price=MANUAL))
+    return dict(title='Доп.элементы', rows=rows)
 
 
 # Порядок = порядок в диалоге и в книге. (key, человекочитаемое имя, builder)
@@ -205,6 +256,7 @@ CATEGORIES = [
     ('basket', 'Корзины', cat_basket),
     ('slide', 'Направляющие', cat_slide),
     ('hardware', 'Фурнитура', cat_hardware),
+    ('service', 'Услуги', cat_service),
     ('addon', 'Доп.элементы', cat_addon),
 ]
 
@@ -263,25 +315,21 @@ def build_workbook(data, chosen_keys):
         ws.append([line])
     ws.column_dimensions['A'].width = 105
     ws['A1'].font = bold
-    # Категории
+    # Категории — единые колонки на всех листах
     for k, _, builder in CATEGORIES:
         if k not in chosen_keys:
             continue
         spec = builder(data)
         ws = wb.create_sheet(spec['title'])
-        ws.append(spec['headers'])
-        for c in range(1, len(spec['headers']) + 1):
+        ws.append(HEADERS)
+        for c in range(1, len(HEADERS) + 1):
             ws.cell(row=1, column=c).font = bold
-        for i, wdt in enumerate(spec['widths'], start=1):
+        for i, wdt in enumerate(WIDTHS, start=1):
             ws.column_dimensions[get_column_letter(i)].width = wdt
-        for c in spec['hidden_cols']:
-            ws.column_dimensions[get_column_letter(c)].hidden = True
-        ws.freeze_panes = 'A2'
-        for row in spec['rows']:
-            ws.append(row)
-            r = ws.max_row
-            for c in spec['price_cols']:
-                ws.cell(row=r, column=c).fill = price_fill
+        ws.freeze_panes = 'B2'
+        for r in spec['rows']:
+            ws.append(r)
+            ws.cell(row=ws.max_row, column=PRICE_COL).fill = price_fill
     return wb
 
 

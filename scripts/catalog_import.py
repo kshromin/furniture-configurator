@@ -25,20 +25,18 @@ DST = os.path.join(ROOT, 'data', 'materials.json')
 IN_DIR = os.path.normpath(os.path.join(ROOT, '..', 'Выгрузки'))
 MANUAL = 'вручную'
 
-# лист → индексы колонок (1-based): key_col, price_col (None если нет), extra {поле: колонка}
-SHEETS = {
-    'ЛДСП':              dict(key=9, price=4, extra={'producer': 1, 'name': 2, 'thickness': 3,
-                                                    'texture': 5, 'korpus': 6, 'fasad': 7, 'fill': 8}),
-    'Кромка':            dict(key=5, price=4),
-    'Наполнение дверей': dict(key=4, price=3),
-    'Профили купе':      dict(key=4, price=3),
-    'Цвета профилей':    dict(key=3, price=None, extra={'name': 1, 'hex': 2}),
-    'Сетчатые полки':    dict(key=5, price=4),
-    'Корзины':           dict(key=6, price=5),
-    'Направляющие':      dict(key=4, price=3),
-    'Фурнитура':         dict(key=4, price=3),
-    'Доп.элементы':      dict(key=4, price=3),
-}
+# ЕДИНЫЙ формат колонок — одинаковый на всех листах (см. HEADERS в catalog_export.py), 1-based.
+COLS = dict(key=1, producer=2, name=3, color=4, unit=5, price=6, h=7, l=8, w=9,
+            dep=10, hex=11, korpus=12, fasad=13, fill=14, texture=15)
+SHEET_NAMES = ['ЛДСП', 'Кромка', 'Наполнение дверей', 'Профили купе', 'Цвета профилей',
+               'Сетчатые полки', 'Корзины', 'Направляющие', 'Фурнитура', 'Услуги', 'Доп.элементы']
+# Поля, которые следуют из самой позиции (в catalogMeta не пишем) — см. DERIVED в catalog_export.py.
+try:
+    from catalog_export import DERIVED
+except Exception:
+    DERIVED = {'ldspm': {'h', 'hex'}, 'edge': {'h', 'dep'}, 'dfill': {'hex'}, 'prof': {'hex'},
+               'profcol': {'hex'}, 'mesh': {'w'}, 'basket': {'h', 'l', 'w'}, 'slide': {'l'}}
+META_FIELDS = ('producer', 'h', 'l', 'w', 'dep', 'hex')
 # ключи-шаблоны (ручные/справочные) — не позиции, пропускаем при записи
 TEMPLATE_KEYS = {'dfill:special', 'addon:custom:manual'}
 
@@ -62,74 +60,103 @@ def slugify(name, existing, prefix='item'):
 
 
 # ── Создатели НОВЫХ позиций (строка без _key) по имени листа ─────────────────────────────────
-def new_ldsp(data, vals, ctx):
-    # Формат «одна строка на материал»: Производитель, Название, Толщина, Цена, Текстура,
-    # Корпус, Фасад, Наполнение (да/нет). Название заводится один раз — создаётся во всех «да».
-    pname = str(vals[0] or '').strip()
-    cname = str(vals[1] or '').strip()
+def new_ldsp(data, e, ctx):
+    # Единый формат: Производитель | Название(«ЛДСП») | Цвет | Ед.изм | Цена | Высота(=толщина) |
+    # … | Корпус | Фасад | Наполнение (да/нет) | Файл текстуры. Материал заводится во все «да».
+    pname = str(e.get('producer') or '').strip()
+    cname = str(e.get('color') or '').strip()
     if not cname:
-        return f'{ctx}: пустое название цвета'
+        return f'{ctx}: пустой цвет (колонка «Цвет»)'
     if not pname:
         return f'{ctx}: пустой производитель'
-    th = int(num(vals[2]) or 16)
-    p = num(vals[3])
+    th = int(num(e.get('h')) or 16)
+    p = num(e.get('price'))
     if p is None:
         return f'{ctx}: цена не число'
-    tex = vals[4]
-    surfaces = [('korpus', vals[5]), ('fasad', vals[6]), ('fill', vals[7])]
+    surfaces = [('korpus', e.get('korpus')), ('fasad', e.get('fasad')), ('fill', e.get('fill'))]
     if not any(is_yes(v) for _, v in surfaces):
         return f'{ctx}: не отмечена ни одна поверхность (Корпус/Фасад/Наполнение)'
     for surf, flag in surfaces:
         if is_yes(flag):
-            upsert_ldsp(data, surf, pname, cname, th, p, tex)  # кромки заводятся пустыми (автосоздание §1.2)
+            upsert_ldsp(data, surf, pname, cname, th, p, e.get('texture'))  # кромки заводятся пустыми
     return None
 
 
-def new_dfill(data, vals, ctx):
-    if str(vals[0] or '').strip().lower() != 'стекло':
-        return f'{ctx}: новые строки допустимы только для стекла'
-    p = num(vals[2])
+def new_dfill(data, e, ctx):
+    if str(e.get('name') or '').strip().lower() != 'стекло':
+        return f'{ctx}: новые строки допустимы только для стекла (колонка «Название» = Стекло)'
+    p = num(e.get('price'))
     if p is None:
         return f'{ctx}: цена не число'
+    cname = str(e.get('color') or '').strip()
+    if not cname:
+        return f'{ctx}: пустое название стекла (колонка «Цвет»)'
     cols = data['slidingDoor']['fills']['glass']['colors']
-    cid = slugify(vals[1], {c['id'] for c in cols}, 'glass')
-    cols.append({'id': cid, 'name': str(vals[1]), 'color': '#d9ecf0', 'pricePerM2': p})
+    cid = slugify(cname, {c['id'] for c in cols}, 'glass')
+    cols.append({'id': cid, 'name': cname, 'color': str(e.get('hex') or '#d9ecf0'), 'pricePerM2': p})
     return None
 
 
-def new_addon(data, vals, ctx):
-    manual = isinstance(vals[2], str) and vals[2].strip().lower() == MANUAL
-    p = MANUAL if manual else num(vals[2])
+def new_addon(data, e, ctx):
+    # «Название» = группа, «Цвет» = позиция (как в шаблоне).
+    price = e.get('price')
+    manual = isinstance(price, str) and price.strip().lower() == MANUAL
+    p = MANUAL if manual else num(price)
     if p is None:
         return f'{ctx}: цена не число'
-    g = next((x for x in data['extras'] if x['name'] == vals[0]), None)
+    grp_name = str(e.get('name') or '').strip()
+    item_name = str(e.get('color') or '').strip()
+    g = next((x for x in data['extras'] if x['name'] == grp_name), None)
     if g is None:
-        return f'{ctx}: группа «{vals[0]}» не найдена'
-    iid = slugify(vals[1], {it['id'] for it in g['items']}, 'addon')
-    item = {'id': iid, 'name': str(vals[1]), 'price': 0 if manual else p}
+        return f'{ctx}: группа «{grp_name}» не найдена'
+    if not item_name:
+        return f'{ctx}: пустое название позиции (колонка «Цвет»)'
+    iid = slugify(item_name, {it['id'] for it in g['items']}, 'addon')
+    item = {'id': iid, 'name': item_name, 'price': 0 if manual else p}
     if manual:
         item['manual'] = True
     g['items'].append(item)
     return None
 
 
-def new_mesh(data, vals, ctx):
-    d, p = num(vals[1]), num(vals[3])
+def new_mesh(data, e, ctx):
+    d, p = num(e.get('w')), num(e.get('price'))  # глубина полки — колонка «Ширина, мм»
     if d is None or p is None:
-        return f'{ctx}: глубина/цена не число'
-    color = REV_METAL.get(str(vals[2] or '').strip().lower(), vals[2])
-    data['meshShelf'].append({'depth': int(d), 'color': color, 'name': str(vals[0]), 'pricePerM': p})
+        return f'{ctx}: глубина (ширина, мм) / цена не число'
+    color = REV_METAL.get(str(e.get('color') or '').strip().lower(), e.get('color'))
+    data['meshShelf'].append({'depth': int(d), 'color': color,
+                              'name': str(e.get('name') or 'Сетчатая полка'), 'pricePerM': p})
     return None
 
 
-def new_basket(data, vals, ctx):
-    n = [num(vals[0]), num(vals[1]), num(vals[2]), num(vals[4])]
+def new_basket(data, e, ctx):
+    # Высота | Длинна(=ширина корзины) | Ширина(=глубина корзины) — как в выгрузке.
+    n = [num(e.get('l')), num(e.get('w')), num(e.get('h')), num(e.get('price'))]
     if any(x is None for x in n):
         return f'{ctx}: размеры/цена не число'
-    color = REV_METAL.get(str(vals[3] or '').strip().lower(), vals[3])
+    color = REV_METAL.get(str(e.get('color') or '').strip().lower(), e.get('color'))
     data['basket'].append({'width': int(n[0]), 'depth': int(n[1]), 'height': int(n[2]),
                            'color': color, 'price': n[3]})
     return None
+
+
+def store_meta(data, key, e):
+    """Свободные поля (производитель/габариты/зависимость/hex), которых нет в самой базе, храним
+    в data['catalogMeta'][key] — так они переживают выгрузку/загрузку. Поля, выводимые из позиции
+    (DERIVED), не пишем: их правка в Excel всё равно не имеет смысла."""
+    derived = DERIVED.get(str(key).split(':')[0], set())
+    vals = {}
+    for f in META_FIELDS:
+        if f in derived:
+            continue
+        v = e.get(f)
+        if v not in (None, ''):
+            vals[f] = v if not isinstance(v, str) else v.strip()
+    meta = data.setdefault('catalogMeta', {})
+    if vals:
+        meta[key] = vals
+    else:
+        meta.pop(key, None)
 
 
 CREATORS = {'ЛДСП': new_ldsp, 'Наполнение дверей': new_dfill, 'Доп.элементы': new_addon,
@@ -175,13 +202,15 @@ def find_ldsp(data, surface, prod_name, col_name, thickness):
     return prod, col
 
 
-def upsert_ldsp(data, surface, prod_name, col_name, thickness, price, texture):
+def upsert_ldsp(data, surface, prod_name, col_name, thickness, price, texture, hexv=None):
     """Обновить цену/текстуру существующего цвета (id сохраняется) или создать новый в этой поверхности."""
     prod, col = find_ldsp(data, surface, prod_name, col_name, thickness)
     if col is not None:
         col['pricePerM2'] = price
         if texture not in (None, ''):
             col['texture'] = str(texture)
+        if hexv not in (None, ''):
+            col['color'] = str(hexv)
         return
     if prod is None:
         pid = slugify(prod_name or 'prod', {p['id'] for p in data[surface]['producers']}, 'prod')
@@ -220,14 +249,14 @@ def apply_row(data, key, price, extra, errctx):
             # трогаем — сохранённые прорисовки не ломаются), «да» без записи — создаём, «нет» с
             # записью — удаляем.
             pname = str(extra.get('producer') or '').strip()
-            cname = str(extra.get('name') or '').strip()
+            cname = str(extra.get('color') or '').strip()   # «Цвет» — название цвета материала
             if not pname or not cname:
-                return f'{errctx}: пустой производитель/название ЛДСП'
-            th = int(num(extra.get('thickness')) or 16)
+                return f'{errctx}: пустой производитель/цвет ЛДСП'
+            th = int(num(extra.get('h')) or 16)             # «Высота, мм» = толщина плиты
             tex = extra.get('texture')
             for surf in ('korpus', 'fasad', 'fill'):
                 if is_yes(extra.get(surf)):
-                    upsert_ldsp(data, surf, pname, cname, th, pval, tex)
+                    upsert_ldsp(data, surf, pname, cname, th, pval, tex, extra.get('hex'))
                 else:
                     prod, col = find_ldsp(data, surf, pname, cname, th)
                     if col is not None:
@@ -270,8 +299,8 @@ def apply_row(data, key, price, extra, errctx):
             hit = next((c for c in data['slidingDoor']['colors'] if c['id'] == cid), None)
             if hit is None:
                 return f'{errctx}: не найден цвет профиля {cid}'
-            if extra.get('name'):
-                hit['name'] = str(extra['name'])
+            if extra.get('color'):        # название цвета профиля — в колонке «Цвет»
+                hit['name'] = str(extra['color'])
             if extra.get('hex'):
                 hit['hex'] = str(extra['hex'])
         elif tag == 'mesh':
@@ -312,7 +341,10 @@ def apply_row(data, key, price, extra, errctx):
         elif tag == 'handle':
             data['drawerHandle']['pricePerDrawer'] = pval
         elif tag == 'service':
-            data.setdefault('services', {}).setdefault(parts[1], {})['price'] = pval
+            sv = data.setdefault('services', {}).setdefault(parts[1], {})
+            sv['price'] = pval
+            if extra.get('name'):
+                sv['name'] = str(extra['name'])
         elif tag == 'addon':
             _, grp, item = parts
             g = next((x for x in data['extras'] if x['id'] == grp), None)
@@ -356,34 +388,34 @@ def main():
     wb = openpyxl.load_workbook(path, data_only=True)
     errors, applied, created, skipped_new = [], 0, 0, 0
 
-    for name, cfg in SHEETS.items():
+    for name in SHEET_NAMES:
         if name not in wb.sheetnames:
             continue
         ws = wb[name]
         for ri, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
             if row is None or all(v in (None, '') for v in row):
                 continue
-            key = row[cfg['key'] - 1] if len(row) >= cfg['key'] else None
+            # Единый формат: колонки одинаковы на всех листах (см. COLS).
+            extra = {f: (row[c - 1] if len(row) >= c else None) for f, c in COLS.items()}
+            key = extra['key']
             if not key:
-                # новая строка (без _key) — создать позицию, если лист это допускает
+                # новая строка (без ключа) — создать позицию, если лист это допускает
                 creator = CREATORS.get(name)
                 if not creator:
                     skipped_new += 1
                     continue
-                vals = list(row) + [None] * 10
-                err = creator(data, vals, f'{name}, строка {ri} (новая)')
+                err = creator(data, extra, f'{name}, строка {ri} (новая)')
                 if err:
                     errors.append(err)
                 else:
                     created += 1
                 continue
-            price = row[cfg['price'] - 1] if cfg['price'] and len(row) >= cfg['price'] else None
-            extra = {f: (row[c - 1] if len(row) >= c else None) for f, c in cfg.get('extra', {}).items()}
-            err = apply_row(data, str(key), price, extra, f'{name}, строка {ri}')
+            err = apply_row(data, str(key), extra['price'], extra, f'{name}, строка {ri}')
             if err:
                 errors.append(err)
             else:
                 applied += 1
+                store_meta(data, str(key), extra)
 
     if errors:
         print(f'ЗАГРУЗКА ОТМЕНЕНА — {len(errors)} ошибок, файл НЕ изменён:')
