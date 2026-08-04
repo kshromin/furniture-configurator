@@ -4,6 +4,24 @@ import {
   MIN_DRAWER_OFFSET_WIDTH, MIN_DRAWER_REMAINING_WIDTH,
 } from './wardrobe-constants.js';
 
+// Индивидуальная глубина перегородок (задание «инд. глубина 3,08»): state.dividerDepths[i] (осн.
+// ряд) / dividerDepthsM[i] (антресоль) — мм; undefined = во всю внутреннюю глубину. Мин 70.
+// Перегородка i — между секциями i и i+1. Секция ограничена перегородками (края шкафа = полная
+// глубина). Эффективная глубина секции = минимум глубин её границ (полки/наполнение в неё не глубже).
+export function innerFillDepth() { return state.depth - DOOR_DEPTH_ZONE; }
+export function dividerDepth(i, mezz) {
+  const map = mezz ? state.dividerDepthsM : state.dividerDepths;
+  const inner = innerFillDepth();
+  const d = map?.[i];
+  return d == null ? inner : Math.min(inner, Math.max(70, d));
+}
+export function sectionEffectiveDepth(sIndex, nSections, mezz) {
+  const inner = innerFillDepth();
+  const left  = sIndex === 0 ? inner : dividerDepth(sIndex - 1, mezz);
+  const right = sIndex === nSections - 1 ? inner : dividerDepth(sIndex, mezz);
+  return Math.min(left, right);
+}
+
 // Хелперы размеров/цены: сколько места реально доступно под тот или иной элемент наполнения
 // (ящик/сетка/вешало/корзина) при текущих габаритах шкафа, и балансировка ширины секций.
 // Ничего не строит в 3D и не трогает коллизии между уже расставленными элементами (см.

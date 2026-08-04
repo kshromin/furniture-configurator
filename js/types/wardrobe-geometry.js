@@ -7,6 +7,7 @@ import {
   effectiveDoorSpan, rebalanceSections, getDoorCount, SWING_GAP,
   maxDrawerDepth, availableMeshDepths, availableValetLengths, backWallClearance, valetBackClearance,
   drawerBoxSize, basketFits, availableBasketDepths, sectionMissingSideSupport, clampDrawerOffsetWidth,
+  dividerDepth, sectionEffectiveDepth,
 } from './wardrobe-sizing.js';
 import {
   sectionVerticalBounds, sectionVerticalBoundsPhysical, clampItemPositions, resolveBandOverlaps, resolveValetAnchorY,
@@ -513,7 +514,10 @@ export function buildWardrobeBox() {
       sectionCenters.push(cursorX + sec.width / 2);
       cursorX += sec.width;
       if (i < sections.length - 1) {
-        tagPanel(addPanel(tDiv, mainDividerH, innerDepth, nColor, [cursorX + tDiv / 2, mainDividerCenterY, innerZ]), 'dividers#' + i);
+        // Индивидуальная глубина перегородки (задание «инд. глубина 3,08»): прижата к задней стенке.
+        const dd = dividerDepth(i, false);
+        const ddZ = (innerZ - innerDepth / 2) + dd / 2;
+        tagPanel(addPanel(tDiv, mainDividerH, dd, nColor, [cursorX + tDiv / 2, mainDividerCenterY, ddZ]), 'dividers#' + i);
         cursorX += tDiv;
       }
     });
@@ -968,9 +972,10 @@ export function buildWardrobeBox() {
             // поштучный item.thick32 — только у 16мм. Раньше был хардкод 32 → на 18мм ломалось.
             const shelfT = itemThickT(item);
             // Индивидуальная глубина полки (задание «инд. глубина 3,08»): по умолчанию во всю
-            // глубину наполнения, можно уменьшить до 70мм; прижата к задней стенке. Клампится под
-            // текущую глубину конструкции (если та стала меньше сохранённой item.depth).
-            const shelfD = Math.min(innerDepth, Math.max(70, item.depth ?? innerDepth));
+            // глубину наполнения, можно уменьшить до 70мм; прижата к задней стенке. Не глубже
+            // эффективной глубины секции (min глубин граничных перегородок — каскад от их подрезки).
+            const secD = sectionEffectiveDepth(s, zoneSections.length, zone === 'mezzanine');
+            const shelfD = Math.min(secD, Math.max(70, item.depth ?? innerDepth));
             const shelfZ = (innerZ - innerDepth / 2) + shelfD / 2;
             const mesh = addPanel(sw, shelfT, shelfD, nColor, [cx, y0 + item.y, shelfZ]);
             tag(mesh, item);

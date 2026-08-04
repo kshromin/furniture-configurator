@@ -3,7 +3,7 @@ import { korpusBoxAreaM2 } from '../core/pricing.js';
 import { getColor } from '../core/materials.js';
 import {
   buildWardrobeBox, getDoorCount, effectiveDoorSpan, drawerBoxSize, basketFits, sectionMissingSideSupport,
-  sectionBackWallSegments, doorCustomSegments, clampDrawerOffsetWidth,
+  sectionBackWallSegments, doorCustomSegments, clampDrawerOffsetWidth, sectionEffectiveDepth,
   DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_RAIL_HEIGHT, BOTTOM_RAIL_HEIGHT, STIFFENER_HEIGHT, SWING_GAP,
 } from './_wardrobe-shared.js';
 
@@ -401,9 +401,11 @@ export default {
       // _wardrobe-shared.js) плюс планка жёсткости (если задняя стенка не ЛДСП, висит от
       // структурной полки).
       if (state.backWall !== 'ldsp') fillM2 += (sw * STIFFENER_HEIGHT) / 1e6; // жёсткость — вертикальная пластина, площадь ширина×высота
+      const secEffD = sectionEffectiveDepth(s, sections.length, false);
       sec.items.filter(it => it.type === 'shelf').forEach(it => {
-        // Индивидуальная глубина полки (задание «инд. глубина 3,08») — площадь по ней, а не по полной.
-        const shelfD = Math.min(innerDepth, Math.max(70, it.depth ?? innerDepth));
+        // Индивидуальная глубина полки: площадь по ней, но не глубже эффективной глубины секции
+        // (каскад от подрезки граничных перегородок).
+        const shelfD = Math.min(secEffD, Math.max(70, it.depth ?? innerDepth));
         fillM2 += (sw * shelfD) / 1e6;
         fillEdge(sw, it.thick32); // передний торец полки; у полки 32мм — лента «на 32»
         if (!state.panel32 && it.thick32) { // полка 32мм: материал ×2 (кромка — выше, вся в ведре 32)

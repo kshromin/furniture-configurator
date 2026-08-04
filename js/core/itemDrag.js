@@ -286,7 +286,19 @@ function describeActive() {
         label: th.dividers ? 'Сделать 16 мм (все перегородки)' : 'Сделать 32 мм (все перегородки)',
         onClick: () => { th.dividers = !th.dividers; syncPanelThickness(); refreshActive(); },
       });
-      return { title: 'Перегородка ' + (idx + 1) + (main ? '' : ' (антресоль)'), lines, actions };
+      // Индивидуальная глубина перегородки (задание «инд. глубина 3,08») — редактируемое поле,
+      // 70…внутр. глубина. Каскад (подрезка полок/наполнения соседних секций) — в геометрии/цене.
+      const depthMap = main ? (state.dividerDepths || (state.dividerDepths = {})) : (state.dividerDepthsM || (state.dividerDepthsM = {}));
+      const divMaxD = state.depth - DOOR_DEPTH_ZONE;
+      return {
+        title: 'Перегородка ' + (idx + 1) + (main ? '' : ' (антресоль)'), lines, actions,
+        numberField: {
+          label: 'Глубина, мм',
+          value: Math.min(divMaxD, depthMap[idx] ?? divMaxD),
+          min: 70, max: divMaxD,
+          onChange: v => { depthMap[idx] = Math.min(divMaxD, Math.max(70, v)); refreshActive(); },
+        },
+      };
     }
     // Одиночные корпусные детали (left/right/top/bottom) — встройка + толщина 32мм по выделению.
     // 32мм доступен только материалам 16мм (у Этерно 18/22/25 переключатель прячем).
