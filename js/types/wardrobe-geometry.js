@@ -11,7 +11,7 @@ import {
 } from './wardrobe-sizing.js';
 import {
   sectionVerticalBounds, sectionVerticalBoundsPhysical, clampItemPositions, resolveBandOverlaps, resolveValetAnchorY,
-  sectionBackWallSegments, nearestSupportSurfaceY, clampHorizontalSupportY,
+  sectionBackWallSegments, nearestSupportSurfaceY, clampHorizontalSupportY, verticalSupportBlocked,
   mezzanineShelfY, mezzanineVerticalBounds, mezzanineVerticalBoundsPhysical,
 } from './wardrobe-items.js';
 
@@ -1041,6 +1041,13 @@ export function buildWardrobeBox() {
             // размах sw, что и у самой трубы).
             tag(addFlange(cx - sw / 2, item.y, rodZ, 'x'), item);
             tag(addFlange(cx + sw / 2, item.y, rodZ, 'x'), item);
+            // Труба не должна проходить сквозь другие элементы: если путь до опоры занят —
+            // вертикальную стойку убираем (и при попытке добавить она заблокирована в itemDrag).
+            if (item.verticalSupport && verticalSupportBlocked(sec, item, zFillBottomPhysical)) {
+              item.verticalSupport = false;
+              item.horizontalSupportLeft = false;
+              item.horizontalSupportRight = false;
+            }
             if (item.verticalSupport) {
               const surfaceY = nearestSupportSurfaceY(sec, item, zFillBottomPhysical);
               // Левая и правая перемычки полностью независимы — свой краб, своя высота стыка с

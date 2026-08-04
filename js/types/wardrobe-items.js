@@ -214,6 +214,19 @@ export function nearestSupportSurfaceY(sec, rodItem, fillBottomPhysical) {
   return best;
 }
 
+// Путь вертикальной трубы-стойки (от опоры снизу до штанги) занят другим элементом? Тогда трубу
+// физически не поставить (задание: труба не должна проходить сквозь ящики/наполнение). Полки — опоры
+// (к ближайшей труба и крепится) и штанги не мешают; блокируют ящики/корзины/сетка/вешало, чья
+// полоса пересекает пролёт трубы [опора … штанга].
+export function verticalSupportBlocked(sec, rodItem, fillBottomPhysical) {
+  const supportY = nearestSupportSurfaceY(sec, rodItem, fillBottomPhysical);
+  return sec.items.some(it => {
+    if (it.id === rodItem.id || it.type === 'shelf' || it.type === 'rod') return false;
+    const h = itemPhysicalHeight(it.type, sec, it);
+    return (it.y + h / 2) > supportY && (it.y - h / 2) < rodItem.y;
+  });
+}
+
 // Горизонтальные перемычки от вертикальной трубы-стойки к боковым стойкам (item.horizontalSupportLeft/
 // Right, задание «трубы вертикально плюс») — ЛЕВАЯ и ПРАВАЯ полностью независимы (свой краб,
 // своя высота стыка с вертикальной трубой — item.horizontalSupportLeftY/RightY, мышкой двигается

@@ -8,7 +8,7 @@ import {
   lastBuildSectionCenters, lastBuildMezzanineSectionCenters, lastBuildY0,
   checkOverlap, boundsForZone, boundsForZonePhysical, secForZone, valetAnchorCandidates, resolveValetAnchorY,
   itemPhysicalBands, itemPhysicalHeight, itemBands, itemBandHeight, resolveLockedMove, absorbIntoLockedGap,
-  nearestSupportSurfaceY, horizontalSupportYRange,
+  nearestSupportSurfaceY, horizontalSupportYRange, verticalSupportBlocked,
   clampDrawerOffsetWidth, MIN_DRAWER_OFFSET_WIDTH, MIN_DRAWER_REMAINING_WIDTH, DEFAULT_DRAWER_OFFSET_WIDTH,
 } from '../types/_wardrobe-shared.js';
 import { projectToOverlay, updateArrow, hideArrow } from './dimensions.js';
@@ -348,12 +348,17 @@ function describeActive() {
         },
       };
     }
-    case 'rod':
+    case 'rod': {
+      // Путь вертикальной трубы до опоры занят другим элементом (ящик и т.п.)? Тогда её нельзя
+      // поставить (задание: труба не должна проходить сквозь элементы).
+      const { fillBottom: rodFbp } = boundsForZonePhysical(active.zone);
+      const vsBlocked = verticalSupportBlocked(sec, item, rodFbp);
       return {
         title: 'Штанга',
         lines: [
           'Хром, ⌀25 мм',
           ...(item.verticalSupport ? ['+ вертикальная стойка до полки/дна'] : []),
+          ...(!item.verticalSupport && vsBlocked ? ['⚠ Путь до полки занят — стойку не поставить'] : []),
           ...(item.verticalSupport && item.horizontalSupportLeft ? ['+ перемычка влево'] : []),
           ...(item.verticalSupport && item.horizontalSupportRight ? ['+ перемычка вправо'] : []),
         ],
@@ -364,14 +369,14 @@ function describeActive() {
         // задание «трубы вертикально плюс»); высота стыка с трубой — мышкой (см. addHorizontalSupport,
         // pickDraggable/onPointerDown ниже — kind:'hsupport').
         actions: [
-          {
-            label: item.verticalSupport ? 'Убрать вертикальную стойку' : 'Добавить вертикальную стойку',
-            onClick: () => {
-              item.verticalSupport = !item.verticalSupport;
-              if (!item.verticalSupport) { item.horizontalSupportLeft = false; item.horizontalSupportRight = false; }
-              refreshActive();
-            },
-          },
+          ...(item.verticalSupport
+            ? [{
+                label: 'Убрать вертикальную стойку',
+                onClick: () => { item.verticalSupport = false; item.horizontalSupportLeft = false; item.horizontalSupportRight = false; refreshActive(); },
+              }]
+            : vsBlocked
+              ? [] // путь занят — добавить нельзя (см. строку-предупреждение в lines)
+              : [{ label: 'Добавить вертикальную стойку', onClick: () => { item.verticalSupport = true; refreshActive(); } }]),
           ...(item.verticalSupport ? [
             {
               label: item.horizontalSupportLeft ? 'Убрать перемычку влево' : 'Перемычка к левой стойке',
@@ -384,6 +389,7 @@ function describeActive() {
           ] : []),
         ],
       };
+    }
     case 'drawer': {
       // Смещающий элемент (задание «ящики-двери 19,07») — заглушка слева/справа той же высоты,
       // сам ящик становится уже секции на её ширину и сдвигается к противоположному краю. Ширина
