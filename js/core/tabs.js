@@ -1,4 +1,4 @@
-import { state, materials, newItemId, hasUnsavedChanges, markStateSafe } from './state.js';
+import { state, materials, newItemId, hasUnsavedChanges, markStateSafe, allPlates16 } from './state.js';
 import { resetHistory } from './history.js';
 import { TYPES } from '../types/registry.js';
 import { renderProducerSelect, renderSwatches } from './materials.js';
@@ -297,9 +297,18 @@ export function syncUIFromState() {
   document.querySelectorAll('#backWallGroup .opt-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.back === state.backWall);
   });
-  document.querySelectorAll('#thicknessGroup .opt-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.thick === (state.panel32 ? '32' : '16'));
-  });
+  // «32 мм» («в две плиты») осмыслено только для 16мм плит — если корпус ИЛИ наполнение не 16,
+  // переключатель убираем и снимаем режим 32 (нельзя быть в 32 на не-16 плите).
+  const thickBlock = document.getElementById('thicknessBlock');
+  if (allPlates16()) {
+    if (thickBlock) thickBlock.style.display = '';
+    document.querySelectorAll('#thicknessGroup .opt-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.thick === (state.panel32 ? '32' : '16'));
+    });
+  } else {
+    if (state.panel32) state.panel32 = false; // не-16: 32 недоступно (detailT и так вернёт толщину материала)
+    if (thickBlock) thickBlock.style.display = 'none';
+  }
   // На случай, если пресет/загруженная позиция заказа принесла несовместимую комбинацию
   // (задняя стенка + снятая стойка/крыша/дно) — блокирует кнопки и сбрасывает стенку так же,
   // как и ручное снятие галочки на вкладке «Внешнее».

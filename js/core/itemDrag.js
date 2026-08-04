@@ -15,7 +15,7 @@ import { renderSectionsList, selectSectionFromScene } from './tabs.js';
 // Напрямую из wardrobe.js (не через barrel — тот не реэкспортирует сам тип во избежание цикла):
 // цена одной двери для инфопанели выделенной двери.
 import { slidingDoorUnitPrice, swingDoorUnitPrice } from '../types/wardrobe.js';
-import { materials, korpusMaterialThickness, syncPanelThickness, detailT, itemThickT } from './state.js';
+import { materials, syncPanelThickness, detailT, itemThickT, allPlates16 } from './state.js';
 import { fmt } from './pricing.js';
 
 // Свободное перетаскивание мышкой наполнения секции (полки/ящики/сетка/корзины/штанга) — во
@@ -262,7 +262,7 @@ function describeActive() {
       const embMap = state.dividerEmbed || (state.dividerEmbed = {});
       const embed = main ? (embMap[idx] ?? state.embed?.dividers ?? false) : (state.embed?.dividers ?? false);
       const th = state.thick32 || (state.thick32 = {});
-      const canDouble = korpusMaterialThickness() === 16;
+      const canDouble = allPlates16();
       const lines = [
         `Толщина: ${detailT('dividers')} мм`,
         ...(embed ? ['+ встройка (+300 ₽)'] : []),
@@ -283,7 +283,7 @@ function describeActive() {
     const NAMES = { left: 'Левая стойка', right: 'Правая стойка', top: 'Крыша', bottom: 'Дно' };
     const emb = state.embed || (state.embed = {});
     const th = state.thick32 || (state.thick32 = {});
-    const canDouble = korpusMaterialThickness() === 16;
+    const canDouble = allPlates16();
     const lines = [
       `Толщина: ${detailT(key)} мм`,
       ...(emb[key] ? ['+ встройка (+300 ₽)'] : []),
@@ -300,7 +300,7 @@ function describeActive() {
     case 'shelf': {
       // Толщина полки — по материалу (itemThickT), не хардкод: на 18мм показываем 18, а не 16.
       // Поштучный «32 мм» — только для 16мм материала (у 18/22/25 кнопку прячем).
-      const canDouble = korpusMaterialThickness() === 16;
+      const canDouble = allPlates16();
       return {
         title: item.pinned ? 'Полка (опорная)' : 'Полка',
         lines: [

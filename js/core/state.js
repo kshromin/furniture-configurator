@@ -10,26 +10,34 @@ export function korpusMaterialThickness() {
   const prod = (materials.korpus?.producers || []).find(p => p.id === state.korpusProducer);
   return (prod?.colors || []).find(c => c.id === state.korpusId)?.thickness || 16;
 }
+// Толщина наполнения (внутренностей) — из выбранного материала наполнения (свой список/выбор).
+export function fillMaterialThickness() {
+  const prod = (materials.fill?.producers || []).find(p => p.id === state.fillProducer);
+  return (prod?.colors || []).find(c => c.id === state.fillId)?.thickness || 16;
+}
+// «В две плиты» (32) осмыслено ТОЛЬКО когда все используемые плиты 16мм (корпус И наполнение). Если
+// где-то плита не 16 — переключатель 32 убираем совсем (толщина = из материала).
+export function allPlates16() {
+  return korpusMaterialThickness() === 16 && fillMaterialThickness() === 16;
+}
 export function syncPanelThickness() {
   const base = korpusMaterialThickness();
-  PANEL_THICKNESS = state.panel32 ? base * 2 : base;
+  PANEL_THICKNESS = (base === 16 && state.panel32) ? 32 : base;
 }
 
-// Толщина конкретной корпусной детали. Общий режim panel32 удваивает любой материал; поштучный
-// thick32[key] — только у 16мм. Ключи: left/right (стойки), top (крыша), bottom (дно), dividers.
+// Толщина корпусной детали: у не-16 материала = толщина материала (32 недоступно); у 16 — 32, если
+// общий режим ИЛИ помечена деталь. Ключи: left/right (стойки), top (крыша), bottom (дно), dividers.
 export function detailT(key) {
   const base = korpusMaterialThickness();
-  if (state.panel32) return base * 2;
-  if (base === 16 && state.thick32?.[key]) return 32;
-  return base;
+  if (base !== 16) return base;
+  return (state.panel32 || state.thick32?.[key]) ? 32 : 16;
 }
 
 // Толщина полки (item.thick32 — поштучный тумблер по выделению полки). Тот же принцип, что detailT.
 export function itemThickT(item) {
   const base = korpusMaterialThickness();
-  if (state.panel32) return base * 2;
-  if (base === 16 && item?.thick32) return 32;
-  return base;
+  if (base !== 16) return base;
+  return (state.panel32 || item?.thick32) ? 32 : 16;
 }
 
 export let materials = { korpus: { producers: [] }, fasad: { producers: [] }, fill: { producers: [] }, fittings: [], meshShelf: [], presets: [] };
