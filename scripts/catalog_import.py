@@ -69,7 +69,7 @@ def new_ldsp(data, e, ctx):
         return f'{ctx}: пустой цвет (колонка «Цвет»)'
     if not pname:
         return f'{ctx}: пустой производитель'
-    cname = disp if disp.lower().startswith('лдсп') else ('ЛДСП ' + disp)  # «Цвет» без «ЛДСП» — вернуть в имя
+    cname = ldsp_full_name(e.get('name'), disp)  # имя из «Название»+«Цвет» (ЛДСП только если тип ЛДСП)
     th = int(num(e.get('h')) or 16)
     p = num(e.get('price'))
     if p is None:
@@ -228,6 +228,15 @@ def upsert_ldsp(data, surface, prod_name, col_name, thickness, price, texture, h
     prod['colors'].append(col)
 
 
+def ldsp_full_name(typ, disp):
+    """Собрать имя материала из «Название» (тип) и «Цвет». «ЛДСП» приклеиваем ТОЛЬКО если тип = ЛДСП
+    (иначе не-ЛДСП, напр. «Этерно МДФ Белый», получил бы лишний префикс)."""
+    disp = str(disp or '').strip()
+    if str(typ or '').strip().lower() == 'лдсп' and not disp.lower().startswith('лдсп'):
+        return 'ЛДСП ' + disp
+    return disp
+
+
 def ensure_ldsp_gids(data):
     """Присвоить каждому материалу ЛДСП общий стабильный gid (группа по производитель+имя+толщина
     через все поверхности). Детерминированно = id первого встреченного члена (korpus→fasad→fill),
@@ -303,7 +312,7 @@ def apply_row(data, key, price, extra, errctx):
             disp = str(extra.get('color') or '').strip()
             if not disp:
                 return f'{errctx}: пустой цвет ЛДСП (колонка «Цвет»)'
-            cname = disp if disp.lower().startswith('лдсп') else ('ЛДСП ' + disp)
+            cname = ldsp_full_name(extra.get('name'), disp)
             th = int(num(extra.get('h')) or 16)
             tex, hexv = extra.get('texture'), extra.get('hex')
             members = find_ldsp_by_gid(data, gid)

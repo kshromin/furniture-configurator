@@ -46,7 +46,7 @@ PER_UNIT = {'item': 'изделие', 'shelf': 'полка', 'rod': 'штанг�
             'set': U_SET, 'door': 'дверь', 'drawer': 'ящик'}
 # Названия «общих» элементов профиля (вертикальные берут имя из каталога профилей)
 ELEMENT_LABELS = {'horizTop': 'Горизонт верхний', 'horizBottom': 'Горизонт нижний',
-                  'divider': 'Перемычка', 'track': 'Направляющая'}
+                  'divider': 'Перемычка', 'track': 'Направляющая (верх+низ)'}
 
 # Какие поля СЛЕДУЮТ из самой позиции (не из catalogMeta): их правка в Excel не сохраняется —
 # позиция задаётся ключом. Ключ таблицы — тег ключа (часть до первого «:»).
@@ -143,24 +143,28 @@ def cat_ldsp(d):
     rows = []
     for (pname, cname, th), g in sorted(groups.items(), key=lambda kv: kv[1]['order']):
         key = f"ldsp:{g['gid']}"
-        rows.append(row(d, key, name='ЛДСП', color=ldsp_color_disp(cname), unit=U_M2, price=g['price'],
-                        producer=pname, h=th, hexv=g['hex'], korpus=yn('korpus', g),
-                        fasad=yn('fasad', g), fill=yn('fill', g), texture=g['texture']))
+        # «Название» = «ЛДСП» ТОЛЬКО если материал реально ЛДСП; иначе пусто, а «Цвет» = полное имя
+        # (не-ЛДСП, напр. «Этерно МДФ Белый», не трогаем — иначе при загрузке приклеится «ЛДСП»).
+        is_ldsp = str(cname).lower().startswith('лдсп ')
+        rows.append(row(d, key, name='ЛДСП' if is_ldsp else '', color=ldsp_color_disp(cname),
+                        unit=U_M2, price=g['price'], producer=pname, h=th, hexv=g['hex'],
+                        korpus=yn('korpus', g), fasad=yn('fasad', g), fill=yn('fill', g), texture=g['texture']))
     return dict(title='ЛДСП', rows=rows)
 
 
 def cat_edge(d):
-    rows = []
+    # Цвет — без слова «ЛДСП» (как у ЛДСП). Сортировка ПО ВЫСОТЕ (все 16, потом все 32).
+    tmp = []  # (plate, row)
     for surf, _label in SURFACES:
         for prod in d[surf]['producers']:
             for c in prod['colors']:
-                th = c.get('thickness', 16)
                 for plate, field in ((16, 'edgePerM16'), (32, 'edgePerM32')):
                     if field in c:
                         key = f"edge:{surf}:{prod['id']}:{c['id']}:{plate}"
-                        rows.append(row(d, key, name='Кромка', color=c['name'], unit=U_M,
-                                        price=c[field], h=plate,
-                                        dep=f"ldspm:{prod['name']}|{c['name']}|{th}"))
+                        tmp.append((plate, row(d, key, name='Кромка', color=ldsp_color_disp(c['name']),
+                                    unit=U_M, price=c[field], h=plate,
+                                    dep=f"ldsp:{ldsp_gid_of(prod, c)}")))
+    rows = [r for _plate, r in sorted(tmp, key=lambda x: x[0])]
     return dict(title='Кромка', rows=rows)
 
 
@@ -218,12 +222,12 @@ def cat_slide(d):
 
 
 def cat_hardware(d):
+    # Ед.изм — только шт / комплект / пог.м (других нет). Штука по умолчанию.
     rows = []
     for it in d['fittings']:
-        rows.append(row(d, f"fit:{it['id']}", name=it['name'],
-                        unit=PER_UNIT.get(it.get('per'), U_PC), price=it['price']))
+        rows.append(row(d, f"fit:{it['id']}", name=it['name'], unit=U_PC, price=it['price']))
     sw = d['swingDoorHardware']
-    rows.append(row(d, 'swing', name=sw['name'], unit='дверь', price=sw['pricePerDoor']))
+    rows.append(row(d, 'swing', name=sw['name'], unit=U_SET, price=sw['pricePerDoor']))
     ro = d['slidingDoor']['rollers']
     rows.append(row(d, 'rollers', name=ro['name'], unit=U_SET, price=ro['pricePerSet']))
     rod = d.get('rod')
@@ -231,10 +235,10 @@ def cat_hardware(d):
         rows.append(row(d, 'rod', name=rod['name'], unit=U_M, price=rod['pricePerM']))
     sc = d.get('doorSoftClose')
     if sc:
-        rows.append(row(d, 'softclose', name=sc['name'], unit='дверь', price=sc['pricePerDoor']))
+        rows.append(row(d, 'softclose', name=sc['name'], unit=U_PC, price=sc['pricePerDoor']))
     dh = d.get('drawerHandle')
     if dh:
-        rows.append(row(d, 'handle', name=dh['name'], unit='ящик', price=dh['pricePerDrawer']))
+        rows.append(row(d, 'handle', name=dh['name'], unit=U_PC, price=dh['pricePerDrawer']))
     return dict(title='Фурнитура', rows=rows)
 
 
@@ -267,7 +271,6 @@ CATEGORIES = [
     ('edge', 'Кромка', cat_edge),
     ('door_fill', 'Наполнение дверей', cat_door_fill),
     ('profile', 'Профили купе', cat_profile),
-    ('profile_colors', 'Цвета профилей', cat_profile_colors),
     ('mesh', 'Сетчатые полки', cat_mesh),
     ('basket', 'Корзины', cat_basket),
     ('slide', 'Направляющие', cat_slide),
