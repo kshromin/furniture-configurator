@@ -39,8 +39,9 @@ SHEET_NAMES = ['ЛДСП', 'Кромка', 'Наполнение дверей', 
                'Сетчатые полки', 'Корзины', 'Направляющие', 'Фурнитура', 'Услуги', 'Доп.элементы']
 # Поля, которые следуют из самой позиции (в catalogMeta не пишем) — см. DERIVED в catalog_export.py.
 try:
-    from catalog_export import DERIVED, SLIDE_TYPES, ELEMENT_LABELS
+    from catalog_export import DERIVED, SLIDE_TYPES, ELEMENT_LABELS, DEFAULT_SERVICE_GROUPS
 except Exception:
+    DEFAULT_SERVICE_GROUPS = {'delivery', 'lift', 'montage'}
     DERIVED = {'ldsp': {'h', 'hex', 'dep', 'producer', 'l', 'w'},
                'ldspm': {'h', 'hex'}, 'edge': {'h', 'dep'}, 'dfill': {'hex'}, 'prof': {'hex'},
                'profcol': {'hex'}, 'mesh': {'w'}, 'basket': {'h', 'l', 'w'}, 'slide': {'l'}}
@@ -53,6 +54,11 @@ except Exception:
 GID_FIELDS = {'meshShelf': ('depth', 'color'), 'basket': ('width', 'depth', 'height', 'color'),
               'drawerSlide': ('type', 'length')}
 META_FIELDS = ('producer', 'h', 'l', 'w', 'dep', 'hex')
+# Позиции, заведённые в самой программе (верхняя таблица листов «Фурнитура»/«Услуги»): их нельзя
+# добавлять/удалять, поэтому у них правится ТОЛЬКО цена — исключение из правила «правь любой
+# столбец» (прямое указание пользователя в задании «формат выгрузки»).
+FIXED_PRICE_ONLY = {'fit', 'swing', 'rollers', 'rod', 'softclose', 'handle', 'service'}
+UNITS_FIT = ('шт', 'комплект', 'пог.м')  # других единиц у фурнитуры нет (задание, п.8)
 # ключи-шаблоны (ручные/справочные) — не позиции, пропускаем при записи
 TEMPLATE_KEYS = {'dfill:special', 'addon:custom:manual'}
 
@@ -120,25 +126,57 @@ def new_dfill(data, e, ctx):
     return None
 
 
-def new_addon(data, e, ctx):
-    # «Название» = группа, «Цвет» = позиция (как в шаблоне).
+def new_addon_item(data, e, ctx, kind):
+    """Новая строка в добавляемой таблице «Услуг» / «Доп.элементов»: «Название» = позиция,
+    «От чего зависит» = раздел (нет такого — заводится новый, вид определяет лист)."""
     price = e.get('price')
     manual = isinstance(price, str) and price.strip().lower() == MANUAL
     p = MANUAL if manual else num(price)
     if p is None:
         return f'{ctx}: цена не число'
-    grp_name = str(e.get('name') or '').strip()
-    item_name = str(e.get('color') or '').strip()
+    item_name = txt(e.get('name'))
+    if not item_name:
+        return f'{ctx}: пустое название позиции (колонка «Название»)'
+    grp_name = txt(e.get('dep'))
+    if not grp_name:
+        return f'{ctx}: не указан раздел (колонка «От чего зависит»)'
     g = next((x for x in data['extras'] if x['name'] == grp_name), None)
     if g is None:
-        return f'{ctx}: группа «{grp_name}» не найдена'
-    if not item_name:
-        return f'{ctx}: пустое название позиции (колонка «Цвет»)'
+        gid = slugify(grp_name, {x['id'] for x in data['extras']}, 'grp')
+        g = {'id': gid, 'name': grp_name, 'kind': kind, 'items': []}
+        data['extras'].append(g)
     iid = slugify(item_name, {it['id'] for it in g['items']}, 'addon')
     item = {'id': iid, 'name': item_name, 'price': 0 if manual else p}
     if manual:
         item['manual'] = True
     g['items'].append(item)
+    return None
+
+
+def fit_unit(e):
+    """Ед.изм добавляемой фурнитуры: только шт / комплект / пог.м (None — если что-то другое)."""
+    u = txt(e.get('unit')) or UNITS_FIT[0]
+    return u if u in UNITS_FIT else None
+
+
+def new_fitopt(data, e, ctx):
+    """Новая строка в добавляемой таблице «Фурнитуры»: позиция ассортимента в разделе
+    («Ручки ящика» и т.п.). Приложение пока выбирает фурнитуру не по разделам — это каталог."""
+    p = num(e.get('price'))
+    if p is None:
+        return f'{ctx}: цена не число'
+    name = txt(e.get('name'))
+    if not name:
+        return f'{ctx}: пустое название позиции (колонка «Название»)'
+    grp = txt(e.get('dep'))
+    if not grp:
+        return f'{ctx}: не указан раздел (колонка «От чего зависит», напр. «Ручки ящика»)'
+    unit = fit_unit(e)
+    if unit is None:
+        return f'{ctx}: ед.изм «{txt(e.get("unit"))}» — допустимы только ' + ', '.join(UNITS_FIT)
+    lst = data.setdefault('fittingOptions', [])
+    gid = slugify(name, {i['gid'] for i in lst}, 'fit')
+    lst.append({'gid': gid, 'group': grp, 'name': name, 'unit': unit, 'price': p})
     return None
 
 
@@ -182,7 +220,10 @@ def store_meta(data, key, e):
         meta.pop(key, None)
 
 
-CREATORS = {'ЛДСП': new_ldsp, 'Наполнение дверей': new_dfill, 'Доп.элементы': new_addon,
+CREATORS = {'ЛДСП': new_ldsp, 'Наполнение дверей': new_dfill,
+            'Доп.элементы': lambda d, e, c: new_addon_item(d, e, c, 'extra'),
+            'Услуги': lambda d, e, c: new_addon_item(d, e, c, 'service'),
+            'Фурнитура': new_fitopt,
             'Сетчатые полки': new_mesh, 'Корзины': new_basket}
 
 
@@ -292,6 +333,9 @@ def ensure_gids(data):
                 gid = f'{base}_{i}'; i += 1
             it['gid'] = gid
             used.add(gid)
+    # вид группы `extras` — услуга или доп.элемент (по нему выбирается лист выгрузки)
+    for grp in data.get('extras') or []:
+        grp.setdefault('kind', 'service' if grp['id'] in DEFAULT_SERVICE_GROUPS else 'extra')
 
 
 def by_gid(items, gid):
@@ -627,6 +671,7 @@ def apply_row(data, key, price, extra, errctx, base=None):
                 return f'{errctx}: такая направляющая уже есть (тип + длина)'
             set_label(data, f'slide:{gid}', extra.get('name'),
                       SLIDE_TYPES.get(hit['type'], hit['type']) + ' направляющие')
+        # ── Не добавляемые позиции (верхние таблицы «Фурнитуры» и «Услуг»): только цена ──────────
         elif tag == 'fit':
             fid = parts[1]
             hit = next((it for it in data['fittings'] if it['id'] == fid), None)
@@ -634,10 +679,8 @@ def apply_row(data, key, price, extra, errctx, base=None):
                 return f'{errctx}: не найдена фурнитура {fid}'
             if pval is not None:
                 hit['price'] = pval
-            if txt(extra.get('name')):
-                hit['name'] = txt(extra.get('name'))
         elif tag in ('swing', 'rollers', 'rod', 'softclose', 'handle'):
-            # одиночные позиции фурнитуры: у каждой своё поле цены, имя — общее «name»
+            # одиночные позиции фурнитуры: у каждой своё поле цены
             obj, fld = {'swing': (data['swingDoorHardware'], 'pricePerDoor'),
                         'rollers': (data['slidingDoor']['rollers'], 'pricePerSet'),
                         'rod': (data.get('rod'), 'pricePerM'),
@@ -647,14 +690,26 @@ def apply_row(data, key, price, extra, errctx, base=None):
                 return f'{errctx}: не найдена позиция {key}'
             if pval is not None:
                 obj[fld] = pval
-            if txt(extra.get('name')):
-                obj['name'] = txt(extra.get('name'))
         elif tag == 'service':
             sv = data.setdefault('services', {}).setdefault(parts[1], {})
             if pval is not None:
                 sv['price'] = pval
+        # ── Добавляемые позиции (нижние таблицы): раздел — в «От чего зависит» ───────────────────
+        elif tag == 'fitopt':
+            hit = next((i for i in data.get('fittingOptions', []) if i['gid'] == parts[1]), None)
+            if hit is None:
+                return f'{errctx}: не найдена позиция фурнитуры {key}'
+            if pval is not None:
+                hit['price'] = pval
             if txt(extra.get('name')):
-                sv['name'] = txt(extra.get('name'))
+                hit['name'] = txt(extra.get('name'))
+            if txt(extra.get('dep')):                 # правка раздела = перенос позиции в него
+                hit['group'] = txt(extra.get('dep'))
+            if txt(extra.get('unit')):
+                unit = fit_unit(extra)
+                if unit is None:
+                    return f'{errctx}: ед.изм «{txt(extra.get("unit"))}» — допустимы только ' + ', '.join(UNITS_FIT)
+                hit['unit'] = unit
         elif tag == 'addon':
             _, grp, item = parts
             g = next((x for x in data['extras'] if x['id'] == grp), None)
@@ -666,10 +721,10 @@ def apply_row(data, key, price, extra, errctx, base=None):
             else:
                 it.pop('manual', None)
                 it['price'] = pval
-            if txt(extra.get('color')):               # позиция — в «Цвете», группа — в «Названии»
-                it['name'] = txt(extra.get('color'))
-            if edited(extra, base, 'name'):           # имя группы повторяется в каждой её строке
-                g['name'] = edited(extra, base, 'name')
+            if txt(extra.get('name')):                # позиция — в «Названии»
+                it['name'] = txt(extra.get('name'))
+            if edited(extra, base, 'dep'):            # раздел повторяется в каждой строке группы
+                g['name'] = edited(extra, base, 'dep')
         else:
             return f'{errctx}: неизвестный тип ключа «{tag}»'
     except (KeyError, ValueError, IndexError) as e:
@@ -718,6 +773,8 @@ def main():
             # Единый формат: колонки одинаковы на всех листах (см. COLS).
             extra = {f: (row[c - 1] if len(row) >= c else None) for f, c in COLS.items()}
             key = extra['key']
+            if str(key or '').startswith('#'):
+                continue  # серая строка-заголовок таблицы внутри листа
             if not key:
                 # новая строка (без ключа) — создать позицию, если лист это допускает
                 creator = CREATORS.get(name)

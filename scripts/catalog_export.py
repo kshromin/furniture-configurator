@@ -64,10 +64,26 @@ DERIVED = {
     'dfill':  {'hex'},
     'prof':   {'hex'},               # hex — из каталога цветов профиля
     'profcol': {'hex'},
+    'addon':  {'dep'},               # «от чего зависит» = раздел (хранится группой в extras)
+    'fitopt': {'dep'},               # «от чего зависит» = раздел (хранится в самой позиции)
     'mesh':   {'w'},                 # ширина = глубина полки
     'basket': {'h', 'l', 'w'},       # высота/длина/ширина — размеры корзины из ключа
     'slide':  {'l'},                 # длина направляющей
 }
+
+# Листы «Фурнитура»/«Услуги»/«Доп.элементы» делятся на ДВЕ таблицы (задание 5.08): сверху позиции,
+# заведённые в самой программе (их нельзя добавлять/удалять — можно менять только цену), снизу
+# добавляемые, где раздел позиции задаётся колонкой «От чего зависит».
+BAND_FIXED = 'НЕ ДОБАВЛЯЕМЫЕ — заведены в программе; менять можно ТОЛЬКО цену'
+BAND_ADD_FIT = ('ДОБАВЛЯЕМЫЕ — новая строка снизу заводит позицию: «Название» = что это, '
+                '«От чего зависит» = раздел (напр. «Ручки ящика»), «Ед.изм» = шт / комплект / пог.м')
+BAND_ADD_SERV = ('ДОБАВЛЯЕМЫЕ — новая строка снизу заводит услугу: «Название» = что это, '
+                 '«От чего зависит» = раздел (Доставка, Монтаж, Подъём на этаж…)')
+BAND_ADD_EXTRA = ('ДОБАВЛЯЕМЫЕ — новая строка снизу заводит позицию: «Название» = что это, '
+                  '«От чего зависит» = раздел')
+# Группы `extras`, которые по смыслу услуги (уходят на лист «Услуги»), пока в данных не проставлен
+# явный `kind`. Первая загрузка проставит `kind` каждой группе, дальше берётся оттуда.
+DEFAULT_SERVICE_GROUPS = {'delivery', 'lift', 'montage'}
 
 HELP_TEXT = [
     'Ассортимент и цены — как пользоваться (единый формат, 4.08)',
@@ -86,7 +102,13 @@ HELP_TEXT = [
     '   «Высота» = толщина плиты; «Длинна» и «Ширина» = МАКСИМАЛЬНО допустимый размер детали из',
     '   этого материала (можно оставить пустыми, если ограничения нет).',
     '8. Кромка привязана к материалу ЛДСП — см. «От чего зависит» (ключ ЛДСП) и высоту (плита 16/32).',
-    '9. Когда закончили — сохраните файл и запустите загрузку («Загрузить цены.bat»).',
+    '9. Листы «Фурнитура», «Услуги», «Доп.элементы» — ДВЕ таблицы под серыми заголовками:',
+    '   • НЕ ДОБАВЛЯЕМЫЕ (сверху) — заведены в самой программе; правится ТОЛЬКО цена,',
+    '     остальные колонки в этой таблице загрузка не читает;',
+    '   • ДОБАВЛЯЕМЫЕ (снизу) — ваш ассортимент: «Название» = что это, «От чего зависит» = раздел.',
+    '     Новая строка с уже знакомым разделом добавит позицию в него, с новым — заведёт раздел.',
+    '   Серые строки-заголовки (начинаются с «#») не трогайте — загрузка их пропускает.',
+    '10. Когда закончили — сохраните файл и запустите загрузку («Загрузить цены.bat»).',
 ]
 
 
@@ -260,9 +282,35 @@ def cat_slide(d):
     return dict(title='Направляющие', rows=rows)
 
 
+def band(text):
+    """Строка-заголовок таблицы внутри листа (склеивается на всю ширину; загрузка её пропускает)."""
+    return ['# ' + text] + [''] * (len(HEADERS) - 1)
+
+
+BLANK = [''] * len(HEADERS)
+
+
+def group_kind(grp):
+    """Группа `extras` — услуга («Услуги») или доп.элемент («Доп.элементы»)."""
+    return grp.get('kind') or ('service' if grp['id'] in DEFAULT_SERVICE_GROUPS else 'extra')
+
+
+def addon_rows(d, kind):
+    """Добавляемые позиции из `extras` нужного вида: «Название» = позиция, раздел = группа."""
+    rows = []
+    for grp in d['extras']:
+        if group_kind(grp) != kind:
+            continue
+        for it in grp['items']:
+            key = f"addon:{grp['id']}:{it['id']}"
+            price = MANUAL if it.get('manual') else it['price']
+            rows.append(row(d, key, name=it['name'], unit=U_PC, price=price, dep=grp['name']))
+    return rows
+
+
 def cat_hardware(d):
     # Ед.изм — только шт / комплект / пог.м (других нет). Штука по умолчанию.
-    rows = []
+    rows = [band(BAND_FIXED)]
     for it in d['fittings']:
         rows.append(row(d, f"fit:{it['id']}", name=it['name'], unit=U_PC, price=it['price']))
     sw = d['swingDoorHardware']
@@ -278,29 +326,31 @@ def cat_hardware(d):
     dh = d.get('drawerHandle')
     if dh:
         rows.append(row(d, 'handle', name=dh['name'], unit=U_PC, price=dh['pricePerDrawer']))
+    # Вторая таблица: фурнитура, которую ведёт пользователь (разделы «Ручки ящика» и т.п.).
+    # Пока приложение выбирает её не по разделам — это наполнение каталога на будущее.
+    rows += [BLANK, band(BAND_ADD_FIT)]
+    for it in d.get('fittingOptions', []):
+        rows.append(row(d, f"fitopt:{it['gid']}", name=it['name'], unit=it.get('unit', U_PC),
+                        price=it['price'], dep=it.get('group', '')))
     return dict(title='Фурнитура', rows=rows)
 
 
 def cat_service(d):
-    # Услуги — отдельным листом (в шаблоне «Далее УСЛУГИ»): считаются автоматически по правилам
-    # приложения, единица — за что берётся плата.
-    rows = []
+    # Услуги: сверху заведённые в программе (считаются по её правилам — Крепёж, Встройка),
+    # снизу добавляемые (Доставка, Монтаж, Подъём… — группы `extras` вида «услуга»).
+    rows = [band(BAND_FIXED)]
     for sid, sv in (d.get('services') or {}).items():
         rows.append(row(d, f'service:{sid}', name=sv.get('name', sid), unit=U_PART, price=sv.get('price', 0)))
+    rows += [BLANK, band(BAND_ADD_SERV)] + addon_rows(d, 'service')
     return dict(title='Услуги', rows=rows)
 
 
 def cat_addon(d):
-    # «Название» = группа (Доставка/Монтаж/…), «Цвет» = конкретная позиция (как в шаблоне).
-    rows = []
-    for grp in d['extras']:
-        for it in grp['items']:
-            key = f"addon:{grp['id']}:{it['id']}"
-            price = MANUAL if it.get('manual') else it['price']
-            rows.append(row(d, key, name=grp['name'], color=it['name'], unit=U_PC, price=price))
+    # Доп.элементы — все добавляемые (не добавляемых тут нет).
+    rows = [band(BAND_ADD_EXTRA)] + addon_rows(d, 'extra')
     # шаблон ручной «заказной» позиции
-    rows.append(row(d, 'addon:custom:manual', name='Доп. элементы',
-                    color='Заказная позиция (ручная цена)', unit=U_PC, price=MANUAL))
+    rows.append(row(d, 'addon:custom:manual', name='Заказная позиция (ручная цена)',
+                    unit=U_PC, price=MANUAL, dep='Доп. элементы'))
     return dict(title='Доп.элементы', rows=rows)
 
 
@@ -362,11 +412,12 @@ def pick_save_path():
 
 def build_workbook(data, chosen_keys):
     from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill
+    from openpyxl.styles import Font, PatternFill, Alignment
     from openpyxl.utils import get_column_letter
     wb = Workbook()
     bold = Font(bold=True)
     price_fill = PatternFill('solid', fgColor='FFF6D5')
+    band_fill = PatternFill('solid', fgColor='E4E8EE')
     # Справка
     ws = wb.active; ws.title = 'Справка'
     for line in HELP_TEXT:
@@ -387,6 +438,14 @@ def build_workbook(data, chosen_keys):
         ws.freeze_panes = 'B2'
         for r in spec['rows']:
             ws.append(r)
+            if str(r[0] or '').startswith('#'):   # заголовок таблицы внутри листа
+                ws.merge_cells(start_row=ws.max_row, start_column=1,
+                               end_row=ws.max_row, end_column=len(HEADERS))
+                cell = ws.cell(row=ws.max_row, column=1)   # «#» в начале — по нему загрузка пропускает
+                cell.font = bold
+                cell.fill = band_fill
+                cell.alignment = Alignment(vertical='center')
+                continue
             ws.cell(row=ws.max_row, column=PRICE_COL).fill = price_fill
             # «Цвет (hex)» (колонка 11) — заливаем ячейку САМИМ цветом, чтобы видеть его глазами
             # (задание: «чтоб я видел визуально цвет»). Для текстур цвета обычно нет — ячейка пустая.
