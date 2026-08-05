@@ -118,17 +118,34 @@ def new_ldsp(data, e, ctx):
 
 
 def new_dfill(data, e, ctx):
-    if str(e.get('name') or '').strip().lower() != 'стекло':
-        return f'{ctx}: новые строки допустимы только для стекла (колонка «Название» = Стекло)'
+    """Новая строка на листе «Наполнение дверей»: «Название» = ТИП (Зеркало, Стекло, Ротанг…),
+    «Цвет» = позиция этого типа. Знакомый тип — позиция добавится в него, новый — заведётся тип
+    (в fills['extra']). Конфигуратор сегодня показывает ЛДСП/зеркало/стекло/спеццвет, остальные
+    типы копятся в каталоге до того, как сделаем их выбор в интерфейсе."""
     p = num(e.get('price'))
     if p is None:
         return f'{ctx}: цена не число'
-    cname = str(e.get('color') or '').strip()
+    cname = txt(e.get('color'))
     if not cname:
-        return f'{ctx}: пустое название стекла (колонка «Цвет»)'
-    cols = data['slidingDoor']['fills']['glass']['colors']
-    cid = slugify(cname, {c['id'] for c in cols}, 'glass')
-    cols.append({'id': cid, 'name': cname, 'color': str(e.get('hex') or '#d9ecf0'), 'pricePerM2': p})
+        return f'{ctx}: пустое название позиции (колонка «Цвет»)'
+    tname = txt(e.get('name'))
+    if not tname:
+        return f'{ctx}: не указан тип наполнения (колонка «Название», напр. Стекло)'
+    fills = data['slidingDoor']['fills']
+    hexv = txt(e.get('hex'))
+    if tname.lower() in ('стекло', str(fills.get('glass', {}).get('name', '')).strip().lower()):
+        cols = fills['glass']['colors']       # стекло — тип, который приложение уже умеет
+        cid = slugify(cname, {c['id'] for c in cols}, 'glass')
+        cols.append({'id': cid, 'name': cname, 'color': hexv or '#d9ecf0', 'pricePerM2': p})
+        return None
+    extra = fills.setdefault('extra', [])
+    t = next((z for z in extra if z['name'].strip().lower() == tname.lower()), None)
+    if t is None:
+        tid = slugify(tname, {z['id'] for z in extra} | {'mirror', 'glass'}, 'fill')
+        t = {'id': tid, 'name': tname, 'colors': []}
+        extra.append(t)
+    cid = slugify(cname, {c['id'] for c in t['colors']}, 'fill')
+    t['colors'].append({'id': cid, 'name': cname, 'color': hexv or '', 'pricePerM2': p})
     return None
 
 
@@ -592,17 +609,23 @@ def apply_row(data, key, price, extra, errctx, base=None):
                     fills['mirror']['pricePerM2'] = pval
                 if edited(extra, base, 'color'):     # название зеркала — в колонке «Цвет»
                     fills['mirror']['name'] = edited(extra, base, 'color')
-            elif parts[1] == 'glass':
-                cid = parts[2]
-                hit = next((g for g in fills['glass']['colors'] if g['id'] == cid), None)
+            elif parts[1] in ('glass', 'extra'):
+                if parts[1] == 'glass':
+                    typ, hit = fills['glass'], next((g for g in fills['glass']['colors']
+                                                     if g['id'] == parts[2]), None)
+                else:                                 # заведённый пользователем тип наполнения
+                    typ = next((z for z in fills.get('extra', []) if z['id'] == parts[2]), None)
+                    hit = next((c for c in typ['colors'] if c['id'] == parts[3]), None) if typ else None
                 if hit is None:
-                    return f'{errctx}: не найдено стекло {cid}'
+                    return f'{errctx}: не найдена позиция наполнения {key}'
                 if pval is not None:
                     hit['pricePerM2'] = pval
                 if edited(extra, base, 'color'):
                     hit['name'] = edited(extra, base, 'color')
                 if edited(extra, base, 'hex'):
                     hit['color'] = edited(extra, base, 'hex')
+                if edited(extra, base, 'name'):       # имя ТИПА повторяется в каждой его строке
+                    typ['name'] = edited(extra, base, 'name')
         elif tag == 'prof':
             _, el, colr = parts
             hit = next((p for p in data['slidingDoor']['profilePrices']
