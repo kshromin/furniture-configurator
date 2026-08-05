@@ -1,7 +1,7 @@
 import { state, materials, newItemId, hasUnsavedChanges, markStateSafe, allPlates16 } from './state.js';
 import { resetHistory } from './history.js';
 import { TYPES } from '../types/registry.js';
-import { renderProducerSelect, renderSwatches, doorFillTypes, doorFillTypeColors } from './materials.js';
+import { renderProducerSelect, renderSwatches, doorFillTypes, doorFillTypeColors, handleOptions } from './materials.js';
 import { buildFurniture } from './build.js';
 import { buildRoom, WALL_COLORS, FLOOR_COLORS } from './room.js';
 import { showToast, showChoiceDialog } from './toast.js';
@@ -989,6 +989,8 @@ export function renderSectionsList() {
           </select>
           <select class="mini-select section-drawer-handle-input" data-idx="${i}" title="Ручка ящика (1 шт на ящик)">
             <option value="standard" ${(sec.drawerHandleType || 'standard') === 'standard' ? 'selected' : ''}>Ручка (${materials.drawerHandle?.pricePerDrawer || 500} ₽)</option>
+            ${handleOptions().map(o => `
+            <option value="fitopt:${o.gid}" ${sec.drawerHandleType === 'fitopt:' + o.gid ? 'selected' : ''}>${escAttr(o.name)} (${o.price} ₽)</option>`).join('')}
             <option value="manual" ${sec.drawerHandleType === 'manual' ? 'selected' : ''}>Ручка (своя цена)</option>
             <option value="none" ${sec.drawerHandleType === 'none' ? 'selected' : ''}>Без ручки</option>
           </select>

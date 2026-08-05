@@ -41,6 +41,28 @@ export function doorFillColorEntry(fillId, colorId) {
   return cols.find(c => c.id === colorId) || cols[0] || null;
 }
 
+// ── Фурнитура из каталога (fittingOptions) ──────────────────────────────────────────────────
+// Позиции, которые пользователь ведёт сам: {gid, group, name, unit, price} — заводятся выгрузкой
+// ассортимента (лист «Фурнитура», нижняя таблица; раздел = колонка «От чего зависит»). Раздел
+// пользователь пишет текстом, поэтому ручки ящиков ищем по слову «ручк» в названии раздела.
+export const HANDLE_GROUP_RE = /ручк/i;
+
+export function fittingOptionsOf(groupRe) {
+  return (materials.fittingOptions || []).filter(o => groupRe.test(String(o.group || '')));
+}
+
+export function fittingOption(gid) {
+  return (materials.fittingOptions || []).find(o => o.gid === gid) || null;
+}
+
+// Ручки ящиков из каталога (пусто, пока раздел не заведён — тогда работают только встроенные).
+export function handleOptions() { return fittingOptionsOf(HANDLE_GROUP_RE); }
+
+// sec.drawerHandleType вида 'fitopt:<gid>' → позиция каталога (иначе null: standard/manual/none).
+export function handleOptionOf(type) {
+  return typeof type === 'string' && type.startsWith('fitopt:') ? fittingOption(type.slice(7)) : null;
+}
+
 const SWATCH_NAME_IDS = { korpus: 'korpusColorName', fasad: 'fasadColorName', fill: 'fillColorName' };
 
 export function renderSwatches(group, containerId) {

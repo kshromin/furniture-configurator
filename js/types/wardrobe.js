@@ -1,6 +1,6 @@
 import { state, materials, PANEL_THICKNESS } from '../core/state.js';
 import { korpusBoxAreaM2 } from '../core/pricing.js';
-import { getColor, doorFillColorEntry } from '../core/materials.js';
+import { getColor, doorFillColorEntry, handleOptionOf } from '../core/materials.js';
 import {
   buildWardrobeBox, getDoorCount, effectiveDoorSpan, drawerBoxSize, basketFits, sectionMissingSideSupport,
   sectionBackWallSegments, doorCustomSegments, clampDrawerOffsetWidth, sectionEffectiveDepth,
@@ -288,6 +288,8 @@ export default {
       const t = sec.drawerHandleType || 'standard';
       if (t === 'none') return 0;
       if (t === 'manual') return Number(sec.drawerHandlePrice) || 0;
+      const opt = handleOptionOf(t);          // ручка из каталога (fittingOptions, раздел «Ручки…»)
+      if (opt) return Number(opt.price) || 0;
       return materials.drawerHandle?.pricePerDrawer || 500;
     };
     // Для спецификации — построчная разбивка направляющих и ручек: с НАЗВАНИЕМ и ЦЕНОЙ ЗА ШТУКУ
@@ -374,9 +376,10 @@ export default {
           // Ручка ящика — 1 шт на ящик, тип/цена берутся из секции (см. drawerHandleUnitPrice).
           if ((sec.drawerHandleType || 'standard') !== 'none') {
             const hUnit = drawerHandleUnitPrice(sec);
+            const hOpt = handleOptionOf(sec.drawerHandleType);
             const hName = sec.drawerHandleType === 'manual'
               ? (sec.drawerHandleName?.trim() || 'Ручка (заказная)')
-              : (materials.drawerHandle?.name || 'Ручка ящика');
+              : (hOpt?.name || materials.drawerHandle?.name || 'Ручка ящика');
             pushGroup(handleGroups, hName, hUnit);
             handlePrice += hUnit;
             handleCount++;
