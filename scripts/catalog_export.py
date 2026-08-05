@@ -58,7 +58,7 @@ ELEMENT_LABELS = {'horizTop': 'Горизонт верхний', 'horizBottom': 
 # Какие поля СЛЕДУЮТ из самой позиции (не из catalogMeta): их правка в Excel не сохраняется —
 # позиция задаётся ключом. Ключ таблицы — тег ключа (часть до первого «:»).
 DERIVED = {
-    'ldsp':   {'h', 'hex', 'dep', 'producer'},  # толщина/hex/производитель пишутся в саму позицию; в meta — длина/ширина (макс. размер детали)
+    'ldsp':   {'h', 'hex', 'dep', 'producer', 'l', 'w'},  # всё пишется в сам материал: толщина/hex/производитель и макс. размер детали (длина/ширина)
     'ldspm':  {'h', 'hex', 'producer'},  # высота = толщина плиты, hex/производитель — из базы
     'edge':   {'h', 'dep'},          # высота = плита 16/32, «от чего зависит» = ключ ЛДСП
     'dfill':  {'hex'},
@@ -83,6 +83,8 @@ HELP_TEXT = [
     '   доп.элементы). На остальных листах новые строки пропускаются.',
     '7. ЛДСП: одна строка = один материал; «Корпус/Фасад/Наполнение» — да/нет, где он доступен.',
     '   «да» без записи — заведётся, «нет» с записью — уберётся. Вид задаёт «Файл текстуры».',
+    '   «Высота» = толщина плиты; «Длинна» и «Ширина» = МАКСИМАЛЬНО допустимый размер детали из',
+    '   этого материала (можно оставить пустыми, если ограничения нет).',
     '8. Кромка привязана к материалу ЛДСП — см. «От чего зависит» (ключ ЛДСП) и высоту (плита 16/32).',
     '9. Когда закончили — сохраните файл и запустите загрузку («Загрузить цены.bat»).',
 ]
@@ -152,11 +154,17 @@ def cat_ldsp(d):
                 if g is None:
                     g = {'gid': ldsp_gid_of(prod, c), 'price': c['pricePerM2'],
                          'texture': c.get('texture', ''), 'hex': c.get('color', ''),
-                         'cname': c['name'], 'surf': set(), 'order': seq}
+                         'cname': c['name'], 'surf': set(), 'order': seq,
+                         # макс. допустимый размер детали из этого материала (задание 5.08)
+                         'maxl': c.get('maxPartL', ''), 'maxw': c.get('maxPartW', '')}
                     seq += 1
                     groups[k] = g
-                elif c.get('gid'):
-                    g['gid'] = c['gid']  # сохранённый gid приоритетнее выведенного
+                else:
+                    if c.get('gid'):
+                        g['gid'] = c['gid']  # сохранённый gid приоритетнее выведенного
+                    for fld, src in (('maxl', 'maxPartL'), ('maxw', 'maxPartW')):
+                        if g[fld] == '' and c.get(src) not in (None, ''):
+                            g[fld] = c[src]
                 g['surf'].add(surf)
     yn = lambda s, g: 'да' if s in g['surf'] else 'нет'
     rows = []
@@ -166,7 +174,8 @@ def cat_ldsp(d):
         # (не-ЛДСП, напр. «Этерно МДФ Белый», не трогаем — иначе при загрузке приклеится «ЛДСП»).
         is_ldsp = str(cname).lower().startswith('лдсп ')
         rows.append(row(d, key, name='ЛДСП' if is_ldsp else '', color=ldsp_color_disp(cname),
-                        unit=U_M2, price=g['price'], producer=pname, h=th, hexv=g['hex'],
+                        unit=U_M2, price=g['price'], producer=pname, h=th,
+                        l=g['maxl'], w=g['maxw'], hexv=g['hex'],
                         korpus=yn('korpus', g), fasad=yn('fasad', g), fill=yn('fill', g), texture=g['texture']))
     return dict(title='ЛДСП', rows=rows)
 

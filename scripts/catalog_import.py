@@ -41,7 +41,8 @@ SHEET_NAMES = ['ЛДСП', 'Кромка', 'Наполнение дверей', 
 try:
     from catalog_export import DERIVED, SLIDE_TYPES, ELEMENT_LABELS
 except Exception:
-    DERIVED = {'ldspm': {'h', 'hex'}, 'edge': {'h', 'dep'}, 'dfill': {'hex'}, 'prof': {'hex'},
+    DERIVED = {'ldsp': {'h', 'hex', 'dep', 'producer', 'l', 'w'},
+               'ldspm': {'h', 'hex'}, 'edge': {'h', 'dep'}, 'dfill': {'hex'}, 'prof': {'hex'},
                'profcol': {'hex'}, 'mesh': {'w'}, 'basket': {'h', 'l', 'w'}, 'slide': {'l'}}
     SLIDE_TYPES = {'ball': 'Шариковые', 'soft': 'С доводчиком', 'push': 'Push-to-open', 'blum': 'BLUM'}
     ELEMENT_LABELS = {'horizTop': 'Горизонт верхний', 'horizBottom': 'Горизонт нижний',
@@ -92,12 +93,15 @@ def new_ldsp(data, e, ctx):
     surfaces = [('korpus', e.get('korpus')), ('fasad', e.get('fasad')), ('fill', e.get('fill'))]
     if not any(is_yes(v) for _, v in surfaces):
         return f'{ctx}: не отмечена ни одна поверхность (Корпус/Фасад/Наполнение)'
+    maxp = max_part(e, ctx)
+    if isinstance(maxp, str):
+        return maxp
     existing = {c.get('gid') for s in ('korpus', 'fasad', 'fill')
                 for prod in data[s]['producers'] for c in prod['colors'] if c.get('gid')}
     gid = slugify(f'{pname}_{cname}_{th}', existing, 'ldsp')  # новый стабильный gid
     for surf, flag in surfaces:
         if is_yes(flag):
-            create_ldsp_member(data, surf, gid, pname, cname, th, p, e.get('texture'), e.get('hex'))
+            create_ldsp_member(data, surf, gid, pname, cname, th, p, e.get('texture'), e.get('hex'), maxp)
     return None
 
 
@@ -374,7 +378,32 @@ def find_ldsp_by_gid(data, gid):
     return out
 
 
-def create_ldsp_member(data, surf, gid, pname, cname, th, price, texture, hexv):
+def max_part(e, errctx):
+    """Макс. допустимый размер детали из материала (колонки «Длинна»/«Ширина» на листе ЛДСП):
+    (длина, ширина) числом, None — если ячейка пуста (размер не задан). Текст ошибки — если не число."""
+    out = []
+    for fld, label in (('l', 'длинна'), ('w', 'ширина')):
+        raw = e.get(fld)
+        if raw in (None, ''):
+            out.append(None)
+            continue
+        v = num(raw)
+        if v is None or v <= 0:
+            return f'{errctx}: макс. размер детали, {label} — не положительное число («{raw}»)'
+        out.append(int(v))
+    return tuple(out)
+
+
+def set_max_part(col, maxp):
+    """Записать/убрать макс. размер детали в самом материале (пустая ячейка = размер не задан)."""
+    for fld, v in zip(('maxPartL', 'maxPartW'), maxp or (None, None)):
+        if v is None:
+            col.pop(fld, None)
+        else:
+            col[fld] = v
+
+
+def create_ldsp_member(data, surf, gid, pname, cname, th, price, texture, hexv, maxp=None):
     """Завести материал в указанной поверхности с общим gid (когда поставили «да», а члена не было)."""
     prod = next((p for p in data[surf]['producers'] if p['name'] == pname), None)
     if prod is None:
@@ -386,6 +415,7 @@ def create_ldsp_member(data, surf, gid, pname, cname, th, price, texture, hexv):
            'pricePerM2': price, 'edgePerM16': 0, 'edgePerM32': 0}
     if texture not in (None, ''):
         col['texture'] = str(texture)
+    set_max_part(col, maxp)
     prod['colors'].append(col)
 
 
@@ -425,6 +455,9 @@ def apply_row(data, key, price, extra, errctx, base=None):
             cname = ldsp_full_name(extra.get('name'), disp)
             th = int(num(extra.get('h')) or 16)
             tex, hexv = extra.get('texture'), extra.get('hex')
+            maxp = max_part(extra, errctx)          # макс. допустимый размер детали (длина/ширина)
+            if isinstance(maxp, str):
+                return maxp
             members = find_ldsp_by_gid(data, gid)
             # 1) «нет» — убрать материал с этой поверхности (делаем ДО правок, чтобы удалять из того
             # производителя, где член лежит сейчас)
@@ -444,6 +477,7 @@ def apply_row(data, key, price, extra, errctx, base=None):
                     c['color'] = str(hexv)
                 if tex not in (None, ''):
                     c['texture'] = str(tex)
+                set_max_part(c, maxp)
                 if pname:                            # смена производителя = перенос материала
                     move_to_producer(data, surf, prod, c, pname)
             # 3) «да» там, где члена не было — завести
@@ -452,7 +486,7 @@ def apply_row(data, key, price, extra, errctx, base=None):
             present = {s for s, _, _ in members}
             for surf in ('korpus', 'fasad', 'fill'):
                 if is_yes(extra.get(surf)) and surf not in present:
-                    create_ldsp_member(data, surf, gid, pname, cname, th, pval or 0, tex, hexv)
+                    create_ldsp_member(data, surf, gid, pname, cname, th, pval or 0, tex, hexv, maxp)
         elif tag == 'ldspm':
             # ЛЕГАСИ (выгрузка сессии 67): одна строка = материал, поиск по имени. Оставлено для
             # загрузки прежних файлов; новые выгрузки идут форматом ldsp:<gid> выше.
