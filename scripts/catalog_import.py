@@ -395,6 +395,37 @@ def txt(v):
     return s or None
 
 
+def cell_fill_hex(cell):
+    """Цвет ЗАЛИВКИ ячейки как «#rrggbb» (задание 5.08: цвет материала можно задать, просто закрасив
+    ячейку палитрой Excel). Тема-цвета Excel не отдают RGB — их пропускаем (останется текст)."""
+    try:
+        f = getattr(cell, 'fill', None)
+        if f is None or f.patternType != 'solid':
+            return None
+        rgb = getattr(f.start_color, 'rgb', None)
+        if isinstance(rgb, str) and len(rgb) in (6, 8) and all(ch in '0123456789abcdefABCDEF' for ch in rgb):
+            return '#' + rgb[-6:].lower()
+    except Exception:
+        pass
+    return None
+
+
+def hex_from_cells(extra, cells, base):
+    """Какой цвет применить: правка ТЕКСТА приоритетнее, иначе — новая ЗАЛИВКА ячейки.
+    Сравниваем с тем, что было в выгрузке (base), чтобы не принять свою же заливку за правку."""
+    idx = COLS['hex'] - 1
+    fh = cell_fill_hex(cells[idx]) if len(cells) > idx else None
+    if not fh:
+        return extra.get('hex')
+    t = str(extra.get('hex') or '').strip()
+    b = str((base or {}).get('hex') or '').strip()
+    if not t:
+        return fh                      # текста нет — берём заливку
+    if t.lower() == b.lower() and fh.lower() != b.lower():
+        return fh                      # текст не трогали, а ячейку закрасили — цвет из заливки
+    return t                           # текст правили — он главнее
+
+
 def build_baseline(original):
     """Как выглядела бы выгрузка ДО правок: ключ → значения ячеек. Нужно, чтобы отличать реально
     отредактированную ячейку от повтора того же значения в соседних строках: название элемента
@@ -817,12 +848,15 @@ def main():
         if name not in wb.sheetnames:
             continue
         ws = wb[name]
-        for ri, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-            if row is None or all(v in (None, '') for v in row):
+        for ri, cells in enumerate(ws.iter_rows(min_row=2), start=2):
+            row = [c.value for c in cells]
+            if not row or all(v in (None, '') for v in row):
                 continue
             # Единый формат: колонки одинаковы на всех листах (см. COLS).
             extra = {f: (row[c - 1] if len(row) >= c else None) for f, c in COLS.items()}
             key = extra['key']
+            # Цвет можно задать и заливкой ячейки (палитра Excel), не только текстом — см. hex_from_cells.
+            extra['hex'] = hex_from_cells(extra, cells, baseline.get(str(key or ''), {}))
             if str(key or '').startswith('#'):
                 continue  # серая строка-заголовок таблицы внутри листа
             if not key:
