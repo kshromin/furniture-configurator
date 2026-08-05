@@ -35,7 +35,7 @@ MANUAL = 'вручную'
 # ЕДИНЫЙ формат колонок — одинаковый на всех листах (см. HEADERS в catalog_export.py), 1-based.
 COLS = dict(key=1, producer=2, name=3, color=4, unit=5, price=6, h=7, l=8, w=9,
             dep=10, hex=11, korpus=12, fasad=13, fill=14, texture=15)
-SHEET_NAMES = ['ЛДСП', 'Кромка', 'Наполнение дверей', 'Профили купе', 'Цвета профилей',
+SHEET_NAMES = ['МАТЕРИАЛ', 'ЛДСП', 'Кромка', 'Наполнение дверей', 'Профили купе', 'Цвета профилей',
                'Сетчатые полки', 'Корзины', 'Направляющие', 'Фурнитура', 'Услуги', 'Доп.элементы']
 # Поля, которые следуют из самой позиции (в catalogMeta не пишем) — см. DERIVED в catalog_export.py.
 try:
@@ -97,7 +97,7 @@ def new_ldsp(data, e, ctx):
         return f'{ctx}: пустой цвет (колонка «Цвет»)'
     if not pname:
         return f'{ctx}: пустой производитель'
-    cname = ldsp_full_name(e.get('name'), disp)  # имя из «Название»+«Цвет» (ЛДСП только если тип ЛДСП)
+    cname = disp                      # «Цвет» — имя материала; «Название» — тип (отдельно)
     th = int(num(e.get('h')) or 16)
     p = num(e.get('price'))
     if p is None:
@@ -113,7 +113,7 @@ def new_ldsp(data, e, ctx):
     gid = slugify(f'{pname}_{cname}_{th}', existing, 'ldsp')  # новый стабильный gid
     for surf, flag in surfaces:
         if is_yes(flag):
-            create_ldsp_member(data, surf, gid, pname, cname, th, p, e.get('texture'), e.get('hex'), maxp)
+            create_ldsp_member(data, surf, gid, pname, cname, th, p, e.get('texture'), e.get('hex'), maxp, e.get('name'))
     return None
 
 
@@ -252,7 +252,7 @@ def store_meta(data, key, e, base=None):
         meta.pop(key, None)
 
 
-CREATORS = {'ЛДСП': new_ldsp, 'Наполнение дверей': new_dfill,
+CREATORS = {'МАТЕРИАЛ': new_ldsp, 'ЛДСП': new_ldsp, 'Наполнение дверей': new_dfill,
             'Доп.элементы': lambda d, e, c: new_addon_item(d, e, c, 'extra'),
             'Услуги': lambda d, e, c: new_addon_item(d, e, c, 'service'),
             'Фурнитура': new_fitopt,
@@ -320,9 +320,18 @@ def upsert_ldsp(data, surface, prod_name, col_name, thickness, price, texture, h
     prod['colors'].append(col)
 
 
+def set_kind(col, kind):
+    """Тип материала («Название» на листе МАТЕРИАЛ: ЛДСП, МДФ, Массив…) — ОТДЕЛЬНОЕ поле `kind`,
+    с «Цветом» не склеивается (задание 5.08: каждому столбцу — своя запись). Пусто = убрать."""
+    k = str(kind or '').strip()
+    if k:
+        col['kind'] = k
+    else:
+        col.pop('kind', None)
+
+
 def ldsp_full_name(typ, disp):
-    """Собрать имя материала из «Название» (тип) и «Цвет». «ЛДСП» приклеиваем ТОЛЬКО если тип = ЛДСП
-    (иначе не-ЛДСП, напр. «Этерно МДФ Белый», получил бы лишний префикс)."""
+    """ЛЕГАСИ (лист «ЛДСП» формата сессии 67): там тип и цвет склеивались в одно имя."""
     disp = str(disp or '').strip()
     if str(typ or '').strip().lower() == 'лдсп' and not disp.lower().startswith('лдсп'):
         return 'ЛДСП ' + disp
@@ -479,7 +488,7 @@ def set_max_part(col, maxp):
             col[fld] = v
 
 
-def create_ldsp_member(data, surf, gid, pname, cname, th, price, texture, hexv, maxp=None):
+def create_ldsp_member(data, surf, gid, pname, cname, th, price, texture, hexv, maxp=None, kind=None):
     """Завести материал в указанной поверхности с общим gid (когда поставили «да», а члена не было)."""
     prod = next((p for p in data[surf]['producers'] if p['name'] == pname), None)
     if prod is None:
@@ -492,6 +501,7 @@ def create_ldsp_member(data, surf, gid, pname, cname, th, price, texture, hexv, 
     if texture not in (None, ''):
         col['texture'] = str(texture)
     set_max_part(col, maxp)
+    set_kind(col, kind)
     prod['colors'].append(col)
 
 
@@ -528,7 +538,8 @@ def apply_row(data, key, price, extra, errctx, base=None):
             disp = str(extra.get('color') or '').strip()
             if not disp:
                 return f'{errctx}: пустой цвет ЛДСП (колонка «Цвет»)'
-            cname = ldsp_full_name(extra.get('name'), disp)
+            cname = disp                      # «Цвет» — имя материала как есть
+            kind = extra.get('name')          # «Название» — ТИП материала (отдельное поле kind)
             th = int(num(extra.get('h')) or 16)
             tex, hexv = extra.get('texture'), extra.get('hex')
             maxp = max_part(extra, errctx)          # макс. допустимый размер детали (длина/ширина)
@@ -546,6 +557,7 @@ def apply_row(data, key, price, extra, errctx, base=None):
             # 2) обновить ВСЕ поля оставшихся членов (правка любого столбца — та же позиция)
             for surf, prod, c in members:
                 c['name'] = cname
+                set_kind(c, kind)
                 if pval is not None:
                     c['pricePerM2'] = pval
                 c['thickness'] = th
@@ -562,7 +574,7 @@ def apply_row(data, key, price, extra, errctx, base=None):
             present = {s for s, _, _ in members}
             for surf in ('korpus', 'fasad', 'fill'):
                 if is_yes(extra.get(surf)) and surf not in present:
-                    create_ldsp_member(data, surf, gid, pname, cname, th, pval or 0, tex, hexv, maxp)
+                    create_ldsp_member(data, surf, gid, pname, cname, th, pval or 0, tex, hexv, maxp, kind)
         elif tag == 'ldspm':
             # ЛЕГАСИ (выгрузка сессии 67): одна строка = материал, поиск по имени. Оставлено для
             # загрузки прежних файлов; новые выгрузки идут форматом ldsp:<gid> выше.

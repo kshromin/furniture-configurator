@@ -44,7 +44,7 @@ MANUAL = 'вручную'  # маркер ручной цены (DATA-SCHEMA: pr
 HEADERS = ['Артикул/ид/key', 'Производитель', 'Название', 'Цвет', 'Ед.изм', 'Цена',
            'Высота, мм', 'Длинна, мм', 'Ширина, мм', 'От чего зависит', 'Цвет (hex)',
            'Корпус', 'Фасад', 'Наполнение', 'Файл текстуры']
-WIDTHS = [34, 16, 24, 24, 10, 10, 12, 12, 12, 30, 12, 8, 8, 12, 18]
+WIDTHS = [10, 16, 24, 24, 10, 10, 12, 12, 12, 30, 12, 8, 8, 12, 18]  # ключ узкий (задание 5.08)
 PRICE_COL = 6
 
 # Единицы измерения
@@ -165,10 +165,17 @@ def label_of(d, key, default):
     return (d.get('catalogLabels') or {}).get(key) or default
 
 
-def ldsp_color_disp(name):
-    """В столбце «Цвет» — без слова «ЛДСП» (оно и так в «Названии»)."""
-    n = str(name or '')
-    return n[5:].strip() if n.lower().startswith('лдсп ') else n
+def ldsp_kind_disp(col):
+    """Тип материала и его название по отдельным колонкам («Название» и «Цвет»).
+    Тип хранится в самом материале (`kind`); у старых записей, где поля ещё нет, выводим его из
+    имени («ЛДСП Белый альпийский» → тип «ЛДСП», цвет «Белый альпийский»)."""
+    name = str(col.get('name') or '')
+    kind = str(col.get('kind') or '').strip()
+    if not kind and name.lower().startswith('лдсп '):
+        kind = 'ЛДСП'
+    if kind and name.lower().startswith(kind.lower()):
+        name = name[len(kind):].strip()
+    return kind, name
 
 
 def cat_ldsp(d):
@@ -185,7 +192,7 @@ def cat_ldsp(d):
                 if g is None:
                     g = {'gid': ldsp_gid_of(prod, c), 'price': c['pricePerM2'],
                          'texture': c.get('texture', ''), 'hex': c.get('color', ''),
-                         'cname': c['name'], 'surf': set(), 'order': seq,
+                         'cname': c['name'], 'kind': c.get('kind', ''), 'surf': set(), 'order': seq,
                          # макс. допустимый размер детали из этого материала (задание 5.08)
                          'maxl': c.get('maxPartL', ''), 'maxw': c.get('maxPartW', '')}
                     seq += 1
@@ -193,22 +200,24 @@ def cat_ldsp(d):
                 else:
                     if c.get('gid'):
                         g['gid'] = c['gid']  # сохранённый gid приоритетнее выведенного
+                    if not g['kind'] and c.get('kind'):
+                        g['kind'] = c['kind']
                     for fld, src in (('maxl', 'maxPartL'), ('maxw', 'maxPartW')):
                         if g[fld] == '' and c.get(src) not in (None, ''):
                             g[fld] = c[src]
                 g['surf'].add(surf)
     yn = lambda s, g: 'да' if s in g['surf'] else 'нет'
     rows = []
-    for (pname, cname, th), g in sorted(groups.items(), key=lambda kv: kv[1]['order']):
+    for (pname, cname, th), g in sorted(groups.items(), key=lambda kv: (str(kv[0][0]).lower(), str(kv[0][1]).lower(), kv[0][2])):
         key = f"ldsp:{g['gid']}"
         # «Название» = «ЛДСП» ТОЛЬКО если материал реально ЛДСП; иначе пусто, а «Цвет» = полное имя
         # (не-ЛДСП, напр. «Этерно МДФ Белый», не трогаем — иначе при загрузке приклеится «ЛДСП»).
-        is_ldsp = str(cname).lower().startswith('лдсп ')
-        rows.append(row(d, key, name='ЛДСП' if is_ldsp else '', color=ldsp_color_disp(cname),
+        kind, disp = ldsp_kind_disp({'name': cname, 'kind': g['kind']})
+        rows.append(row(d, key, name=kind, color=disp,
                         unit=U_M2, price=g['price'], producer=pname, h=th,
                         l=g['maxl'], w=g['maxw'], hexv=g['hex'],
                         korpus=yn('korpus', g), fasad=yn('fasad', g), fill=yn('fill', g), texture=g['texture']))
-    return dict(title='ЛДСП', rows=rows)
+    return dict(title='МАТЕРИАЛ', rows=rows)
 
 
 def cat_edge(d):
@@ -220,7 +229,7 @@ def cat_edge(d):
                 for plate, field in ((16, 'edgePerM16'), (32, 'edgePerM32')):
                     if field in c:
                         key = f"edge:{surf}:{prod['id']}:{c['id']}:{plate}"
-                        tmp.append((plate, row(d, key, name='Кромка', color=ldsp_color_disp(c['name']),
+                        tmp.append((plate, row(d, key, name='Кромка', color=ldsp_kind_disp(c)[1],
                                     unit=U_M, price=c[field], h=plate,
                                     dep=f"ldsp:{ldsp_gid_of(prod, c)}")))
     rows = [r for _plate, r in sorted(tmp, key=lambda x: x[0])]
@@ -373,7 +382,7 @@ def cat_addon(d):
 
 # Порядок = порядок в диалоге и в книге. (key, человекочитаемое имя, builder)
 CATEGORIES = [
-    ('ldsp', 'ЛДСП (корпус/фасад/наполнение)', cat_ldsp),
+    ('ldsp', 'МАТЕРИАЛ (корпус/фасад/наполнение)', cat_ldsp),
     ('edge', 'Кромка', cat_edge),
     ('door_fill', 'Наполнение дверей', cat_door_fill),
     ('profile', 'Профили купе', cat_profile),
