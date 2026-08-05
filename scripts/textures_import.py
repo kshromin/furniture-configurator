@@ -88,15 +88,26 @@ def material_keys(c):
     return {norm(v) for v in variants if norm(v)}
 
 
-def pick_folder():
+SRC_SUBDIR = 'Текстуры'   # рабочая папка пользователя для исходных картинок (рядом с батником)
+
+
+def has_images(path):
+    return bool(path) and os.path.isdir(path) and any(
+        f.lower().endswith(EXTS) for f in os.listdir(path))
+
+
+def pick_folder(initial=None):
     try:
         import tkinter as tk
         from tkinter import filedialog
         root = tk.Tk(); root.withdraw(); root.attributes('-topmost', True)
-        path = filedialog.askdirectory(title='Папка с подготовленными текстурами')
+        path = filedialog.askdirectory(title='Папка с подготовленными текстурами',
+                                       initialdir=initial if initial and os.path.isdir(initial) else None)
         root.destroy()
         return path or None
-    except Exception:
+    except Exception as e:
+        print(f'Не открылось окно выбора папки ({e}).')
+        print('Положите картинки в папку «Текстуры» рядом с батником — тогда окно не нужно.')
         return None
 
 
@@ -131,8 +142,23 @@ def main():
     if '--from' in args:
         i = args.index('--from')
         src_dir = args[i + 1] if len(args) > i + 1 else None
+    # --dir <папка Config> — батник передаёт свою папку (как «--dir» у выгрузок). Рабочее место
+    # для картинок — `Config\Текстуры`: если они уже там, берём их молча и НЕ открываем окно.
+    # Имя подпапки держим здесь, а не в батнике: кириллица в .bat ломается о кодировку консоли.
+    default_dir = None
+    if '--dir' in args:
+        i = args.index('--dir')
+        base = args[i + 1] if len(args) > i + 1 else None
+        if base:
+            sub = os.path.join(base, SRC_SUBDIR)
+            default_dir = sub if (has_images(sub) or not has_images(base)) else base
+    if not src_dir and has_images(default_dir):
+        src_dir = default_dir
+        print(f'Беру текстуры из папки: {src_dir}')
     if not src_dir:
-        src_dir = pick_folder()
+        if default_dir and os.path.isdir(default_dir):
+            print(f'В папке «{default_dir}» картинок нет — выберите папку в открывшемся окне.')
+        src_dir = pick_folder(default_dir)
     if not src_dir or not os.path.isdir(src_dir):
         print('Отменено — папка с текстурами не выбрана.')
         return 1
