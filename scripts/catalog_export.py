@@ -12,7 +12,14 @@
 # хранятся в data['catalogMeta'][ключ] = {producer,h,l,w,dep,hex}: в первой выгрузке они пустые,
 # пользователь заполняет в Excel, загрузка сохраняет обратно. Поля, которые СЛЕДУЮТ из самой
 # позиции (толщина плиты, длина направляющей, размеры корзины, глубина сетки, hex профиля…),
-# выводятся из базы и в meta не пишутся — см. DERIVED и «Справку» в книге.
+# выводятся из базы и в meta не пишутся — см. DERIVED и «Справку» в книге; правятся они прямо в
+# базе (ключ тот же = та же позиция).
+#
+# КЛЮЧ = СТАБИЛЬНЫЙ ID позиции (задание «формат выгрузки»): пока ключ в строке тот же, правка ЛЮБОГО
+# столбца обновляет ту же позицию (дубля не будет); строка без ключа = новая позиция. Поэтому у
+# категорий, где ключ раньше собирался из атрибутов (сетки/корзины/направляющие, ЛДСП), он теперь
+# строится из `gid` — см. gid_of(). Названия позиций, которых нет в базе (направляющие, общие
+# элементы профиля), переопределяются через data['catalogLabels'] — см. label_of().
 #
 # Запуск:
 #   python catalog_export.py                 → окно с галочками (какие категории) + окно «куда сохранить»
@@ -66,13 +73,12 @@ HELP_TEXT = [
     'Ассортимент и цены — как пользоваться (единый формат, 4.08)',
     '',
     '1. Колонки ОДИНАКОВЫЕ на всех листах; что не относится к категории — пустое. Порядок не менять.',
-    '2. Каждая строка — одна позиция. «Артикул/ид/key» — по нему загрузка находит позицию, не менять.',
+    '2. Каждая строка — одна позиция. «Артикул/ид/key» — по нему загрузка находит позицию, НЕ МЕНЯТЬ.',
     '3. Цена — ЖЁЛТАЯ колонка (числом, без «₽» и пробелов). «вручную» = цену вводит пользователь при заказе.',
-    '4. Пустые «Производитель», габариты (высота/длинна/ширина), «От чего зависит» — заполняйте:',
+    '4. Ключ тот же — значит ТА ЖЕ позиция: правьте ЛЮБОЙ столбец (название, цвет, размер, цена),',
+    '   загрузка обновит эту же позицию, дубля не будет. Ключ стёрт/пустой = НОВАЯ позиция.',
+    '5. Пустые «Производитель», габариты (высота/длинна/ширина), «От чего зависит» — заполняйте:',
     '   они сохранятся при загрузке (в базе таких полей раньше не было).',
-    '5. Габариты, которые СЛЕДУЮТ из самой позиции, менять здесь бесполезно (вернутся при выгрузке):',
-    '   толщина плиты ЛДСП и кромки, длина направляющей, размеры корзины, глубина сетчатой полки.',
-    '   Такие размеры задаются самой позицией — заведите новую строку с нужным размером.',
     '6. Новая строка внизу листа без ключа = новая позиция (ЛДСП, наполнение дверей, сетки, корзины,',
     '   доп.элементы). На остальных листах новые строки пропускаются.',
     '7. ЛДСП: одна строка = один материал; «Корпус/Фасад/Наполнение» — да/нет, где он доступен.',
@@ -111,6 +117,19 @@ def row(d, key, name='', color='', unit='', price='', producer='', h='', l='', w
 def ldsp_gid_of(prod, c):
     """Стабильный id материала (НЕ из имени): свой gid, иначе детерминированно из id первого члена."""
     return c.get('gid') or f"{prod['id']}__{c['id']}"
+
+
+def gid_of(item, *fields):
+    """Стабильный id позиции: свой gid, иначе детерминированно из полей (совпадает со СТАРЫМ ключом,
+    поэтому прежние выгрузки грузятся без потерь). Нужен, чтобы правка любого столбца — размера,
+    цвета, названия — обновляла ТУ ЖЕ позицию, а не заводила новую (задание «формат выгрузки»)."""
+    return item.get('gid') or '_'.join(str(item[f]) for f in fields)
+
+
+def label_of(d, key, default):
+    """Название позиции, у которой нет поля имени в базе (направляющие, общие элементы профиля):
+    правка из Excel хранится в data['catalogLabels'][ключ]."""
+    return (d.get('catalogLabels') or {}).get(key) or default
 
 
 def ldsp_color_disp(name):
@@ -187,7 +206,10 @@ def cat_profile(d):
     rows = []
     for pp in d['slidingDoor'].get('profilePrices', []):
         el = pp['element']
-        label = ELEMENT_LABELS.get(el) or (prof.get(el, el) + ' вертикальный')
+        # Вертикальные — имя профиля из каталога; общие (горизонты/перемычка/направляющая) — метка,
+        # которую можно переименовать из Excel (хранится в catalogLabels['profel:<элемент>']).
+        label = (label_of(d, f'profel:{el}', ELEMENT_LABELS[el]) if el in ELEMENT_LABELS
+                 else prof.get(el, el) + ' вертикальный')
         c = cols.get(pp['color'], {})
         rows.append(row(d, f"prof:{el}:{pp['color']}", name=label, color=c.get('name', pp['color']),
                         unit=U_M, price=pp['pricePerM'], hexv=c.get('hex', '')))
@@ -201,23 +223,31 @@ def cat_profile_colors(d):
 
 
 def cat_mesh(d):
-    rows = [row(d, f"mesh:{m['depth']}:{m['color']}", name=m['name'],
-                color=METAL_COLORS.get(m['color'], m['color']), unit=U_M, price=m['pricePerM'],
-                w=m['depth']) for m in d['meshShelf']]
+    rows = []
+    for m in d['meshShelf']:
+        key = f"mesh:{gid_of(m, 'depth', 'color')}"
+        rows.append(row(d, key, name=m['name'], color=METAL_COLORS.get(m['color'], m['color']),
+                        unit=U_M, price=m['pricePerM'], w=m['depth']))
     return dict(title='Сетчатые полки', rows=rows)
 
 
 def cat_basket(d):
-    rows = [row(d, f"basket:{b['width']}:{b['depth']}:{b['height']}:{b['color']}", name='Корзина',
-                color=METAL_COLORS.get(b['color'], b['color']), unit=U_PC, price=b['price'],
-                h=b['height'], l=b['width'], w=b['depth']) for b in d['basket']]
+    rows = []
+    for b in d['basket']:
+        key = f"basket:{gid_of(b, 'width', 'depth', 'height', 'color')}"
+        rows.append(row(d, key, name=label_of(d, key, 'Корзина'),
+                        color=METAL_COLORS.get(b['color'], b['color']), unit=U_PC, price=b['price'],
+                        h=b['height'], l=b['width'], w=b['depth']))
     return dict(title='Корзины', rows=rows)
 
 
 def cat_slide(d):
-    rows = [row(d, f"slide:{s['type']}:{s['length']}",
-                name=SLIDE_TYPES.get(s['type'], s['type']) + ' направляющие', unit=U_PC,
-                price=s['price'], l=s['length']) for s in d['drawerSlide']]
+    rows = []
+    for s in d['drawerSlide']:
+        key = f"slide:{gid_of(s, 'type', 'length')}"
+        default = SLIDE_TYPES.get(s['type'], s['type']) + ' направляющие'
+        rows.append(row(d, key, name=label_of(d, key, default), unit=U_PC, price=s['price'],
+                        l=s['length']))
     return dict(title='Направляющие', rows=rows)
 
 

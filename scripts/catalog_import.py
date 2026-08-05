@@ -8,6 +8,13 @@
 #   python catalog_import.py                 → окно выбора xlsx
 #   python catalog_import.py --in <path>     → без окна (для тестов/автоматизации)
 #
+# КЛЮЧ = СТАБИЛЬНЫЙ ID (задание «формат выгрузки»): ключ тот же — значит та же позиция, и правка
+# ЛЮБОГО столбца (название, цвет, размер, производитель, цена) обновляет её, а не заводит дубль;
+# строка без ключа = новая позиция. Позиции, у которых ключ раньше собирался из атрибутов (ЛДСП,
+# сетки, корзины, направляющие), опознаются по `gid` — см. ensure_gids(); старые ключи понимаются
+# как раньше. Названия, которых нет в базе (направляющие, общие элементы профиля), хранятся в
+# data['catalogLabels'] — см. set_label().
+#
 # Умеет: (1) обновлять цены/поля существующих позиций по `_key`; (2) создавать НОВЫЕ позиции из
 # строк без `_key` на расширяемых листах (ЛДСП — с автосозданием кромок 16/32, Наполнение дверей —
 # стекло, Доп.элементы, Сетчатые полки, Корзины). На фиксированных листах (профили, направляющие,
@@ -32,10 +39,18 @@ SHEET_NAMES = ['ЛДСП', 'Кромка', 'Наполнение дверей', 
                'Сетчатые полки', 'Корзины', 'Направляющие', 'Фурнитура', 'Услуги', 'Доп.элементы']
 # Поля, которые следуют из самой позиции (в catalogMeta не пишем) — см. DERIVED в catalog_export.py.
 try:
-    from catalog_export import DERIVED
+    from catalog_export import DERIVED, SLIDE_TYPES, ELEMENT_LABELS
 except Exception:
     DERIVED = {'ldspm': {'h', 'hex'}, 'edge': {'h', 'dep'}, 'dfill': {'hex'}, 'prof': {'hex'},
                'profcol': {'hex'}, 'mesh': {'w'}, 'basket': {'h', 'l', 'w'}, 'slide': {'l'}}
+    SLIDE_TYPES = {'ball': 'Шариковые', 'soft': 'С доводчиком', 'push': 'Push-to-open', 'blum': 'BLUM'}
+    ELEMENT_LABELS = {'horizTop': 'Горизонт верхний', 'horizBottom': 'Горизонт нижний',
+                      'divider': 'Перемычка', 'track': 'Направляющая (верх+низ)'}
+# Списки, позиции которых опознаются по стабильному `gid` (ключ = gid): правка размера/цвета меняет
+# ТУ ЖЕ позицию. gid выводится из тех же полей, из которых раньше собирался ключ, — старые выгрузки
+# грузятся без потерь. Значение — поля gid + поля, по которым позиция должна остаться уникальной.
+GID_FIELDS = {'meshShelf': ('depth', 'color'), 'basket': ('width', 'depth', 'height', 'color'),
+              'drawerSlide': ('type', 'length')}
 META_FIELDS = ('producer', 'h', 'l', 'w', 'dep', 'hex')
 # ключи-шаблоны (ручные/справочные) — не позиции, пропускаем при записи
 TEMPLATE_KEYS = {'dfill:special', 'addon:custom:manual'}
@@ -257,6 +272,97 @@ def ensure_ldsp_gids(data):
                 c['gid'] = gids[k]
 
 
+def ensure_gids(data):
+    """Стабильные id для всех опознаваемых по gid позиций (ЛДСП + сетки/корзины/направляющие).
+    Идемпотентно; вызывается до и после обработки книги (чтобы новые строки тоже получили id)."""
+    ensure_ldsp_gids(data)
+    for coll, fields in GID_FIELDS.items():
+        items = data.get(coll) or []
+        used = {it['gid'] for it in items if it.get('gid')}
+        for it in items:
+            if it.get('gid'):
+                continue
+            base = '_'.join(str(it[f]) for f in fields)
+            gid, i = base, 2
+            while gid in used:
+                gid = f'{base}_{i}'; i += 1
+            it['gid'] = gid
+            used.add(gid)
+
+
+def by_gid(items, gid):
+    return next((it for it in (items or []) if it.get('gid') == gid), None)
+
+
+def clash(items, hit, fields):
+    """Не совпала ли позиция после правки размеров/цвета с ДРУГОЙ такой же (дубль в каталоге)."""
+    sig = tuple(str(hit[f]) for f in fields)
+    return any(it is not hit and tuple(str(it[f]) for f in fields) == sig for it in items)
+
+
+def txt(v):
+    """Непустой текст из ячейки или None."""
+    s = str(v).strip() if v is not None else ''
+    return s or None
+
+
+def build_baseline(original):
+    """Как выглядела бы выгрузка ДО правок: ключ → значения ячеек. Нужно, чтобы отличать реально
+    отредактированную ячейку от повтора того же значения в соседних строках: название элемента
+    профиля и цвет профиля печатаются в КАЖДОЙ строке листа, и неотредактированные строки иначе
+    затирали бы правку соседней."""
+    try:
+        from catalog_export import CATEGORIES
+    except Exception:
+        return {}
+    snap = copy.deepcopy(original)
+    ensure_gids(snap)  # ключи такие же, как в свежей выгрузке
+    base = {}
+    for _k, _label, builder in CATEGORIES:
+        for r in builder(snap)['rows']:
+            base[str(r[0])] = {f: (r[c - 1] if len(r) >= c else None) for f, c in COLS.items()}
+    return base
+
+
+def edited(extra, base, field):
+    """Текст ячейки, только если он ОТЛИЧАЕТСЯ от значения в выгрузке (иначе None = не правили)."""
+    v = txt(extra.get(field))
+    if v is None:
+        return None
+    b = base.get(field)
+    return None if v == (str(b).strip() if b is not None else '') else v
+
+
+def set_label(data, key, name, default):
+    """Название позиции, у которой в базе нет поля имени (направляющие, общие элементы профиля):
+    храним переопределение в data['catalogLabels'][ключ]; совпало с типовым — не храним."""
+    labels = data.setdefault('catalogLabels', {})
+    name = txt(name)
+    if name and name != default:
+        labels[key] = name
+    else:
+        labels.pop(key, None)
+    if not labels:
+        data.pop('catalogLabels', None)
+
+
+def move_to_producer(data, surf, src_prod, col, pname):
+    """Правка колонки «Производитель» у ЛДСП = перенос материала к другому производителю."""
+    if src_prod['name'] == pname:
+        return
+    dst = next((p for p in data[surf]['producers'] if p['name'] == pname), None)
+    if dst is None:
+        pid = slugify(pname, {p['id'] for p in data[surf]['producers']}, 'prod')
+        dst = {'id': pid, 'name': pname, 'colors': []}
+        data[surf]['producers'].append(dst)
+    src_prod['colors'].remove(col)
+    if any(c['id'] == col['id'] for c in dst['colors']):
+        col['id'] = slugify(col['name'], {c['id'] for c in dst['colors']}, 'col')
+    dst['colors'].append(col)
+    if not src_prod['colors']:
+        data[surf]['producers'].remove(src_prod)
+
+
 def find_ldsp_by_gid(data, gid):
     """Все члены материала (по поверхностям) с этим gid: список (surface, prod, color)."""
     out = []
@@ -283,24 +389,28 @@ def create_ldsp_member(data, surf, gid, pname, cname, th, price, texture, hexv):
     prod['colors'].append(col)
 
 
-def apply_row(data, key, price, extra, errctx):
-    """Применить одну строку к data (мутирует). Возвращает текст ошибки или None."""
+def apply_row(data, key, price, extra, errctx, base=None):
+    """Применить одну строку к data (мутирует). Возвращает текст ошибки или None.
+    `base` — значения этой строки в выгрузке ДО правок (см. build_baseline)."""
     if key in TEMPLATE_KEYS:
         return None
+    base = base or {}
     parts = key.split(':')
     tag = parts[0]
 
-    # цена (кроме листов без цены)
+    # цена (кроме листов без цены). «вручную» — числом не пишем, но ОСТАЛЬНЫЕ столбцы применяем:
+    # ключ тот же = та же позиция, правка любого столбца должна дойти до базы.
     need_price = tag not in ('profcol',)
-    pval = None
+    pval, manual = None, False
     if need_price:
         if isinstance(price, str) and price.strip().lower() == MANUAL:
-            return None  # ручная позиция — числом не пишем
-        pval = num(price)
-        if pval is None:
-            return f'{errctx}: цена не число («{price}»)'
-        if pval < 0:
-            return f'{errctx}: отрицательная цена'
+            manual = True
+        else:
+            pval = num(price)
+            if pval is None:
+                return f'{errctx}: цена не число («{price}»)'
+            if pval < 0:
+                return f'{errctx}: отрицательная цена'
 
     try:
         if tag == 'ldsp' and len(parts) == 2:
@@ -316,22 +426,33 @@ def apply_row(data, key, price, extra, errctx):
             th = int(num(extra.get('h')) or 16)
             tex, hexv = extra.get('texture'), extra.get('hex')
             members = find_ldsp_by_gid(data, gid)
-            for surf, prod, c in members:            # обновляем ВСЕ поля существующих членов
+            # 1) «нет» — убрать материал с этой поверхности (делаем ДО правок, чтобы удалять из того
+            # производителя, где член лежит сейчас)
+            for surf, prod, c in list(members):
+                if not is_yes(extra.get(surf)):
+                    prod['colors'].remove(c)
+                    if not prod['colors']:
+                        data[surf]['producers'].remove(prod)
+                    members.remove((surf, prod, c))
+            # 2) обновить ВСЕ поля оставшихся членов (правка любого столбца — та же позиция)
+            for surf, prod, c in members:
                 c['name'] = cname
-                c['pricePerM2'] = pval
+                if pval is not None:
+                    c['pricePerM2'] = pval
                 c['thickness'] = th
                 if hexv not in (None, ''):
                     c['color'] = str(hexv)
                 if tex not in (None, ''):
                     c['texture'] = str(tex)
+                if pname:                            # смена производителя = перенос материала
+                    move_to_producer(data, surf, prod, c, pname)
+            # 3) «да» там, где члена не было — завести
+            if not pname and members:
+                pname = members[0][1]['name']
             present = {s for s, _, _ in members}
-            for surf in ('korpus', 'fasad', 'fill'):  # да/нет по поверхностям
-                want = is_yes(extra.get(surf))
-                if want and surf not in present:
-                    create_ldsp_member(data, surf, gid, pname, cname, th, pval, tex, hexv)
-                elif not want and surf in present:
-                    sp, sc = next((p, c) for s, p, c in members if s == surf)
-                    sp['colors'].remove(sc)
+            for surf in ('korpus', 'fasad', 'fill'):
+                if is_yes(extra.get(surf)) and surf not in present:
+                    create_ldsp_member(data, surf, gid, pname, cname, th, pval or 0, tex, hexv)
         elif tag == 'ldspm':
             # ЛЕГАСИ (выгрузка сессии 67): одна строка = материал, поиск по имени. Оставлено для
             # загрузки прежних файлов; новые выгрузки идут форматом ldsp:<gid> выше.
@@ -354,33 +475,66 @@ def apply_row(data, key, price, extra, errctx):
             c = find_color(data, surface, prodid, colid)
             if c is None:
                 return f'{errctx}: не найдена позиция ЛДСП {key}'
-            c['pricePerM2'] = pval
+            if pval is not None:
+                c['pricePerM2'] = pval
             if extra.get('texture') not in (None, ''):
                 c['texture'] = str(extra['texture'])
         elif tag == 'edge':
             _, surface, prodid, colid, plate = parts
             c = find_color(data, surface, prodid, colid)
+            if c is None and str(extra.get('dep') or '').startswith('ldsp:'):
+                # материал мог переехать к другому производителю (правка колонки «Производитель»
+                # на листе ЛДСП) — ищем по стабильному ключу из «От чего зависит»
+                gid = str(extra['dep'])[5:]
+                c = next((cc for s, _p, cc in find_ldsp_by_gid(data, gid) if s == surface), None)
             if c is None:
                 return None  # цвет мог быть убран с этой поверхности через да/нет в листе ЛДСП —
                              # кромка для него больше не нужна (кромка хранится в самом цвете), пропускаем
-            c['edgePerM16' if plate == '16' else 'edgePerM32'] = pval
+            if pval is not None:
+                c['edgePerM16' if plate == '16' else 'edgePerM32'] = pval
         elif tag == 'dfill':
             fills = data['slidingDoor']['fills']
             if parts[1] == 'mirror':
-                fills['mirror']['pricePerM2'] = pval
+                if pval is not None:
+                    fills['mirror']['pricePerM2'] = pval
+                if edited(extra, base, 'color'):     # название зеркала — в колонке «Цвет»
+                    fills['mirror']['name'] = edited(extra, base, 'color')
             elif parts[1] == 'glass':
                 cid = parts[2]
                 hit = next((g for g in fills['glass']['colors'] if g['id'] == cid), None)
                 if hit is None:
                     return f'{errctx}: не найдено стекло {cid}'
-                hit['pricePerM2'] = pval
+                if pval is not None:
+                    hit['pricePerM2'] = pval
+                if edited(extra, base, 'color'):
+                    hit['name'] = edited(extra, base, 'color')
+                if edited(extra, base, 'hex'):
+                    hit['color'] = edited(extra, base, 'hex')
         elif tag == 'prof':
             _, el, colr = parts
             hit = next((p for p in data['slidingDoor']['profilePrices']
                         if p['element'] == el and p['color'] == colr), None)
             if hit is None:
                 return f'{errctx}: не найден профиль {el}×{colr}'
-            hit['pricePerM'] = pval
+            if pval is not None:
+                hit['pricePerM'] = pval
+            # «Цвет» и «Цвет (hex)» — это цвет профиля (лист «Цвета профилей» убран, правится здесь);
+            # цвет общий для всех элементов, поэтому смотрим только РЕАЛЬНО изменённые ячейки.
+            col = next((c for c in data['slidingDoor']['colors'] if c['id'] == colr), None)
+            if col is not None:
+                if edited(extra, base, 'color'):
+                    col['name'] = edited(extra, base, 'color')
+                if edited(extra, base, 'hex'):
+                    col['hex'] = edited(extra, base, 'hex')
+            nm = edited(extra, base, 'name')          # «Название» = элемент профиля (тоже общее)
+            if nm:
+                if el in ELEMENT_LABELS:
+                    set_label(data, f'profel:{el}', nm, ELEMENT_LABELS[el])
+                else:                                 # вертикальный — это имя профиля из каталога
+                    p = next((x for x in data['slidingDoor']['profiles'] if x['id'] == el), None)
+                    base = re.sub(r'\s*вертикальный$', '', nm, flags=re.IGNORECASE).strip()
+                    if p is not None and base:
+                        p['name'] = base
         elif tag == 'profcol':
             cid = parts[1]
             hit = next((c for c in data['slidingDoor']['colors'] if c['id'] == cid), None)
@@ -391,54 +545,97 @@ def apply_row(data, key, price, extra, errctx):
             if extra.get('hex'):
                 hit['hex'] = str(extra['hex'])
         elif tag == 'mesh':
-            _, depth, colr = parts
-            hit = next((m for m in data['meshShelf']
-                        if str(m['depth']) == depth and m['color'] == colr), None)
+            # ключ = mesh:<gid>; старый вид mesh:<глубина>:<цвет> = тот же gid через «_»
+            gid = '_'.join(parts[1:])
+            hit = by_gid(data['meshShelf'], gid)
             if hit is None:
                 return f'{errctx}: не найдена сетчатая полка {key}'
-            hit['pricePerM'] = pval
+            if pval is not None:
+                hit['pricePerM'] = pval
+            if txt(extra.get('name')):
+                hit['name'] = txt(extra.get('name'))
+            dep = num(extra.get('w'))                  # глубина полки — колонка «Ширина, мм»
+            if dep is not None:
+                hit['depth'] = int(dep)
+            colr = REV_METAL.get(str(extra.get('color') or '').strip().lower())
+            if colr:
+                hit['color'] = colr
+            if clash(data['meshShelf'], hit, ('depth', 'color')):
+                return f'{errctx}: такая сетчатая полка уже есть (глубина + цвет)'
         elif tag == 'basket':
-            _, w, dep, h, colr = parts
-            hit = next((b for b in data['basket'] if str(b['width']) == w and str(b['depth']) == dep
-                        and str(b['height']) == h and b['color'] == colr), None)
+            gid = '_'.join(parts[1:])
+            hit = by_gid(data['basket'], gid)
             if hit is None:
                 return f'{errctx}: не найдена корзина {key}'
-            hit['price'] = pval
+            if pval is not None:
+                hit['price'] = pval
+            for fld, col in (('height', 'h'), ('width', 'l'), ('depth', 'w')):
+                v = num(extra.get(col))
+                if v is not None:
+                    hit[fld] = int(v)
+            colr = REV_METAL.get(str(extra.get('color') or '').strip().lower())
+            if colr:
+                hit['color'] = colr
+            if clash(data['basket'], hit, ('width', 'depth', 'height', 'color')):
+                return f'{errctx}: такая корзина уже есть (размеры + цвет)'
+            set_label(data, f'basket:{gid}', extra.get('name'), 'Корзина')
         elif tag == 'slide':
-            _, typ, length = parts
-            hit = next((s for s in data['drawerSlide']
-                        if s['type'] == typ and str(s['length']) == length), None)
+            gid = '_'.join(parts[1:])
+            hit = by_gid(data['drawerSlide'], gid)
             if hit is None:
                 return f'{errctx}: не найдена направляющая {key}'
-            hit['price'] = pval
+            if pval is not None:
+                hit['price'] = pval
+            ln = num(extra.get('l'))
+            if ln is not None:
+                hit['length'] = int(ln)
+            if clash(data['drawerSlide'], hit, ('type', 'length')):
+                return f'{errctx}: такая направляющая уже есть (тип + длина)'
+            set_label(data, f'slide:{gid}', extra.get('name'),
+                      SLIDE_TYPES.get(hit['type'], hit['type']) + ' направляющие')
         elif tag == 'fit':
             fid = parts[1]
             hit = next((it for it in data['fittings'] if it['id'] == fid), None)
             if hit is None:
                 return f'{errctx}: не найдена фурнитура {fid}'
-            hit['price'] = pval
-        elif tag == 'swing':
-            data['swingDoorHardware']['pricePerDoor'] = pval
-        elif tag == 'rollers':
-            data['slidingDoor']['rollers']['pricePerSet'] = pval
-        elif tag == 'rod':
-            data['rod']['pricePerM'] = pval
-        elif tag == 'softclose':
-            data['doorSoftClose']['pricePerDoor'] = pval
-        elif tag == 'handle':
-            data['drawerHandle']['pricePerDrawer'] = pval
+            if pval is not None:
+                hit['price'] = pval
+            if txt(extra.get('name')):
+                hit['name'] = txt(extra.get('name'))
+        elif tag in ('swing', 'rollers', 'rod', 'softclose', 'handle'):
+            # одиночные позиции фурнитуры: у каждой своё поле цены, имя — общее «name»
+            obj, fld = {'swing': (data['swingDoorHardware'], 'pricePerDoor'),
+                        'rollers': (data['slidingDoor']['rollers'], 'pricePerSet'),
+                        'rod': (data.get('rod'), 'pricePerM'),
+                        'softclose': (data.get('doorSoftClose'), 'pricePerDoor'),
+                        'handle': (data.get('drawerHandle'), 'pricePerDrawer')}[tag]
+            if obj is None:
+                return f'{errctx}: не найдена позиция {key}'
+            if pval is not None:
+                obj[fld] = pval
+            if txt(extra.get('name')):
+                obj['name'] = txt(extra.get('name'))
         elif tag == 'service':
             sv = data.setdefault('services', {}).setdefault(parts[1], {})
-            sv['price'] = pval
-            if extra.get('name'):
-                sv['name'] = str(extra['name'])
+            if pval is not None:
+                sv['price'] = pval
+            if txt(extra.get('name')):
+                sv['name'] = txt(extra.get('name'))
         elif tag == 'addon':
             _, grp, item = parts
             g = next((x for x in data['extras'] if x['id'] == grp), None)
             it = next((y for y in g['items'] if y['id'] == item), None) if g else None
             if it is None:
                 return f'{errctx}: не найден доп.элемент {key}'
-            it['price'] = pval
+            if manual:                                # «вручную» ↔ число: переключаем сам режим
+                it['manual'] = True
+            else:
+                it.pop('manual', None)
+                it['price'] = pval
+            if txt(extra.get('color')):               # позиция — в «Цвете», группа — в «Названии»
+                it['name'] = txt(extra.get('color'))
+            if edited(extra, base, 'name'):           # имя группы повторяется в каждой её строке
+                g['name'] = edited(extra, base, 'name')
         else:
             return f'{errctx}: неизвестный тип ключа «{tag}»'
     except (KeyError, ValueError, IndexError) as e:
@@ -471,7 +668,8 @@ def main():
     with open(DST, encoding='utf-8') as f:
         original = json.load(f)
     data = copy.deepcopy(original)
-    ensure_ldsp_gids(data)  # проставить стабильные gid материалам (для правки по ключу)
+    ensure_gids(data)  # проставить стабильные gid позициям (для правки по ключу)
+    baseline = build_baseline(original)  # как строки выглядели в выгрузке — чтобы видеть, что правили
 
     wb = openpyxl.load_workbook(path, data_only=True)
     errors, applied, created, skipped_new = [], 0, 0, 0
@@ -498,12 +696,17 @@ def main():
                 else:
                     created += 1
                 continue
-            err = apply_row(data, str(key), extra['price'], extra, f'{name}, строка {ri}')
+            err = apply_row(data, str(key), extra['price'], extra, f'{name}, строка {ri}',
+                            baseline.get(str(key)))
             if err:
                 errors.append(err)
             else:
                 applied += 1
                 store_meta(data, str(key), extra)
+
+    ensure_gids(data)  # позиции, добавленные новыми строками, тоже получают стабильный id
+    if not data.get('catalogMeta'):  # не оставлять пустую секцию в файле
+        data.pop('catalogMeta', None)
 
     if errors:
         print(f'ЗАГРУЗКА ОТМЕНЕНА — {len(errors)} ошибок, файл НЕ изменён:')
