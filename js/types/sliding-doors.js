@@ -24,8 +24,8 @@ export default {
 
   build() {
     const { width, height } = state;
-    const kColor = getColor('korpus').color;   // цвет ЛДСП выравнивателей
-    const fColor = getColor('fasad').color;    // цвет наполнения дверей (ЛДСП-фасад)
+    const kColor = getColor('korpus');   // ЛДСП выравнивателей (позиция каталога: цвет + текстура)
+    const fColor = getColor('fasad');    // наполнение дверей (ЛДСП-фасад)
     const zone = DOOR_DEPTH_ZONE;              // глубина «изделия» = дверная зона
 
     // Периметр и пролёт — из общей effectiveDoorSpan (та же модель, что у счётчика дверей и допусков)

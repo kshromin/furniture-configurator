@@ -18,8 +18,8 @@ export default {
   build() {
     const { width, height, depth, drawers } = state;
     const t = PANEL_THICKNESS;
-    const kColor = getColor('korpus').color;
-    const fColor = getColor('fasad').color;
+    const kColor = getColor('korpus');   // позиция каталога (цвет + текстура), см. textures.js
+    const fColor = getColor('fasad');
     const dc = Math.max(1, drawers);
 
     addPanel(width, t, depth, kColor, [0, t / 2, 0]);

@@ -15,7 +15,7 @@ export default {
   build() {
     const { width, height, depth } = state;
     const t = PANEL_THICKNESS;
-    const kColor = getColor('korpus').color;
+    const kColor = getColor('korpus');   // позиция каталога (цвет + текстура), см. textures.js
     const legH = height - t;
     const legD = 40;
 

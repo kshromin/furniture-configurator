@@ -405,9 +405,11 @@ export function buildWardrobeBox() {
   lastBuildDoorLayout = null;
   lastBuildSectionCenters = [];
   lastBuildMezzanineSectionCenters = [];
-  const kColor = getColor('korpus').color;
-  const fColor = getColor('fasad').color;
-  const nColor = getColor('fill').color;
+  // Позиции каталога целиком (не только hex): у материала может быть текстура — панель тогда
+  // рисуется ею, см. textures.js/panelMesh. Профили/зеркало по-прежнему идут числом.
+  const kColor = getColor('korpus');
+  const fColor = getColor('fasad');
+  const nColor = getColor('fill');
 
   // Без дна нечему опираться на цоколь — он тоже пропадает, даже если галочка стоит.
   const plinthH = (plinthEnabled && !noBottom) ? plinthHeight : 0;

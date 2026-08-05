@@ -1,5 +1,6 @@
 import { state, syncPanelThickness } from './state.js';
 import { furnitureGroup, focusCameraOnFurniture } from './scene.js';
+import { beginFrame, releaseUnused } from './textures.js';
 import { TYPES } from '../types/registry.js';
 import { updatePrice } from './pricing.js';
 import { renderStaticDimensions } from './dimensions.js';
@@ -8,8 +9,10 @@ import { buildRoom } from './room.js';
 export function buildFurniture() {
   syncPanelThickness(); // толщина ЛДСП из state.panel32 (важно и при загрузке снапшотов)
   furnitureGroup.clear();
+  beginFrame();         // текстуры, которые эта сборка не запросит, выгрузим из видеопамяти
   const type = TYPES[state.type] || TYPES['wardrobe'];
   const counts = type.build();
+  releaseUnused();
   focusCameraOnFurniture();
   updatePrice(counts);
   renderStaticDimensions();

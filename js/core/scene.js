@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { state } from './state.js';
 import { showToast } from './toast.js';
+import { colorSpec, requestTexture, scaleBoxUV } from './textures.js';
 
 const viewport = document.getElementById('viewport');
 export const scene = new THREE.Scene();
@@ -121,11 +122,19 @@ scene.add(furnitureGroup);
 
 // matOpts — необязательные переопределения материала (напр. { metalness, roughness } для
 // алюминиевых профилей/направляющих купе). По умолчанию — матовая поверхность ЛДСП.
+// color — hex (профили, зеркало, служебные цвета) ИЛИ позиция каталога {color, texture}: у второй
+// может быть текстура, тогда панель получает рисунок с тайлингом вместо заливки (textures.js).
 function panelMesh(w, h, d, color, opacity, matOpts) {
+  const spec = colorSpec(color);
   const geo = new THREE.BoxGeometry(w, h, d);
-  const p = { color, roughness: 0.6, metalness: 0.05, ...matOpts };
+  const p = { color: spec.color, roughness: 0.6, metalness: 0.05, ...matOpts };
   if (opacity !== undefined && opacity < 1) { p.transparent = true; p.opacity = opacity; }
-  return new THREE.Mesh(geo, new THREE.MeshStandardMaterial(p));
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial(p));
+  if (spec.texture) {
+    scaleBoxUV(geo, w, h, d);              // масштаб рисунка — по размеру каждой грани
+    requestTexture(spec.texture, mesh.material);
+  }
+  return mesh;
 }
 
 export function addPanel(w, h, d, color, pos, opacity, matOpts) {

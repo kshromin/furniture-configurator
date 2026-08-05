@@ -14,7 +14,7 @@ export default {
 
   build() {
     const { width, height, depth } = state;
-    const kColor = getColor('korpus').color;
+    const kColor = getColor('korpus');   // позиция каталога (цвет + текстура), см. textures.js
     addPanel(width, height, depth, kColor, [0, height / 2, 0]);
     return { door: 0, drawer: 0, shelf: 0, rod: 0, item: 1 };
   },
