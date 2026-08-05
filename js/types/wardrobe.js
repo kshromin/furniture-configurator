@@ -1,6 +1,6 @@
 import { state, materials, PANEL_THICKNESS } from '../core/state.js';
 import { korpusBoxAreaM2 } from '../core/pricing.js';
-import { getColor } from '../core/materials.js';
+import { getColor, doorFillColorEntry } from '../core/materials.js';
 import {
   buildWardrobeBox, getDoorCount, effectiveDoorSpan, drawerBoxSize, basketFits, sectionMissingSideSupport,
   sectionBackWallSegments, doorCustomSegments, clampDrawerOffsetWidth, sectionEffectiveDepth,
@@ -13,12 +13,10 @@ import {
 // глобальные значения (цвет фасада, doorGlassColor, specialFillPrice).
 export function doorFillRate(f, sp, colorId) {
   if (f === 'mirror') return materials.slidingDoor?.fills?.mirror?.pricePerM2 || 0;
-  if (f === 'glass') {
-    const cols = materials.slidingDoor?.fills?.glass?.colors || [];
-    const c = cols.find(x => x.id === (colorId || state.doorGlassColor)) || cols[0];
-    return c?.pricePerM2 || 0;
-  }
   if (f === 'special') return sp?.price ?? state.specialFillPrice ?? 0;
+  // Тип со списком цветов: встроенное «Стекло» и произвольные типы из каталога (fills.extra).
+  const entry = doorFillColorEntry(f, colorId || state.doorGlassColor);
+  if (entry) return entry.pricePerM2 || 0;
   if (colorId) {
     const prod = (materials.fasad?.producers || []).find(p => p.id === state.fasadProducer);
     const c = (prod?.colors || []).find(x => x.id === colorId);

@@ -1,7 +1,7 @@
 import { state, materials, newItemId, hasUnsavedChanges, markStateSafe, allPlates16 } from './state.js';
 import { resetHistory } from './history.js';
 import { TYPES } from '../types/registry.js';
-import { renderProducerSelect, renderSwatches } from './materials.js';
+import { renderProducerSelect, renderSwatches, doorFillTypes, doorFillTypeColors } from './materials.js';
 import { buildFurniture } from './build.js';
 import { buildRoom, WALL_COLORS, FLOOR_COLORS } from './room.js';
 import { showToast, showChoiceDialog } from './toast.js';
@@ -328,7 +328,11 @@ export function syncUIFromState() {
 export function syncFasadUI() {
   const validProfiles = ['open', 'closed', 'slim', 'slimbox', 'widebox'];
   if (!validProfiles.includes(state.profile)) state.profile = 'closed';
-  if (!['ldsp', 'mirror', 'special', 'glass'].includes(state.doorFill)) state.doorFill = 'ldsp';
+  // Наполнение двери: встроенные ЛДСП/зеркало/спеццвет + любой тип из каталога (стекло и
+  // произвольные, см. doorFillTypes). Тип, которого в каталоге больше нет, откатываем на ЛДСП.
+  if (!['ldsp', 'mirror', 'special'].includes(state.doorFill) && !doorFillTypeColors(state.doorFill)) {
+    state.doorFill = 'ldsp';
+  }
   if (!(materials.slidingDoor?.colors || []).some(c => c.id === state.profileColor)) state.profileColor = 'silver';
 
   document.querySelectorAll('.fasad-type-btn').forEach(b => b.classList.toggle('active', b.dataset.fasad === state.fasadDoorType));
@@ -342,23 +346,47 @@ export function syncFasadUI() {
   renderProfileColors();
   const fillSelect = document.getElementById('doorFillSelect');
   if (fillSelect) fillSelect.value = state.doorFill;
-  ['ldsp', 'mirror', 'special', 'glass'].forEach(f => {
-    const el = document.getElementById('fill' + f.charAt(0).toUpperCase() + f.slice(1));
-    if (el) el.style.display = f === state.doorFill ? 'block' : 'none';
-  });
+  showDoorFillDetail(state.doorFill);
   const specialInput = document.getElementById('specialFillPriceVal');
   if (specialInput) specialInput.value = state.specialFillPrice;
   const specialName = document.getElementById('specialFillNameVal');
   if (specialName) specialName.value = state.specialFillName || '';
-  const glassSel = document.getElementById('glassColorSelect');
-  if (glassSel) {
-    const cols = materials.slidingDoor?.fills?.glass?.colors || [];
-    if (!cols.some(c => c.id === state.doorGlassColor)) state.doorGlassColor = cols[0]?.id || 'clear';
-    glassSel.value = state.doorGlassColor;
-    const cur = cols.find(c => c.id === state.doorGlassColor);
-    const note = document.getElementById('glassPriceNote');
-    if (note) note.textContent = cur ? `${cur.pricePerM2} ₽/м²` : '';
-  }
+  renderDoorFillColors();
+}
+
+// Показ блока-детали под выбранным наполнением: у ЛДСП/зеркала/спеццвета свой блок, у любого типа
+// со списком цветов (стекло и произвольные из каталога) — общий блок выбора цвета (#fillGlass).
+function showDoorFillDetail(fill) {
+  const byType = !['ldsp', 'mirror', 'special'].includes(fill) && !!doorFillTypeColors(fill);
+  const map = { fillLdsp: fill === 'ldsp', fillMirror: fill === 'mirror',
+                fillSpecial: fill === 'special', fillGlass: byType };
+  Object.entries(map).forEach(([id, on]) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = on ? 'block' : 'none';
+  });
+}
+
+// Цвета ВЫБРАННОГО типа наполнения (стекло/произвольный тип): список, подпись и цена.
+// state.doorGlassColor — общий «цвет внутри типа»; при смене типа клампится на первый доступный.
+function renderDoorFillColors() {
+  const sel = document.getElementById('glassColorSelect');
+  const cols = doorFillTypeColors(state.doorFill);
+  if (!sel || !cols) return;
+  if (!cols.some(c => c.id === state.doorGlassColor)) state.doorGlassColor = cols[0]?.id;
+  sel.innerHTML = '';
+  cols.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id;
+    o.textContent = `${c.name} — ${c.pricePerM2} ₽/м²`;
+    sel.appendChild(o);
+  });
+  sel.value = state.doorGlassColor;
+  const label = document.getElementById('glassColorLabel');
+  const type = doorFillTypes().find(t => t.id === state.doorFill);
+  if (label) label.textContent = `Цвет: ${(type?.name || '').toLowerCase() || 'наполнение'}`;
+  const cur = cols.find(c => c.id === state.doorGlassColor);
+  const note = document.getElementById('glassPriceNote');
+  if (note) note.textContent = cur ? `${cur.pricePerM2} ₽/м²` : '';
 }
 
 // Откат истории (см. js/core/history.js) подменяет весь state целиком и сам вызывает
@@ -651,21 +679,30 @@ export function bindFasadTab() {
 
   renderProfileColors();
 
-  function showDoorFill(fill) {
-    ['ldsp', 'mirror', 'special', 'glass'].forEach(f => {
-      const el = document.getElementById('fill' + f.charAt(0).toUpperCase() + f.slice(1));
-      if (el) el.style.display = f === fill ? 'block' : 'none';
-    });
-  }
-
   const mirrorNote = document.getElementById('mirrorPriceNote');
   if (mirrorNote) mirrorNote.textContent = `${materials.slidingDoor?.fills?.mirror?.pricePerM2 ?? '—'} ₽/м²`;
 
-  document.getElementById('doorFillSelect').addEventListener('change', e => {
-    state.doorFill = e.target.value;
-    showDoorFill(state.doorFill);
-    buildFurniture();
-  });
+  // Варианты наполнения строятся из каталога: встроенные ЛДСП/Зеркало/Спец. цвет + все типы со
+  // своими цветами (стекло и произвольные из slidingDoor.fills.extra, заводятся выгрузкой).
+  const fillSel = document.getElementById('doorFillSelect');
+  if (fillSel) {
+    fillSel.innerHTML = '';
+    const add = (value, label) => {
+      const o = document.createElement('option');
+      o.value = value; o.textContent = label;
+      fillSel.appendChild(o);
+    };
+    add('ldsp', 'ЛДСП');
+    add('mirror', materials.slidingDoor?.fills?.mirror?.name || 'Зеркало');
+    doorFillTypes().forEach(t => add(t.id, t.name));
+    add('special', 'Спец. цвет');
+    fillSel.addEventListener('change', e => {
+      state.doorFill = e.target.value;
+      showDoorFillDetail(state.doorFill);
+      renderDoorFillColors();   // у нового типа свой список цветов
+      buildFurniture();
+    });
+  }
 
   // «Цвет специальный» — название и цена за м² вводятся пользователем вручную (блок появляется
   // при выборе спеццвета), сохраняются в state; цена участвует в цене наполнения (pricing.js),
@@ -684,15 +721,9 @@ export function bindFasadTab() {
     state.specialFillName = specialNameInput.value.trim();
   });
 
-  // Стекло (задание 21.07): список цветов из каталога, глобальный выбор для doorFill='glass'
-  // (индивидуальные цвета по секциям дверей — в редакторе двери, doorEditor.js)
+  // Цвет выбранного типа наполнения (стекло или произвольный тип из каталога) — список заполняет
+  // renderDoorFillColors() при каждой синхронизации; индивидуальные цвета секций — в doorEditor.js.
   const glassSel = document.getElementById('glassColorSelect');
-  (materials.slidingDoor?.fills?.glass?.colors || []).forEach(c => {
-    const o = document.createElement('option');
-    o.value = c.id;
-    o.textContent = `${c.name} — ${c.pricePerM2} ₽/м²`;
-    glassSel.appendChild(o);
-  });
   glassSel.addEventListener('change', () => {
     state.doorGlassColor = glassSel.value;
     syncFasadUI();

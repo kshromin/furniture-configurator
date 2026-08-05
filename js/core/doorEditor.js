@@ -1,6 +1,6 @@
 import { state, materials } from './state.js';
 import { buildFurniture } from './build.js';
-import { getColor, getColors } from './materials.js';
+import { getColor, getColors, doorFillTypes, doorFillTypeColors, doorFillColorEntry } from './materials.js';
 import { fmt } from './pricing.js';
 import { showToast } from './toast.js';
 import { syncFasadUI } from './tabs.js';
@@ -66,12 +66,10 @@ function ensureFillColors(c, len) {
 // null — глобальные (doorGlassColor / выбранный цвет фасада). Та же логика, что doorFillColor
 // в wardrobe-geometry.js — схема и 3D красятся одинаково.
 function fillColor(fill, colorId) {
-  if (fill === 'glass') {
-    const cols = materials.slidingDoor?.fills?.glass?.colors || [];
-    const c = cols.find(x => x.id === (colorId || state.doorGlassColor)) || cols[0];
-    return c?.color || FILL_COLORS.mirror;
-  }
   if (FILL_COLORS[fill]) return FILL_COLORS[fill];
+  // Тип со списком цветов: стекло и произвольные типы из каталога (fills.extra).
+  const entry = doorFillColorEntry(fill, colorId || state.doorGlassColor);
+  if (entry) return entry.color || FILL_COLORS.mirror;
   if (colorId) {
     const c = getColors('fasad', state.fasadProducer).find(x => x.id === colorId);
     if (c) return c.color;
@@ -277,7 +275,11 @@ function render() {
     // (стёкла и т.п.), ряд кнопок в строке секции не масштабируется.
     const sel = document.createElement('select');
     sel.className = 'mini-select-wide';
-    Object.entries(FILL_LABELS).forEach(([f, name]) => {
+    // Варианты: встроенные ЛДСП/Зеркало/Спец. цвет + все типы со своими цветами из каталога
+    // (стекло и произвольные, slidingDoor.fills.extra) — тот же список, что на вкладке «Фасад».
+    const fillOpts = [['ldsp', FILL_LABELS.ldsp], ['mirror', FILL_LABELS.mirror],
+                      ...doorFillTypes().map(t => [t.id, t.name]), ['special', FILL_LABELS.special]];
+    fillOpts.forEach(([f, name]) => {
       const o = document.createElement('option');
       o.value = f;
       o.textContent = name;
@@ -307,19 +309,18 @@ function render() {
     row.appendChild(sel);
     // Выбор цвета прямо в строке (задание 21.07): у ЛДСП — цвета фасада текущего производителя,
     // у стекла — цвета из каталога (прозрачное/ультрапрозрачное/плёнки). Индивидуально на секцию.
-    if (fill === 'ldsp' || fill === 'glass') {
+    const typeCols = doorFillTypeColors(fill);   // стекло или произвольный тип из каталога
+    if (fill === 'ldsp' || typeCols) {
       const colorSel = document.createElement('select');
       colorSel.className = 'mini-select-wide door-editor-color-sel';
-      const opts = fill === 'glass'
-        ? (materials.slidingDoor?.fills?.glass?.colors || [])
-        : getColors('fasad', state.fasadProducer);
+      const opts = typeCols || getColors('fasad', state.fasadProducer);
       opts.forEach(c => {
         const o = document.createElement('option');
         o.value = c.id;
         o.textContent = c.name;
         colorSel.appendChild(o);
       });
-      const globalId = fill === 'glass' ? state.doorGlassColor : getColor('fasad').id;
+      const globalId = typeCols ? state.doorGlassColor : getColor('fasad').id;
       colorSel.value = sgm.fillColor || globalId;
       if (!colorSel.value && opts[0]) colorSel.value = opts[0].id;
       colorSel.addEventListener('click', e => e.stopPropagation());

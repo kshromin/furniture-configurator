@@ -546,12 +546,9 @@
           <!-- Выпадающий список вместо ряда кнопок (задание 21.07): вариантов будет больше
                (стекло прозрачное/ультрапрозрачное/с плёнкой и т.д.) — ряд кнопок не масштабируется.
                Пока: ЛДСП / Зеркало (цена из каталога) / «Цвет специальный» (название+цена вручную). -->
-          <select id="doorFillSelect" class="mini-select-wide" style="width:100%">
-            <option value="ldsp">ЛДСП</option>
-            <option value="mirror">Зеркало</option>
-            <option value="glass">Стекло</option>
-            <option value="special">Спец. цвет</option>
-          </select>
+          <!-- Список вариантов строится из каталога (bindFasadTab): ЛДСП, Зеркало, все типы со
+               своими цветами (Стекло + произвольные из slidingDoor.fills.extra), Спец. цвет. -->
+          <select id="doorFillSelect" class="mini-select-wide" style="width:100%"></select>
 
           <!-- ЛДСП -->
           <div class="door-fill-detail" id="fillLdsp">
@@ -571,11 +568,11 @@
             <div class="swatch-name" id="mirrorPriceNote"></div>
           </div>
 
-          <!-- Стекло (задание 21.07): цвет из каталога slidingDoor.fills.glass, список
-               заполняется из данных в bindFasadTab -->
+          <!-- Общий блок «цвет выбранного типа»: стекло (задание 21.07) и любой тип наполнения из
+               каталога (slidingDoor.fills.extra). Список цветов и подпись — по выбранному типу. -->
           <div class="door-fill-detail" id="fillGlass" style="display:none">
             <div class="field" style="margin-top:10px">
-              <label>Цвет стекла</label>
+              <label id="glassColorLabel">Цвет стекла</label>
               <select id="glassColorSelect" class="mini-select-wide" style="width:100%"></select>
             </div>
             <div class="swatch-name" id="glassPriceNote"></div>

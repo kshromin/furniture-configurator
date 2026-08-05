@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { state, materials, PANEL_THICKNESS, detailT, itemThickT } from '../core/state.js';
 import { addPanel, furnitureGroup } from '../core/scene.js';
-import { getColor } from '../core/materials.js';
+import { getColor, doorFillColorEntry } from '../core/materials.js';
 import { DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_SHELF_GAP, meshDepths, valetLengths, basketWidths, basketDepthsFor } from './wardrobe-constants.js';
 import {
   effectiveDoorSpan, rebalanceSections, getDoorCount, SWING_GAP,
@@ -188,10 +188,12 @@ export function clampSectionSizes(sections, depth) {
 function doorFillColor(fill, fillColor, colorId) {
   if (fill === 'mirror') return DOOR_FILL_MIRROR_COLOR;
   if (fill === 'special') return DOOR_FILL_SPECIAL_COLOR;
-  if (fill === 'glass') {
-    const cols = materials.slidingDoor?.fills?.glass?.colors || [];
-    const c = cols.find(x => x.id === (colorId || state.doorGlassColor)) || cols[0];
-    return c ? parseInt(c.color.slice(1), 16) : DOOR_FILL_MIRROR_COLOR;
+  // Тип со списком цветов: «Стекло» и произвольные типы из каталога (fills.extra). У новых типов
+  // hex может быть не задан — тогда показываем нейтральный цвет стекла, чтобы не падать.
+  const entry = doorFillColorEntry(fill, colorId || state.doorGlassColor);
+  if (entry) {
+    const hex = String(entry.color || '');
+    return /^#[0-9a-fA-F]{6}$/.test(hex) ? parseInt(hex.slice(1), 16) : DOOR_FILL_MIRROR_COLOR;
   }
   if (colorId) {
     const prod = (materials.fasad?.producers || []).find(p => p.id === state.fasadProducer);

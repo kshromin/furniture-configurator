@@ -15,6 +15,32 @@ export function getColor(group) {
   return colors.find(c => c.id === id) || colors[0] || { color: '#cccccc', pricePerM2: 0 };
 }
 
+// ── Наполнение двери: типы со списком цветов ────────────────────────────────────────────────
+// Встроенное «Стекло» + ПРОИЗВОЛЬНЫЕ типы из каталога (slidingDoor.fills.extra — заводятся
+// выгрузкой/загрузкой ассортимента, сессия 68). ЛДСП/Зеркало/Спеццвет своих цветов не имеют и
+// сюда не входят — они выбираются как отдельные варианты. Пустой каталог → только «Стекло».
+export function doorFillTypes() {
+  const f = materials.slidingDoor?.fills || {};
+  const list = [];
+  if (f.glass?.colors?.length) list.push({ id: 'glass', name: f.glass.name || 'Стекло', colors: f.glass.colors });
+  (f.extra || []).forEach(t => {
+    if (t?.colors?.length) list.push({ id: t.id, name: t.name, colors: t.colors });
+  });
+  return list;
+}
+
+// Цвета выбранного типа наполнения (или null, если у типа их нет — ЛДСП/зеркало/спеццвет).
+export function doorFillTypeColors(fillId) {
+  return doorFillTypes().find(t => t.id === fillId)?.colors || null;
+}
+
+// Конкретный цвет типа: по id, иначе первый (каталог мог измениться — не падаем).
+export function doorFillColorEntry(fillId, colorId) {
+  const cols = doorFillTypeColors(fillId);
+  if (!cols) return null;
+  return cols.find(c => c.id === colorId) || cols[0] || null;
+}
+
 const SWATCH_NAME_IDS = { korpus: 'korpusColorName', fasad: 'fasadColorName', fill: 'fillColorName' };
 
 export function renderSwatches(group, containerId) {
