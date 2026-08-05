@@ -53,7 +53,13 @@ except Exception:
 # грузятся без потерь. Значение — поля gid + поля, по которым позиция должна остаться уникальной.
 GID_FIELDS = {'meshShelf': ('depth', 'color'), 'basket': ('width', 'depth', 'height', 'color'),
               'drawerSlide': ('type', 'length')}
-META_FIELDS = ('producer', 'h', 'l', 'w', 'dep', 'hex')
+# Свободные колонки: то, что приложение по этой категории не использует, но пользователь вписал —
+# храним в catalogMeta и возвращаем в следующую выгрузку (заполнять базу можно целиком, а как это
+# показывать в конфигураторе — решается позже). Что из них категория ПРИМЕНЯЕТ — см. DERIVED.
+META_FIELDS = ('producer', 'h', 'l', 'w', 'dep', 'hex', 'unit', 'color', 'texture')
+# Ед.изм печатает сама выгрузка, поэтому запоминаем её, только если пользователь её изменил
+# (иначе в файл осела бы «кв.м» у каждой строки).
+META_ONLY_IF_CHANGED = ('unit',)
 # Позиции, заведённые в самой программе (верхняя таблица листов «Фурнитура»/«Услуги»): их нельзя
 # добавлять/удалять, поэтому у них правится ТОЛЬКО цена — исключение из правила «правь любой
 # столбец» (прямое указание пользователя в задании «формат выгрузки»).
@@ -201,19 +207,28 @@ def new_basket(data, e, ctx):
     return None
 
 
-def store_meta(data, key, e):
-    """Свободные поля (производитель/габариты/зависимость/hex), которых нет в самой базе, храним
-    в data['catalogMeta'][key] — так они переживают выгрузку/загрузку. Поля, выводимые из позиции
-    (DERIVED), не пишем: их правка в Excel всё равно не имеет смысла."""
+def store_meta(data, key, e, base=None):
+    """Свободные поля (производитель/габариты/зависимость/hex/ед.изм/цвет/текстура), которых нет в
+    самой базе по этой категории, храним в data['catalogMeta'][key] — так они переживают выгрузку/
+    загрузку. Поля, которые категория ПРИМЕНЯЕТ или выводит из позиции (DERIVED), не пишем: они и
+    так вернутся из базы. Пустая ячейка = значение забыли."""
     derived = DERIVED.get(str(key).split(':')[0], set())
-    vals = {}
+    meta = data.setdefault('catalogMeta', {})
+    vals = dict(meta.get(key, {}))
     for f in META_FIELDS:
         if f in derived:
+            vals.pop(f, None)
             continue
         v = e.get(f)
-        if v not in (None, ''):
-            vals[f] = v if not isinstance(v, str) else v.strip()
-    meta = data.setdefault('catalogMeta', {})
+        v = v.strip() if isinstance(v, str) else v
+        if v in (None, ''):
+            vals.pop(f, None)
+            continue
+        # значение, которое печатает сама выгрузка, запоминаем только если его изменили
+        if f in META_ONLY_IF_CHANGED and f not in vals and base is not None \
+                and str(v) == str(base.get(f) or '').strip():
+            continue
+        vals[f] = v
     if vals:
         meta[key] = vals
     else:
@@ -793,7 +808,7 @@ def main():
                 errors.append(err)
             else:
                 applied += 1
-                store_meta(data, str(key), extra)
+                store_meta(data, str(key), extra, baseline.get(str(key)))
 
     ensure_gids(data)  # позиции, добавленные новыми строками, тоже получают стабильный id
     if not data.get('catalogMeta'):  # не оставлять пустую секцию в файле
