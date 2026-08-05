@@ -1658,11 +1658,20 @@ html, body {
 .order-card-shareinfo { font-size: 10px; color: #1f8a4c; margin-left: 4px; }
 .order-card-lockers { font-size: 11px; color: #c0392b; margin-top: 3px; }
 
-.share-popover { position: fixed; z-index: 3000; width: 240px; background: #fff; border: 1px solid #d0d7e3;
+.share-popover { position: fixed; z-index: 3000; width: 300px; background: #fff; border: 1px solid #d0d7e3;
                  border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,0.22); padding: 12px; }
 .share-pop-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+/* Поиск по сотруднику (задание «выбор список поделиться 4,08») — ник/ФИО/должность/почта. */
+.share-pop-search { width: 100%; margin-bottom: 8px; }
 .share-pop-list { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 .share-pop-list label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.share-pop-row { align-items: flex-start !important; }
+.share-pop-row input { margin-top: 2px; }
+.share-pop-who { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.share-pop-name { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-weight: 600; }
+.share-pop-sub { font-size: 11px; color: #8a93a0; overflow: hidden; text-overflow: ellipsis; }
+.share-pop-off { font-size: 10px; color: #c0392b; font-weight: 400; }
+.share-pop-count { font-size: 11px; color: #6b7684; margin-top: 8px; }
 .share-pop-empty { color: #999; font-size: 12px; }
 .share-pop-actions { display: flex; gap: 8px; margin-top: 10px; }
 .share-pop-save { flex: 1; padding: 7px; border: none; border-radius: 7px; background: #2f6fed; color: #fff;

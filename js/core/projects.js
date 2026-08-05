@@ -12,6 +12,8 @@ import { openProject } from './order.js';
 
 const KIND_LABELS = { project: 'Проект', order: 'Заказ' };
 
+const escHtml = s => String(s ?? '').replace(/[&<>"]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
+
 // Пагинация «Показать ещё» (сессия 37, по просьбе — «даже 40-60 много») — сначала грузим только
 // PAGE_SIZE строк, дальше пользователь сам решает, грузить ли ещё; вместе с лёгким select (см.
 // SUPABASE-SETUP.md п.13) это и держит открытие списка быстрым независимо от того, сколько всего
@@ -46,11 +48,13 @@ const managerFilter = { project: '', order: '' };
 
 // Сотрудники своей компании — для окна «Поделиться» и подписи создателя у расшаренных карточек.
 // Грузятся один раз (RLS profiles_select_company из saas-02 отдаёт только свою компанию).
+// Ник/должность (saas-06) нужны окну «Поделиться»: по ним ищут человека, когда компания большая.
 let team = null;
 let teamById = {};
 async function loadTeam() {
   if (team) return team;
-  const { data } = await supabase.from('profiles').select('id, full_name, email').order('full_name');
+  const { data } = await supabase.from('profiles')
+    .select('id, full_name, email, nick, job_title, is_active').order('full_name');
   team = data || [];
   teamById = Object.fromEntries(team.map(u => [u.id, u]));
   return team;
@@ -266,23 +270,40 @@ function closeSharePopover() {
   if (!sharePop) return;
   sharePop.remove(); sharePop = null;
   document.removeEventListener('click', onDocClickShare, true);
+  document.removeEventListener('keydown', onKeyShare, true);
 }
 function onDocClickShare(e) { if (sharePop && !sharePop.contains(e.target)) closeSharePopover(); }
+function onKeyShare(e) { if (e.key === 'Escape') closeSharePopover(); }
+
+// Поиск по сотруднику (задание «выбор список поделиться 4,08»): когда коллег много, список
+// галочек бесполезен. Ищем по нику, ФИО, должности и почте; запрос бьётся на куски пробелами и
+// требует совпадения ВСЕХ — «мен ив» находит менеджера Ивана. Команда уже в памяти (loadTeam),
+// поэтому фильтруем на клиенте, без похода в базу.
+const mateHaystack = u => [u.nick, u.full_name, u.job_title, u.email].filter(Boolean).join(' ').toLowerCase();
+function matchMate(u, query) {
+  const parts = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (!parts.length) return true;
+  const hay = mateHaystack(u);
+  return parts.every(t => hay.includes(t));
+}
 
 function openSharePopover(p, anchorBtn) {
   closeSharePopover();
   const me = auth.session.user.id;
-  const mates = (team || []).filter(u => u.id !== me);
   const shared = new Set(p.shared_with || []);
+  // Отключённых сотрудников не показываем — делиться с ними незачем; исключение: если доступ уже
+  // открыт, строка остаётся, иначе его нельзя было бы отозвать.
+  const mates = (team || []).filter(u => u.id !== me && (u.is_active !== false || shared.has(u.id)));
+  // Отмеченные держим в Set, а НЕ в галочках: список перерисовывается на каждый символ поиска,
+  // и состояние чекбоксов в DOM потерялось бы.
+  const selected = new Set(shared);
   const pop = document.createElement('div');
   pop.className = 'share-popover';
   pop.innerHTML = `
     <div class="share-pop-title">Поделиться с сотрудником</div>
-    <div class="share-pop-list">${
-      mates.length
-        ? mates.map(u => `<label><input type="checkbox" value="${u.id}" ${shared.has(u.id) ? 'checked' : ''}> ${teamName(u.id)}</label>`).join('')
-        : '<div class="share-pop-empty">В компании пока нет других сотрудников.</div>'
-    }</div>
+    ${mates.length ? `<input type="text" class="share-pop-search mini-input" placeholder="Поиск: ник, ФИО, должность" autocomplete="off">` : ''}
+    <div class="share-pop-list"></div>
+    ${mates.length ? '<div class="share-pop-count"></div>' : ''}
     <div class="share-pop-actions">
       <button class="share-pop-save">Сохранить</button>
       <button class="share-pop-cancel">Отмена</button>
@@ -290,14 +311,54 @@ function openSharePopover(p, anchorBtn) {
     <div class="share-pop-msg"></div>`;
   document.body.appendChild(pop);
   sharePop = pop;
+
+  const listEl = pop.querySelector('.share-pop-list');
+  const countEl = pop.querySelector('.share-pop-count');
+  const searchEl = pop.querySelector('.share-pop-search');
+
+  const rowHtml = u => {
+    const off = u.is_active === false ? ' <span class="share-pop-off">отключён</span>' : '';
+    const job = u.job_title ? ` <span class="user-tag">${escHtml(u.job_title)}</span>` : '';
+    const sub = [u.full_name, u.email].filter(Boolean).join(' · ');
+    return `<label class="share-pop-row">
+      <input type="checkbox" value="${u.id}" ${selected.has(u.id) ? 'checked' : ''}>
+      <span class="share-pop-who">
+        <span class="share-pop-name">${escHtml(u.nick || u.full_name || u.email)}${job}${off}</span>
+        ${sub ? `<span class="share-pop-sub">${escHtml(sub)}</span>` : ''}
+      </span>
+    </label>`;
+  };
+  const render = () => {
+    if (!mates.length) {
+      listEl.innerHTML = '<div class="share-pop-empty">В компании пока нет других сотрудников.</div>';
+      return;
+    }
+    const found = mates.filter(u => matchMate(u, searchEl.value));
+    listEl.innerHTML = found.length
+      ? found.map(rowHtml).join('')
+      : '<div class="share-pop-empty">Никого не нашли — проверьте написание.</div>';
+    countEl.textContent = selected.size ? `Выбрано: ${selected.size}` : 'Никто не выбран';
+  };
+  render();
+
+  listEl.addEventListener('change', e => {
+    const cb = e.target.closest('input[type=checkbox]');
+    if (!cb) return;
+    cb.checked ? selected.add(cb.value) : selected.delete(cb.value);
+    countEl.textContent = selected.size ? `Выбрано: ${selected.size}` : 'Никто не выбран';
+  });
+  searchEl?.addEventListener('input', render);
+
   const r = anchorBtn.getBoundingClientRect();
   pop.style.top = Math.min(r.bottom + 6, window.innerHeight - pop.offsetHeight - 10) + 'px';
   pop.style.left = Math.min(r.left, window.innerWidth - pop.offsetWidth - 10) + 'px';
   setTimeout(() => document.addEventListener('click', onDocClickShare, true), 0);
+  document.addEventListener('keydown', onKeyShare, true);
+  searchEl?.focus();
 
   pop.querySelector('.share-pop-cancel').addEventListener('click', closeSharePopover);
   pop.querySelector('.share-pop-save').addEventListener('click', async () => {
-    const ids = [...pop.querySelectorAll('input:checked')].map(i => i.value);
+    const ids = [...selected];
     const msg = pop.querySelector('.share-pop-msg');
     msg.textContent = 'Сохранение…';
     const { error } = await supabase.rpc('set_project_share', { p_id: p.id, uids: ids });
