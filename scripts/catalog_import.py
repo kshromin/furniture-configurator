@@ -645,6 +645,23 @@ def apply_row(data, key, price, extra, errctx, base=None):
                 c['pricePerM2'] = pval
             if extra.get('texture') not in (None, ''):
                 c['texture'] = str(extra['texture'])
+        elif tag == 'hdf':
+            # Задняя стенка из ХДФ — одна позиция каталога (задание «разобр с хдф»):
+            # цена, толщина, цвет и название правятся прямо здесь.
+            h = data.setdefault('hdf', {})
+            if pval is not None:
+                h['pricePerM2'] = pval
+            th = num(extra.get('h'))
+            if th is not None:
+                if th <= 0:
+                    return f'{errctx}: толщина ХДФ должна быть больше нуля'
+                h['thickness'] = int(th)
+            if txt(extra.get('color')):
+                h['name'] = txt(extra.get('color'))
+            if txt(extra.get('name')):
+                h['kind'] = txt(extra.get('name'))
+            if txt(extra.get('hex')):
+                h['color'] = txt(extra.get('hex'))
         elif tag == 'edge':
             _, surface, prodid, colid, plate = parts
             c = find_color(data, surface, prodid, colid)

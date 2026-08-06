@@ -59,6 +59,17 @@
             "thickness": 16,
             "gid": "egger__h1334",
             "kind": "ЛДСП"
+          },
+          {
+            "id": "pylnyy",
+            "gid": "egger_pylnyy_16",
+            "name": "Пыльный",
+            "color": "",
+            "thickness": 16,
+            "pricePerM2": 1500,
+            "edgePerM16": 0,
+            "edgePerM32": 0,
+            "kind": "ЛДСП"
           }
         ]
       },
@@ -142,6 +153,23 @@
             "kind": "МДФ"
           }
         ]
+      },
+      {
+        "id": "ekstaver",
+        "name": "Экставер",
+        "colors": [
+          {
+            "id": "pylnyy",
+            "gid": "ekstaver_pylnyy_16",
+            "name": "Пыльный",
+            "color": "",
+            "thickness": 16,
+            "pricePerM2": 1500,
+            "edgePerM16": 0,
+            "edgePerM32": 0,
+            "kind": "ЛДСП"
+          }
+        ]
       }
     ]
   },
@@ -193,6 +221,17 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "egger__fmirror",
+            "kind": "ЛДСП"
+          },
+          {
+            "id": "pylnyy",
+            "gid": "egger_pylnyy_16",
+            "name": "Пыльный",
+            "color": "",
+            "thickness": 16,
+            "pricePerM2": 1500,
+            "edgePerM16": 0,
+            "edgePerM32": 0,
             "kind": "ЛДСП"
           }
         ]
@@ -249,6 +288,23 @@
             "texture": "dub_votan.jpg"
           }
         ]
+      },
+      {
+        "id": "ekstaver",
+        "name": "Экставер",
+        "colors": [
+          {
+            "id": "pylnyy",
+            "gid": "ekstaver_pylnyy_16",
+            "name": "Пыльный",
+            "color": "",
+            "thickness": 16,
+            "pricePerM2": 1500,
+            "edgePerM16": 0,
+            "edgePerM32": 0,
+            "kind": "ЛДСП"
+          }
+        ]
       }
     ]
   },
@@ -278,6 +334,17 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "egger__h3840",
+            "kind": "ЛДСП"
+          },
+          {
+            "id": "pylnyy",
+            "gid": "egger_pylnyy_16",
+            "name": "Пыльный",
+            "color": "",
+            "thickness": 16,
+            "pricePerM2": 1500,
+            "edgePerM16": 0,
+            "edgePerM32": 0,
             "kind": "ЛДСП"
           }
         ]
@@ -323,8 +390,32 @@
             "texture": "dub_votan.jpg"
           }
         ]
+      },
+      {
+        "id": "ekstaver",
+        "name": "Экставер",
+        "colors": [
+          {
+            "id": "pylnyy",
+            "gid": "ekstaver_pylnyy_16",
+            "name": "Пыльный",
+            "color": "",
+            "thickness": 16,
+            "pricePerM2": 1500,
+            "edgePerM16": 0,
+            "edgePerM32": 0,
+            "kind": "ЛДСП"
+          }
+        ]
       }
     ]
+  },
+  "hdf": {
+    "kind": "ХДФ",
+    "name": "Белый",
+    "thickness": 4,
+    "pricePerM2": 500,
+    "color": "#f2efe9"
   },
   "fittings": [
     {
@@ -1699,5 +1790,14 @@
     450,
     500,
     550
+  ],
+  "fittingOptions": [
+    {
+      "gid": "ruchka1",
+      "group": "Ручки ящика",
+      "name": "ручка1",
+      "unit": "шт",
+      "price": 1000
+    }
   ]
 }

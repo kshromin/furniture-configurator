@@ -64,6 +64,7 @@ DERIVED = {
     'dfill':  {'hex', 'color'},
     'prof':   {'hex', 'color'},      # hex и название цвета — каталог цветов профиля
     'profcol': {'hex', 'color'},
+    'hdf':    {'h', 'hex', 'color', 'dep'},  # толщина/цвет/имя — в самой позиции, «зависит» — подпись
     'addon':  {'dep'},               # «от чего зависит» = раздел (хранится группой в extras)
     'fitopt': {'dep', 'unit', 'producer'},  # назначение, ед.изм и бренд хранятся в самой позиции
     'mesh':   {'w', 'color'},        # ширина = глубина полки, цвет = цвет полки
@@ -223,6 +224,13 @@ def cat_ldsp(d):
                         unit=U_M2, price=g['price'], producer=pname, h=th,
                         l=g['maxl'], w=g['maxw'], hexv=g['hex'],
                         korpus=yn('korpus', g), fasad=yn('fasad', g), fill=yn('fill', g), texture=g['texture']))
+    # ХДФ — материал ТОЛЬКО задней стенки (в корпус/фасад/наполнение не идёт, поэтому да/нет
+    # у него пустые). Одна позиция, правится цена/толщина/цвет — см. задание «разобр с хдф».
+    hdf = d.get('hdf')
+    if hdf:
+        rows.append(row(d, 'hdf', name=hdf.get('kind', 'ХДФ'), color=hdf.get('name', ''),
+                        unit=U_M2, price=hdf.get('pricePerM2', 0), h=hdf.get('thickness', 4),
+                        hexv=hdf.get('color', ''), dep='Задняя стенка'))
     return dict(title='МАТЕРИАЛ', rows=rows)
 
 

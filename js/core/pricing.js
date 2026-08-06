@@ -36,7 +36,18 @@ export function defaultFasadAreaM2() {
   return (iW * (height - 2 * t)) / 1e6;
 }
 
-const BACK_WALL_RATE = { ldsp: 2000, hdf: 500 };
+// Задняя стенка (задание «разобр с хдф», 7.08). Раньше обе ставки были зашиты в коде
+// ({ldsp: 2000, hdf: 500}) и ни от какого материала не зависели — цена шкафа не менялась, какой
+// бы ЛДСП ни выбрали. Теперь как у всего остального: цена из каталога.
+//  • ЛДСП-стенка — тот же материал, что и корпус (её из него и пилят), значит и цена его,
+//    вместе с множителем «в две плиты» — стенка из 32мм плиты действительно вдвое дороже;
+//  • ХДФ — отдельная позиция каталога `hdf` (толщина 4мм), множитель 32мм к ней не применяется:
+//    ХДФ не бывает «в две плиты», раньше он ошибочно удваивался вместе с корпусом.
+function backWallRate(type, korpusMat) {
+  if (type === 'hdf') return { rate: materials.hdf?.pricePerM2 || 0, mul: 1 };
+  if (type === 'ldsp') return { rate: korpusMat?.pricePerM2 || 0, mul: null };  // mul=null → thickMul
+  return { rate: 0, mul: 1 };
+}
 
 export function updatePrice(counts) {
   const type = TYPES[state.type] || TYPES['wardrobe'];
@@ -78,7 +89,8 @@ export function updatePrice(counts) {
   const fillPrice     = fillM2     * nMat.pricePerM2 * fillMul + meshPrice + basketPrice;
   // backWallType — может отличаться от state.backWall при посегментной стенке (см. wardrobe.js
   // areas()): общая стенка выключена ('none'), но конкретные сегменты по секциям — всегда ЛДСП.
-  const backWallPrice = backWallM2 * (BACK_WALL_RATE[backWallType] || 0) * thickMul;
+  const bw = backWallRate(backWallType, kMat);
+  const backWallPrice = backWallM2 * bw.rate * (bw.mul === null ? thickMul : bw.mul);
 
   // Направляющие ящика — не в общем цикле по fittings: цена зависит от ДВУХ параметров
   // (тип + длина под глубину короба), а не просто счётчика, см. drawerSlideUnitPrice в

@@ -457,8 +457,10 @@ export function buildWardrobeBox() {
   if (state.alignerRight) addPanel(alRightW, stojkaH, t, kColor, [width / 2 - alRightW / 2, stojkaCenterY, alignZ]);
   if (state.alignerTop)   addPanel(width, alTopH, t, kColor, [0, y0 + height - alTopH / 2, alignZ]);
   if (state.backWall !== 'none') {
-    const bwColor = state.backWall === 'hdf' ? 0xffffff : kColor;
-    const bwThick = state.backWall === 'hdf' ? 4 : t;
+    // ХДФ — позиция каталога (цвет и толщина оттуда, задание «разобр с хдф»); ЛДСП-стенка —
+    // тот же материал, что корпус, поэтому и цвет/текстура/толщина корпусные.
+    const bwColor = state.backWall === 'hdf' ? (materials.hdf || { color: '#ffffff' }) : kColor;
+    const bwThick = state.backWall === 'hdf' ? (materials.hdf?.thickness || 4) : t;
     // Ширина стенки уже правильно считается от stojkaLeftOff/stojkaRightOff (учитывает
     // выравниватели), но центр по X раньше всегда был 0 — верно только когда выравниватели
     // симметричны (alLeftW === alRightW). При асимметрии (только один выравниватель включён или
