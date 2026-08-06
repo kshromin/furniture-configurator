@@ -70,10 +70,13 @@ def all_materials(data):
 KIND_WORDS = ('лдсп', 'мдф', 'дсп', 'хдф', 'массив', 'фанера', 'стекло', 'зеркало', 'пластик')
 
 
-def material_keys(c):
-    """Варианты имени материала, по которым ищем файл (правило Б)."""
+def material_keys(c, producer=''):
+    """Варианты имени материала, по которым ищем файл (правило Б).
+    И слово-тип («ЛДСП»), и имя ПРОИЗВОДИТЕЛЯ («ТОМСК Белый.bmp») можно писать и опускать —
+    пользователь называет файлы и так, и так, а материал в базе зовётся просто «Белый»."""
     name = str(c.get('name') or '').strip()
     kind = str(c.get('kind') or '').strip()
+    prod = str(producer or '').strip()
     variants = {name}
     if kind:
         variants.add(kind + ' ' + name)
@@ -85,6 +88,12 @@ def material_keys(c):
         if low.startswith(kw + ' '):
             variants.add(name[len(kw):].strip())
             break
+    # то же самое с производителем впереди: «ТОМСК Белый», «ТОМСК ЛДСП Белый»…
+    if prod:
+        for v in list(variants):
+            variants.add(prod + ' ' + v)
+        if low.startswith(prod.lower() + ' '):        # производитель уже внутри имени — вариант без него
+            variants.add(name[len(prod):].strip())
     return {norm(v) for v in variants if norm(v)}
 
 
@@ -187,7 +196,7 @@ def main():
                 chosen, rule = by_stem[stem], 'А'
         # (Б) имя файла = название материала
         if not chosen:
-            for k in material_keys(c):
+            for k in material_keys(c, prod.get('name')):
                 if k in by_stem:
                     chosen, rule = by_stem[k], 'Б'
                     break
