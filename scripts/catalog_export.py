@@ -478,7 +478,31 @@ def build_workbook(data, chosen_keys):
             hexv = str(r[10] or '')
             if hexv.startswith('#') and len(hexv) == 7:
                 ws.cell(row=ws.max_row, column=11).fill = PatternFill('solid', fgColor='FF' + hexv[1:].upper())
+        if k == 'ldsp':      # да/нет по поверхностям есть только у материалов
+            add_yes_no_dropdown(ws)
     return wb
+
+
+# «Корпус/Фасад/Наполнение» — выбор из списка да/нет прямо в ячейке (просьба пользователя 6.08):
+# щёлкнул — выбрал, руками не пишешь и не ошибаешься в написании. Запас строк вниз — чтобы
+# выпадашка работала и в НОВЫХ строках, которые пользователь добавит сам.
+YES_NO_COLS = (12, 13, 14)   # Корпус | Фасад | Наполнение
+YES_NO_SPARE_ROWS = 300
+
+
+def add_yes_no_dropdown(ws):
+    from openpyxl.worksheet.datavalidation import DataValidation
+    from openpyxl.utils import get_column_letter
+    last = ws.max_row + YES_NO_SPARE_ROWS
+    dv = DataValidation(type='list', formula1='"да,нет"', allow_blank=True, showDropDown=False)
+    dv.error = 'Здесь только «да» или «нет» — выберите из списка.'
+    dv.errorTitle = 'Доступно ли в этой поверхности'
+    dv.prompt = 'да — материал доступен здесь; нет — недоступен'
+    dv.promptTitle = 'да / нет'
+    ws.add_data_validation(dv)
+    for c in YES_NO_COLS:
+        col = get_column_letter(c)
+        dv.add(f'{col}2:{col}{last}')
 
 
 def main():
