@@ -662,6 +662,8 @@ def apply_row(data, key, price, extra, errctx, base=None):
                 h['kind'] = txt(extra.get('name'))
             if txt(extra.get('hex')):
                 h['color'] = txt(extra.get('hex'))
+            if txt(extra.get('producer')):
+                h['producer'] = txt(extra.get('producer'))
         elif tag == 'edge':
             _, surface, prodid, colid, plate = parts
             c = find_color(data, surface, prodid, colid)

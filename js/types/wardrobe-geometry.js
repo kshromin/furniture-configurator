@@ -674,14 +674,15 @@ export function buildWardrobeBox() {
     return mesh;
   }
 
-  // Ящик = фасад (лицевая панель, цвет фасада, вровень с перегородкой) + короб позади него
-  // (дно/боковины/задняя стенка, цвет наполнения/ЛДСП, чуть уже фасада). Глубина короба
-  // ограничена, чтобы не вылезти за заднюю стенку короба шкафа.
+  // Ящик = фасад (лицевая панель вровень с перегородкой) + короб позади него (дно/боковины/
+  // задняя стенка, чуть уже фасада). Глубина короба ограничена, чтобы не вылезти за заднюю
+  // стенку шкафа. Материал фасада ящика — НАПОЛНЕНИЕ, а не фасад дверей купе (решение
+  // пользователя 7.08): ящик — внутренность шкафа, за дверьми, и делается из того же ЛДСП.
   // Заглушка смещающего элемента (задание «ящики-двери 19,07») — та же фасадная панель, что и
   // передняя стенка ящика (тот же материал/толщина/Z), просто без короба и направляющих за ней.
   function addOffsetFiller(cx, y, w, h) {
     const facadeZ = frontZ - t / 2;
-    return addPanel(w, h, t, fColor, [cx, y0 + y, facadeZ], 0.9);
+    return addPanel(w, h, t, nColor, [cx, y0 + y, facadeZ], 0.9);
   }
 
   function addDrawer(cx, y, sw, sec) {
@@ -691,7 +692,7 @@ export function buildWardrobeBox() {
     const boxCenterZ = facadeZ - t / 2 - boxDepth / 2;
 
     const meshes = [
-      addPanel(sw, dh, t, fColor, [cx, y0 + y, facadeZ], 0.9), // фасад
+      addPanel(sw, dh, t, nColor, [cx, y0 + y, facadeZ], 0.9), // фасад ящика — в цвет наполнения
       addPanel(boxW, t, boxDepth, nColor, [cx, y0 + y - boxH / 2 + t / 2, boxCenterZ]),      // дно короба
       addPanel(t, boxH, boxDepth, nColor, [cx - boxW / 2 + t / 2, y0 + y, boxCenterZ]),      // левая боковина
       addPanel(t, boxH, boxDepth, nColor, [cx + boxW / 2 - t / 2, y0 + y, boxCenterZ]),      // правая боковина
