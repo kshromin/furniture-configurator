@@ -170,23 +170,6 @@
             "kind": "ЛДСП"
           }
         ]
-      },
-      {
-        "id": "sibir",
-        "name": "Сибирь",
-        "colors": [
-          {
-            "id": "seryy",
-            "gid": "sibir_seryy_4",
-            "name": "Серый",
-            "color": "",
-            "thickness": 4,
-            "pricePerM2": 500,
-            "edgePerM16": 0,
-            "edgePerM32": 0,
-            "kind": "ХДФ"
-          }
-        ]
       }
     ]
   },
@@ -424,33 +407,29 @@
             "kind": "ЛДСП"
           }
         ]
-      },
-      {
-        "id": "sibir",
-        "name": "Сибирь",
-        "colors": [
-          {
-            "id": "seryy",
-            "gid": "sibir_seryy_4",
-            "name": "Серый",
-            "color": "",
-            "thickness": 4,
-            "pricePerM2": 500,
-            "edgePerM16": 0,
-            "edgePerM32": 0,
-            "kind": "ХДФ"
-          }
-        ]
       }
     ]
   },
   "hdf": {
     "kind": "ХДФ",
-    "name": "Белый",
-    "thickness": 4,
-    "pricePerM2": 500,
-    "color": "#f2efe9",
-    "producer": "Сибирь"
+    "colors": [
+      {
+        "id": "belyy",
+        "name": "Белый",
+        "color": "#f2efe9",
+        "thickness": 4,
+        "pricePerM2": 500,
+        "producer": "Сибирь"
+      },
+      {
+        "id": "seryy",
+        "name": "Серый",
+        "color": "",
+        "thickness": 4,
+        "pricePerM2": 500,
+        "producer": "Сибирь"
+      }
+    ]
   },
   "fittings": [
     {

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { state, ui, materials, PANEL_THICKNESS, detailT, itemThickT } from '../core/state.js';
 import { addPanel, furnitureGroup } from '../core/scene.js';
-import { getColor, doorFillColorEntry } from '../core/materials.js';
+import { getColor, doorFillColorEntry, hdfColor } from '../core/materials.js';
 import { DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_SHELF_GAP, meshDepths, valetLengths, basketWidths, basketDepthsFor } from './wardrobe-constants.js';
 import {
   effectiveDoorSpan, rebalanceSections, getDoorCount, SWING_GAP,
@@ -459,8 +459,9 @@ export function buildWardrobeBox() {
   if (state.backWall !== 'none') {
     // ХДФ — позиция каталога (цвет и толщина оттуда, задание «разобр с хдф»); ЛДСП-стенка —
     // тот же материал, что корпус, поэтому и цвет/текстура/толщина корпусные.
-    const bwColor = state.backWall === 'hdf' ? (materials.hdf || { color: '#ffffff' }) : kColor;
-    const bwThick = state.backWall === 'hdf' ? (materials.hdf?.thickness || 4) : t;
+    const hdf = state.backWall === 'hdf' ? hdfColor() : null;
+    const bwColor = hdf ? { color: hdf.color || '#ffffff', texture: hdf.texture } : kColor;
+    const bwThick = hdf ? (hdf.thickness || 4) : t;
     // Ширина стенки уже правильно считается от stojkaLeftOff/stojkaRightOff (учитывает
     // выравниватели), но центр по X раньше всегда был 0 — верно только когда выравниватели
     // симметричны (alLeftW === alRightW). При асимметрии (только один выравниватель включён или

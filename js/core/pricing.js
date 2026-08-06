@@ -1,5 +1,5 @@
-import { state, materials, PANEL_THICKNESS } from './state.js';
-import { getColor } from './materials.js';
+﻿import { state, materials, PANEL_THICKNESS } from './state.js';
+import { getColor, hdfColor } from './materials.js';
 import { TYPES } from '../types/registry.js';
 
 export function fmt(v) { return Math.round(v).toLocaleString('ru-RU') + ' ₽'; }
@@ -44,7 +44,7 @@ export function defaultFasadAreaM2() {
 // Множитель «в две плиты» к задней стенке НЕ применяется ни в том, ни в другом случае: стенка
 // всегда в один слой (решение пользователя 7.08; раньше 32мм удваивал и ЛДСП, и ХДФ).
 function backWallRate(type, korpusMat) {
-  if (type === 'hdf') return materials.hdf?.pricePerM2 || 0;
+  if (type === 'hdf') return hdfColor()?.pricePerM2 || 0;   // выбранное исполнение ХДФ
   if (type === 'ldsp') return korpusMat?.pricePerM2 || 0;
   return 0;
 }
@@ -52,7 +52,7 @@ function backWallRate(type, korpusMat) {
 export function updatePrice(counts) {
   const type = TYPES[state.type] || TYPES['wardrobe'];
   const {
-    korpusM2 = 0, fasadM2 = 0, drawerFrontM2 = 0, doorFillPrice = 0, doorHardwarePrice = 0, doorLines = [],
+    korpusM2 = 0, fasadM2 = 0, drawerM2 = 0, doorFillPrice = 0, doorHardwarePrice = 0, doorLines = [],
     fillM2 = 0, backWallM2 = 0, backWallType = state.backWall,
     meshPrice = 0, basketPrice = 0, drawerSlidePrice = 0, edgeMm = null, mountPrice = 0,
     fastenerCount = 0, embedCount = 0, rodMeterM = 0, handlePrice = 0, handleCount = 0,
@@ -81,14 +81,15 @@ export function updatePrice(counts) {
   // Фасады не умножаются: двери купе — рамочный профиль с наполнением, не плита 32мм.
   // doorFillPrice — полотна дверей готовой суммой из wardrobe.js areas() (тариф по типу
   // наполнения каждой секции полотна: ЛДСП/зеркало/спеццвет, задание «двери-начали 20,07»);
-  // fasadM2 — фасады ящиков, всегда ЛДСП по цвету фасада.
+  // fasadM2 — плоские фасады (комод/распашной), ЛДСП по цвету фасада. Ящики сюда НЕ входят —
+  // они считаются по наполнению (drawerM2 ниже).
   const fasadPrice    = fasadM2 * fMat.pricePerM2 + doorFillPrice;
   // Сетчатые полки считаются за погонный метр (своя цена на комбинацию глубина+цвет), корзины —
   // за штуку по каталогу (комбинация ширина+глубина+высота+цвет) — не за м² по общему тарифу
   // наполнения, просто добавляем уже готовые суммы в ту же строку сметы.
-  // drawerFrontM2 — фасады ящиков: материал наполнения (решение 7.08), но плита одинарная,
-  // поэтому множитель «в две плиты» к ним не применяется.
-  const fillPrice     = (fillM2 * fillMul + drawerFrontM2) * nMat.pricePerM2 + meshPrice + basketPrice;
+  // drawerM2 — ящики целиком (фасад + короб): материал наполнения, но плита всегда одинарная —
+  // ящики в две плиты не делают, поэтому множитель 32мм к ним не применяется (решение 7.08).
+  const fillPrice     = (fillM2 * fillMul + drawerM2) * nMat.pricePerM2 + meshPrice + basketPrice;
   // backWallType — может отличаться от state.backWall при посегментной стенке (см. wardrobe.js
   // areas()): общая стенка выключена ('none'), но конкретные сегменты по секциям — всегда ЛДСП.
   const backWallPrice = backWallM2 * backWallRate(backWallType, kMat);
@@ -171,7 +172,7 @@ export function updatePrice(counts) {
   addLdsp(kMat, korpusM2, thickMul);
   addLdsp(fMat, fasadM2, 1);
   addLdsp(nMat, fillM2, fillMul);
-  addLdsp(nMat, drawerFrontM2, 1);   // фасады ящиков — тот же материал, но всегда одинарная плита
+  addLdsp(nMat, drawerM2, 1);   // ящики — тот же материал, но всегда одинарная плита
   ldsp.forEach(e => push(`${e.name}, ${e.th} мм`, +e.m2.toFixed(2), 'м²', e.rate, e.cost));
 
   const fastenerRate = materials.services?.fastener?.price ?? 100;

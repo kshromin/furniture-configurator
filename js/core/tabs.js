@@ -1,7 +1,7 @@
 import { state, ui, materials, newItemId, hasUnsavedChanges, markStateSafe, allPlates16 } from './state.js';
 import { resetHistory } from './history.js';
 import { TYPES } from '../types/registry.js';
-import { renderProducerSelect, renderSwatches, doorFillTypes, doorFillTypeColors, handleOptions } from './materials.js';
+import { renderProducerSelect, renderSwatches, doorFillTypes, doorFillTypeColors, handleOptions, hdfColors } from './materials.js';
 import { buildFurniture } from './build.js';
 import { buildRoom, WALL_COLORS, FLOOR_COLORS } from './room.js';
 import { showToast, showChoiceDialog } from './toast.js';
@@ -297,6 +297,7 @@ export function syncUIFromState() {
   document.querySelectorAll('#backWallGroup .opt-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.back === state.backWall);
   });
+  syncHdfColorUI();
   syncThicknessBlock();
   // На случай, если пресет/загруженная позиция заказа принесла несовместимую комбинацию
   // (задняя стенка + снятая стойка/крыша/дно) — блокирует кнопки и сбрасывает стенку так же,
@@ -826,12 +827,32 @@ export function bindThickness() {
   });
 }
 
+// Список исполнений ХДФ (цвета задней стенки) — виден, только когда выбран ХДФ. Позиции берутся
+// из каталога (materials.hdf.colors), в корпус/фасад/наполнение ХДФ не попадает.
+export function syncHdfColorUI() {
+  const field = document.getElementById('hdfColorField');
+  const sel = document.getElementById('hdfColorSelect');
+  if (!field || !sel) return;
+  const cols = hdfColors();
+  field.style.display = (state.backWall === 'hdf' && cols.length) ? '' : 'none';
+  if (!cols.length) return;
+  if (!cols.some(c => c.id === state.hdfId)) state.hdfId = cols[0].id;   // каталог мог измениться
+  sel.innerHTML = cols.map(c =>
+    `<option value="${c.id}" ${c.id === state.hdfId ? 'selected' : ''}>${escAttr(c.name)}</option>`).join('');
+}
+
 export function bindBackWall() {
+  const hdfSel = document.getElementById('hdfColorSelect');
+  hdfSel?.addEventListener('change', () => {
+    state.hdfId = hdfSel.value;
+    buildFurniture();
+  });
   document.querySelectorAll('#backWallGroup .opt-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('#backWallGroup .opt-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.backWall = btn.dataset.back;
+      syncHdfColorUI();
       buildFurniture();
       // Смена задней стенки меняет доступную глубину под ящики/сетку/корзины/вешало
       // (backWallClearance) — build() уже подрезал/обнулил значения в state.sections, но

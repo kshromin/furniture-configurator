@@ -23,7 +23,7 @@ function renderItems() {
   (cat?.items || []).forEach(i => {
     const opt = document.createElement('option');
     opt.value = i.id;
-    opt.textContent = `${i.name} — ${fmt(i.price)}`;
+    opt.textContent = i.name;   // без цены: цены видны только в спецификации (решение 7.08)
     sel.appendChild(opt);
   });
   updatePriceRow();

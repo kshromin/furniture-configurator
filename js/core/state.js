@@ -226,6 +226,7 @@ export const state = {
   // перегородки (между секциями i и i+1); при добавлении/удалении секций может сдвинуться.
   dividerEmbed: {},
   backWall: 'none',           // none | ldsp | hdf
+  hdfId: null,                // выбранное исполнение ХДФ (materials.hdf.colors), null = первое
   plinthEnabled: true,
   plinthHeight: 50,
   noSideLeft: false,  leftReplace: 'planka',  leftBoxW: 66,

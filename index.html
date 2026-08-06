@@ -295,6 +295,11 @@
             <button class="opt-btn" data-back="ldsp">ЛДСП</button>
             <button class="opt-btn" data-back="hdf">ХДФ</button>
           </div>
+          <!-- Исполнение ХДФ (цвет/толщина/цена из каталога) — видно, только когда выбран ХДФ -->
+          <div class="field" id="hdfColorField" style="display:none">
+            <label for="hdfColorSelect">Цвет ХДФ</label>
+            <select id="hdfColorSelect" class="mini-select"></select>
+          </div>
         </div>
 
         <div class="field-group">
@@ -624,7 +629,9 @@
           <input type="text" autocomplete="off" class="dim-input" id="extraManualName" placeholder="напр. врезка под мойку" style="width:100%;box-sizing:border-box">
           <div class="dim-label-row" style="margin-top:8px"><label>Цена ₽</label><input type="number" autocomplete="off" class="dim-input" id="extraManualPrice" min="0" step="1" value="0"></div>
         </div>
-        <div class="extra-price-row">
+        <!-- Стоимость здесь не показываем (решение 7.08): цены видны только в спецификации.
+             Элемент оставлен скрытым — extras.js держит в нём текущую сумму позиции. -->
+        <div class="extra-price-row" style="display:none">
           <span>Стоимость</span><span id="extraPrice">0 ₽</span>
         </div>
         <button id="extraAddBtn" class="order-btn" style="margin-top:12px">+ Добавить к проекту</button>

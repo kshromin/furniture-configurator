@@ -15,6 +15,16 @@ export function getColor(group) {
   return colors.find(c => c.id === id) || colors[0] || { color: '#cccccc', pricePerM2: 0 };
 }
 
+// ── ХДФ задней стенки: свой список исполнений (задание «разобр с хдф») ──────────────────────
+// В корпус/фасад/наполнение ХДФ не идёт — это материал только задней стенки, поэтому и список
+// отдельный (materials.hdf.colors), и выбор свой, рядом с кнопками «Задняя стенка».
+export function hdfColors() { return materials.hdf?.colors || []; }
+
+export function hdfColor() {
+  const cols = hdfColors();
+  return cols.find(c => c.id === state.hdfId) || cols[0] || null;
+}
+
 // ── Наполнение двери: типы со списком цветов ────────────────────────────────────────────────
 // Встроенное «Стекло» + ПРОИЗВОЛЬНЫЕ типы из каталога (slidingDoor.fills.extra — заводятся
 // выгрузкой/загрузкой ассортимента, сессия 68). ЛДСП/Зеркало/Спеццвет своих цветов не имеют и

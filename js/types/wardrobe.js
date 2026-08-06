@@ -135,7 +135,7 @@ export default {
     // «Без дверей»: конструктив под купе, но двери в стоимость не входят вообще.
     const fillRate = doorFillRate; // общий расчёт ставки — см. экспорт выше
     let fasadM2 = 0;
-    let drawerFrontM2 = 0;   // фасады ящиков — считаются по материалу наполнения (7.08)
+    let drawerM2 = 0;        // ящики (фасад + короб) — материал наполнения, без множителя 32мм (7.08)
     let doorFillPrice = 0;
 
     // Фурнитура/профиль дверей купе (цены-заглушки — единый ценовой хвост): вертикальные
@@ -331,9 +331,9 @@ export default {
     const korpusEdge = (mm, t32) => { edgeMm[(state.panel32 || t32) ? 'korpus32' : 'korpus16'] += mm; };
     const fillEdge   = (mm, t32) => { edgeMm[(state.panel32 || t32) ? 'fill32'   : 'fill16']   += mm; };
     const fasadEdge  = (mm)      => { edgeMm.fasad16 += mm; };
-    // Фасад ящика — материал НАПОЛНЕНИЯ (решение пользователя 7.08), но плита всегда одинарная:
-    // лента у него «на 16» даже в общем режиме 32мм, как было и когда он считался фасадом.
-    const drawerFrontEdge = (mm) => { edgeMm.fill16 += mm; };
+    // Ящик (фасад + короб) — материал НАПОЛНЕНИЯ (решение пользователя 7.08), но плита всегда
+    // одинарная: ящики в две плиты не делают, поэтому и лента у них всегда «на 16».
+    const drawerEdge = (mm) => { edgeMm.fill16 += mm; };
 
     if (!noCeiling)   korpusEdge(width + 2 * depth, th32.top);
     if (!noBottom)    korpusEdge(width + 2 * depth, th32.bottom);
@@ -361,18 +361,19 @@ export default {
         sec.items.filter(it => it.type === 'drawer').forEach(it => {
           const offW = it.offsetSide ? clampDrawerOffsetWidth(sw, it.offsetWidth) : 0;
           const drawerW = sw - offW;
-          // Фасад ящика — материал наполнения, отдельной площадью (без множителя «в две плиты»:
-          // плита одинарная); короб (дно+2 боковины+задняя стенка) — в наполнение.
-          drawerFrontM2 += (drawerW * sec.drawerHeight) / 1e6;
+          // Ящик целиком (фасад + короб) — материал наполнения, но ОТДЕЛЬНОЙ площадью: ящики
+          // никогда не делают в две плиты, поэтому множитель 32мм к ним не применяется
+          // (решение пользователя 7.08 — и к фасаду, и к коробу).
+          drawerM2 += (drawerW * sec.drawerHeight) / 1e6;
           const { boxW, boxH, boxDepth } = drawerBoxSize(drawerW, sec.drawerHeight, sec.drawerDepth, depth);
           const boxM2 = boxW * boxDepth + 2 * boxH * boxDepth + boxW * boxH;
-          fillM2 += boxM2 / 1e6;
+          drawerM2 += boxM2 / 1e6;
           // Кромка ящика: фасад целиком по периметру; у короба — дно без кромки (скрыто в стыке),
           // боковины оклеены с трёх сторон (верх+перед+зад — не оклеен только низ, в стыке с
           // дном), задняя стенка — только верхний торец (левый/правый/нижний скрыты в стыках с
           // боковинами и дном).
-          drawerFrontEdge(2 * (drawerW + sec.drawerHeight));  // фасад ящика — лента в цвет наполнения
-          fillEdge(2 * (boxDepth + 2 * boxH) + boxW);    // короб ящика — лента в цвет наполнения
+          drawerEdge(2 * (drawerW + sec.drawerHeight));            // фасад ящика
+          drawerEdge(2 * (boxDepth + 2 * boxH) + boxW);            // короб ящика
           // Длина направляющей — по реальной (уже клампнутой под глубину короба) физической
           // глубине ящика, не по «желаемому» sec.drawerDepth — то же значение, что режет короб.
           const sUnit = drawerSlideUnitPrice(sec.drawerSlideType, boxDepth);
@@ -499,7 +500,7 @@ export default {
 
     return {
       korpusM2: korpusM2 + leftBoxM2 + rightBoxM2 + topBoxM2 + bottomBoxM2 + alignerM2 + blindM2 + extraKorpusM2,
-      fasadM2, drawerFrontM2, doorFillPrice, doorHardwarePrice, doorLines,
+      fasadM2, drawerM2, doorFillPrice, doorHardwarePrice, doorLines,
       fillM2: fillM2 + extraFillM2, backWallM2, backWallType, meshPrice, basketPrice, drawerSlidePrice,
       handlePrice, handleCount,
       drawerSlideLines: [...slideGroups.values()], handleLines: [...handleGroups.values()],

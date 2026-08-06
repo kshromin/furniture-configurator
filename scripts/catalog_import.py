@@ -99,6 +99,10 @@ def new_ldsp(data, e, ctx):
         return f'{ctx}: пустой цвет (колонка «Цвет»)'
     if not pname:
         return f'{ctx}: пустой производитель'
+    # ХДФ — материал ТОЛЬКО задней стенки: новая строка с этим типом заводится в свой список
+    # (materials.hdf.colors), а не в корпус/фасад/наполнение — там ему делать нечего.
+    if str(e.get('name') or '').strip().upper() == 'ХДФ':
+        return new_hdf(data, e, ctx, pname, disp)
     cname = disp                      # «Цвет» — имя материала; «Название» — тип (отдельно)
     th = int(num(e.get('h')) or 16)
     p = num(e.get('price'))
@@ -116,6 +120,27 @@ def new_ldsp(data, e, ctx):
     for surf, flag in surfaces:
         if is_yes(flag):
             create_ldsp_member(data, surf, gid, pname, cname, th, p, e.get('texture'), e.get('hex'), maxp, e.get('name'))
+    return None
+
+
+def new_hdf(data, e, ctx, pname, disp):
+    """Новое исполнение ХДФ для задней стенки (строка с типом «ХДФ» на листе МАТЕРИАЛ)."""
+    p = num(e.get('price'))
+    if p is None:
+        return f'{ctx}: цена не число'
+    th = num(e.get('h'))
+    if th is not None and th <= 0:
+        return f'{ctx}: толщина ХДФ должна быть больше нуля'
+    hdf = data.setdefault('hdf', {'kind': 'ХДФ', 'colors': []})
+    cols = hdf.setdefault('colors', [])
+    if any(str(c.get('name', '')).strip().lower() == disp.lower() for c in cols):
+        return f'{ctx}: ХДФ «{disp}» уже есть в каталоге'
+    cid = slugify(disp, {c['id'] for c in cols}, 'hdf')
+    item = {'id': cid, 'name': disp, 'color': txt(e.get('hex')) or '',
+            'thickness': int(th or 4), 'pricePerM2': p, 'producer': pname}
+    if txt(e.get('texture')):
+        item['texture'] = txt(e.get('texture'))
+    cols.append(item)
     return None
 
 
@@ -646,24 +671,29 @@ def apply_row(data, key, price, extra, errctx, base=None):
             if extra.get('texture') not in (None, ''):
                 c['texture'] = str(extra['texture'])
         elif tag == 'hdf':
-            # Задняя стенка из ХДФ — одна позиция каталога (задание «разобр с хдф»):
-            # цена, толщина, цвет и название правятся прямо здесь.
-            h = data.setdefault('hdf', {})
+            # ХДФ задней стенки — свой СПИСОК исполнений (задание «разобр с хдф»): у стенки
+            # бывает несколько цветов, а в корпус/фасад/наполнение ХДФ не идёт.
+            hdf = data.setdefault('hdf', {'kind': 'ХДФ', 'colors': []})
+            hit = next((c for c in hdf.get('colors', []) if c['id'] == parts[1]), None)
+            if hit is None:
+                return f'{errctx}: не найдено исполнение ХДФ {key}'
             if pval is not None:
-                h['pricePerM2'] = pval
+                hit['pricePerM2'] = pval
             th = num(extra.get('h'))
             if th is not None:
                 if th <= 0:
                     return f'{errctx}: толщина ХДФ должна быть больше нуля'
-                h['thickness'] = int(th)
+                hit['thickness'] = int(th)
             if txt(extra.get('color')):
-                h['name'] = txt(extra.get('color'))
-            if txt(extra.get('name')):
-                h['kind'] = txt(extra.get('name'))
+                hit['name'] = txt(extra.get('color'))
             if txt(extra.get('hex')):
-                h['color'] = txt(extra.get('hex'))
+                hit['color'] = txt(extra.get('hex'))
             if txt(extra.get('producer')):
-                h['producer'] = txt(extra.get('producer'))
+                hit['producer'] = txt(extra.get('producer'))
+            if txt(extra.get('texture')):
+                hit['texture'] = txt(extra.get('texture'))
+            if edited(extra, base, 'name'):        # «Название» = тип, общий для всех исполнений
+                hdf['kind'] = edited(extra, base, 'name')
         elif tag == 'edge':
             _, surface, prodid, colid, plate = parts
             c = find_color(data, surface, prodid, colid)
