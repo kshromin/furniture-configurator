@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { state, materials, PANEL_THICKNESS, detailT, itemThickT } from '../core/state.js';
+import { state, ui, materials, PANEL_THICKNESS, detailT, itemThickT } from '../core/state.js';
 import { addPanel, furnitureGroup } from '../core/scene.js';
 import { getColor, doorFillColorEntry } from '../core/materials.js';
 import { DOOR_DEPTH_ZONE, DOOR_OVERLAP, TOP_SHELF_GAP, meshDepths, valetLengths, basketWidths, basketDepthsFor } from './wardrobe-constants.js';
@@ -295,7 +295,9 @@ export let lastBuildY0 = 0;
 export function buildDoorRow({ spanW, spanCenterX, y0, height, topOff, bottomOff, depth, fColor }) {
   lastBuildDoorMeshes = [];
   lastBuildDoorLayout = null;
-  if (!state.showDoors || state.fasadDoorType === 'none' || spanW < 1) return 0;
+  // ui.insideView — вкладка «Внутр.»: двери прячем всегда, чтобы не закрывали наполнение
+  // (тумблер «Не показывать двери» при этом не трогаем — он снова в силе на других вкладках).
+  if (!state.showDoors || ui.insideView || state.fasadDoorType === 'none' || spanW < 1) return 0;
   const doorCount = getDoorCount(spanW);
 
   if (state.fasadDoorType === 'swing') {

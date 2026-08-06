@@ -1,4 +1,4 @@
-import { state, materials, newItemId, hasUnsavedChanges, markStateSafe, allPlates16 } from './state.js';
+import { state, ui, materials, newItemId, hasUnsavedChanges, markStateSafe, allPlates16 } from './state.js';
 import { resetHistory } from './history.js';
 import { TYPES } from '../types/registry.js';
 import { renderProducerSelect, renderSwatches, doorFillTypes, doorFillTypeColors, handleOptions } from './materials.js';
@@ -1741,6 +1741,15 @@ export function bindVariantControls() {
   bindSlider('mezzanineHeight', 'mezzanineHeight', ' мм');
 }
 
+// На вкладке «Внутр.» двери временно не показываем: проектируем наполнение, и полотна его
+// закрывают. Тумблер «Не показывать двери» (вкладка «Внешнее») при этом не трогаем — уходим с
+// «Внутр.», и он снова решает, видны двери или нет. Пересобираем только когда режим сменился.
+function setInsideView(on) {
+  if (ui.insideView === on) return;
+  ui.insideView = on;
+  buildFurniture();
+}
+
 // ---------- переключение вкладок сайдбара ----------
 export function bindTabSwitching() {
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1756,6 +1765,7 @@ export function bindTabSwitching() {
       document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
       const hideBar = ['type', 'presets', 'admin', 'extras'].includes(btn.dataset.tab);
       document.getElementById('typeBar').style.display = hideBar ? 'none' : 'block';
+      setInsideView(btn.dataset.tab === 'fill');
     });
   });
 }

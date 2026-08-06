@@ -75,6 +75,16 @@ let defaultSnapshot = null;
 export function captureDefaultState() { defaultSnapshot = JSON.stringify(state); }
 export function getDefaultState() { return defaultSnapshot ? JSON.parse(defaultSnapshot) : null; }
 
+// Временное состояние ИНТЕРФЕЙСА — живёт отдельно от `state`, потому что `state` целиком уходит
+// в прорисовки/проекты (JSON.stringify выше). Здесь то, что зависит от текущего экрана, а не от
+// изделия, и сохраняться не должно.
+export const ui = {
+  // Вкладка «Внутр.»: двери временно прячем, чтобы не мешали проектировать наполнение —
+  // независимо от тумблера «Не показывать двери» (он на вкладке «Внешнее» и снова начинает
+  // работать, как только уходим с «Внутр.»). Цену и состав изделия НЕ меняет — только вид.
+  insideView: false,
+};
+
 export const state = {
   type: 'wardrobe',
   width: 1800, height: 2400, depth: 600,
