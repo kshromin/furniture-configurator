@@ -49,6 +49,7 @@ description: Профи по алюминиевым системам Premial Alu
 | **Contemp** | гола-профили, профили-ручки, плинтусы для кухни | — | [contemp.md](references/contemp.md) |
 | Фурнитура | ролики, доводчики, уплотнители, стопоры | — | [furnitura.md](references/furnitura.md) |
 | Расчёт дверей | пошаговая инструкция по 5 профилям конфигуратора | — | [raschet-dverey.md](references/raschet-dverey.md) |
+| Реестр формул | все расчётные позиции каталога, производитель → система → позиция | — | [reestr-formul.md](references/reestr-formul.md) |
 | Декоры | палитра 24 декора + таблицы соответствия профилям | — | [dekory.md](references/dekory.md) |
 | Мойки и смесители | Ordinary, Prodigy, Botanica, Cosmos | — | [moyki.md](references/moyki.md) |
 
