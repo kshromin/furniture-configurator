@@ -65,7 +65,7 @@ DERIVED = {
     'prof':   {'hex', 'color'},      # hex и название цвета — каталог цветов профиля
     'profcol': {'hex', 'color'},
     'addon':  {'dep'},               # «от чего зависит» = раздел (хранится группой в extras)
-    'fitopt': {'dep', 'unit'},       # раздел и ед.изм хранятся в самой позиции
+    'fitopt': {'dep', 'unit', 'producer'},  # назначение, ед.изм и бренд хранятся в самой позиции
     'mesh':   {'w', 'color'},        # ширина = глубина полки, цвет = цвет полки
     'basket': {'h', 'l', 'w', 'color'},  # высота/длина/ширина и цвет — свойства корзины
     'slide':  {'l'},                 # длина направляющей
@@ -75,8 +75,14 @@ DERIVED = {
 # заведённые в самой программе (их нельзя добавлять/удалять — можно менять только цену), снизу
 # добавляемые, где раздел позиции задаётся колонкой «От чего зависит».
 BAND_FIXED = 'НЕ ДОБАВЛЯЕМЫЕ — заведены в программе; менять можно ТОЛЬКО цену'
-BAND_ADD_FIT = ('ДОБАВЛЯЕМЫЕ — новая строка снизу заводит позицию: «Название» = что это, '
-                '«От чего зависит» = раздел (напр. «Ручки ящика»), «Ед.изм» = шт / комплект / пог.м')
+BAND_ADD_FIT = ('ДОБАВЛЯЕМЫЕ — «От чего зависит» = НАЗНАЧЕНИЕ, только из списка в ячейке (пусто или '
+                'своё слово = строка не загрузится). «Название» = что это, «Ед.изм» = шт/комплект/пог.м')
+# Назначения добавляемой фурнитуры — ровно то, что конфигуратор УМЕЕТ выбирать. Список закрытый:
+# пользователь выбирает его из выпадашки (орфография исключена), а загрузка отвергает всё
+# остальное — иначе в каталоге копится фурнитура, которую негде выбрать (просьба 6.08).
+# ⚠️ Появится новое назначение в интерфейсе — добавить сюда И в правило поиска (см. HANDLE_GROUP_RE
+# в js/core/materials.js: раздел ищется по слову «ручк»).
+FIT_PURPOSES = ('Ручки ящика',)
 BAND_ADD_SERV = ('ДОБАВЛЯЕМЫЕ — новая строка снизу заводит услугу: «Название» = что это, '
                  '«От чего зависит» = раздел (Доставка, Монтаж, Подъём на этаж…)')
 BAND_ADD_EXTRA = ('ДОБАВЛЯЕМЫЕ — новая строка снизу заводит позицию: «Название» = что это, '
@@ -352,12 +358,23 @@ def cat_hardware(d):
     dh = d.get('drawerHandle')
     if dh:
         rows.append(row(d, 'handle', name=dh['name'], unit=U_PC, price=dh['pricePerDrawer']))
-    # Вторая таблица: фурнитура, которую ведёт пользователь (разделы «Ручки ящика» и т.п.).
-    # Пока приложение выбирает её не по разделам — это наполнение каталога на будущее.
+    # Вторая таблица: фурнитура, которую ведёт пользователь. Назначение («От чего зависит») —
+    # выбором из FIT_PURPOSES; чтобы значение было под рукой, каждое назначение печатается
+    # строкой-образцом (без ключа и цены — она ничего не заводит, из неё копируют ячейку вниз).
     rows += [BLANK, band(BAND_ADD_FIT)]
-    for it in d.get('fittingOptions', []):
-        rows.append(row(d, f"fitopt:{it['gid']}", name=it['name'], unit=it.get('unit', U_PC),
-                        price=it['price'], dep=it.get('group', '')))
+    opts = d.get('fittingOptions', [])
+    for purpose in FIT_PURPOSES:
+        rows.append(row(d, '', name='', unit='', price='', dep=purpose))
+        for it in opts:
+            if str(it.get('group', '')).strip().lower() == purpose.lower():
+                rows.append(row(d, f"fitopt:{it['gid']}", name=it['name'], unit=it.get('unit', U_PC),
+                                price=it['price'], dep=it.get('group', ''),
+                                producer=it.get('producer', '')))
+    for it in opts:   # назначения, которых больше нет в списке (остались с прежних выгрузок)
+        if str(it.get('group', '')).strip().lower() not in {p.lower() for p in FIT_PURPOSES}:
+            rows.append(row(d, f"fitopt:{it['gid']}", name=it['name'], unit=it.get('unit', U_PC),
+                            price=it['price'], dep=it.get('group', ''),
+                            producer=it.get('producer', '')))
     return dict(title='Фурнитура', rows=rows)
 
 
@@ -480,7 +497,27 @@ def build_workbook(data, chosen_keys):
                 ws.cell(row=ws.max_row, column=11).fill = PatternFill('solid', fgColor='FF' + hexv[1:].upper())
         if k == 'ldsp':      # да/нет по поверхностям есть только у материалов
             add_yes_no_dropdown(ws)
+        if k == 'hardware':  # назначение добавляемой фурнитуры — выбором, не руками
+            add_purpose_dropdown(ws)
     return wb
+
+
+def add_purpose_dropdown(ws):
+    """Выпадашка назначений в «От чего зависит» — на нижнюю (ДОБАВЛЯЕМУЮ) часть листа фурнитуры."""
+    from openpyxl.worksheet.datavalidation import DataValidation
+    start = next((r for r in range(1, ws.max_row + 1)
+                  if str(ws.cell(row=r, column=1).value or '').startswith('# ДОБАВЛЯЕМЫЕ')), None)
+    if start is None:
+        return
+    dv = DataValidation(type='list', formula1='"' + ','.join(FIT_PURPOSES) + '"',
+                        allow_blank=True, showDropDown=False)
+    dv.errorTitle = 'Назначение фурнитуры'
+    dv.error = ('Выберите назначение из списка. Другое сюда писать нельзя: конфигуратор умеет '
+                'выбирать только эти позиции, остальное просто осело бы в каталоге.')
+    dv.promptTitle = 'Назначение'
+    dv.prompt = 'Куда эта фурнитура ставится (по нему конфигуратор её и предложит)'
+    ws.add_data_validation(dv)
+    dv.add(f'J{start + 1}:J{ws.max_row + YES_NO_SPARE_ROWS}')   # J = «От чего зависит»
 
 
 # «Корпус/Фасад/Наполнение» — выбор из списка да/нет прямо в ячейке (просьба пользователя 6.08):

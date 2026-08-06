@@ -39,9 +39,11 @@ SHEET_NAMES = ['МАТЕРИАЛ', 'ЛДСП', 'Кромка', 'Наполнен
                'Сетчатые полки', 'Корзины', 'Направляющие', 'Фурнитура', 'Услуги', 'Доп.элементы']
 # Поля, которые следуют из самой позиции (в catalogMeta не пишем) — см. DERIVED в catalog_export.py.
 try:
-    from catalog_export import DERIVED, SLIDE_TYPES, ELEMENT_LABELS, DEFAULT_SERVICE_GROUPS
+    from catalog_export import (DERIVED, SLIDE_TYPES, ELEMENT_LABELS, DEFAULT_SERVICE_GROUPS,
+                                FIT_PURPOSES)
 except Exception:
     DEFAULT_SERVICE_GROUPS = {'delivery', 'lift', 'montage'}
+    FIT_PURPOSES = ('Ручки ящика',)
     DERIVED = {'ldsp': {'h', 'hex', 'dep', 'producer', 'l', 'w'},
                'ldspm': {'h', 'hex'}, 'edge': {'h', 'dep'}, 'dfill': {'hex'}, 'prof': {'hex'},
                'profcol': {'hex'}, 'mesh': {'w'}, 'basket': {'h', 'l', 'w'}, 'slide': {'l'}}
@@ -183,8 +185,10 @@ def fit_unit(e):
 
 
 def new_fitopt(data, e, ctx):
-    """Новая строка в добавляемой таблице «Фурнитуры»: позиция ассортимента в разделе
-    («Ручки ящика» и т.п.). Приложение пока выбирает фурнитуру не по разделам — это каталог."""
+    """Новая строка в добавляемой таблице «Фурнитуры»: позиция ассортимента с НАЗНАЧЕНИЕМ
+    («Ручки ящика» и т.п.) в колонке «От чего зависит». Назначение — только из списка
+    FIT_PURPOSES (он же выпадашка в книге): по нему конфигуратор эту фурнитуру и предлагает,
+    а всё остальное просто осело бы в каталоге мёртвым грузом (просьба пользователя 6.08)."""
     p = num(e.get('price'))
     if p is None:
         return f'{ctx}: цена не число'
@@ -193,13 +197,22 @@ def new_fitopt(data, e, ctx):
         return f'{ctx}: пустое название позиции (колонка «Название»)'
     grp = txt(e.get('dep'))
     if not grp:
-        return f'{ctx}: не указан раздел (колонка «От чего зависит», напр. «Ручки ящика»)'
+        return (f'{ctx}: не указано назначение (колонка «От чего зависит») — выберите из списка: '
+                + ', '.join(FIT_PURPOSES))
+    known = {p_.strip().lower() for p_ in FIT_PURPOSES}
+    known |= {str(o.get('group', '')).strip().lower() for o in (data.get('fittingOptions') or [])}
+    if grp.strip().lower() not in known:
+        return (f'{ctx}: назначение «{grp}» не поддерживается — выберите из списка: '
+                + ', '.join(FIT_PURPOSES))
     unit = fit_unit(e)
     if unit is None:
         return f'{ctx}: ед.изм «{txt(e.get("unit"))}» — допустимы только ' + ', '.join(UNITS_FIT)
     lst = data.setdefault('fittingOptions', [])
     gid = slugify(name, {i['gid'] for i in lst}, 'fit')
-    lst.append({'gid': gid, 'group': grp, 'name': name, 'unit': unit, 'price': p})
+    item = {'gid': gid, 'group': grp, 'name': name, 'unit': unit, 'price': p}
+    if txt(e.get('producer')):
+        item['producer'] = txt(e.get('producer'))
+    lst.append(item)
     return None
 
 
@@ -784,8 +797,10 @@ def apply_row(data, key, price, extra, errctx, base=None):
                 hit['price'] = pval
             if txt(extra.get('name')):
                 hit['name'] = txt(extra.get('name'))
-            if txt(extra.get('dep')):                 # правка раздела = перенос позиции в него
+            if txt(extra.get('dep')):                 # правка назначения = перенос позиции в него
                 hit['group'] = txt(extra.get('dep'))
+            if txt(extra.get('producer')):
+                hit['producer'] = txt(extra.get('producer'))
             if txt(extra.get('unit')):
                 unit = fit_unit(extra)
                 if unit is None:
@@ -859,6 +874,8 @@ def main():
             extra['hex'] = hex_from_cells(extra, cells, baseline.get(str(key or ''), {}))
             if str(key or '').startswith('#'):
                 continue  # серая строка-заголовок таблицы внутри листа
+            if not key and not txt(extra['name']) and extra['price'] in (None, ''):
+                continue  # строка-образец (заполнено только назначение — из неё копируют ячейку)
             if not key:
                 # новая строка (без ключа) — создать позицию, если лист это допускает
                 creator = CREATORS.get(name)
