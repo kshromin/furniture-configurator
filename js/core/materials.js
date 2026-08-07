@@ -39,6 +39,16 @@ export function doorFillTypes() {
   return list;
 }
 
+// Название встроенного «Зеркала» — чтобы не задваивать его в списке, когда пользователь завёл
+// в каталоге свой тип «Зеркало» со списком цветов (7.08: в выпадашке было два «Зеркало»).
+const norm = s => String(s || '').trim().toLowerCase();
+
+// Тип из каталога, который ЗАМЕЩАЕТ встроенное «Зеркало» (то же название, но со своими цветами).
+export function mirrorTypeOverride() {
+  const name = norm(materials.slidingDoor?.fills?.mirror?.name || 'Зеркало');
+  return doorFillTypes().find(t => norm(t.name) === name) || null;
+}
+
 // Цвета выбранного типа наполнения (или null, если у типа их нет — ЛДСП/зеркало/спеццвет).
 export function doorFillTypeColors(fillId) {
   return doorFillTypes().find(t => t.id === fillId)?.colors || null;
