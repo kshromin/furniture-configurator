@@ -60,7 +60,7 @@ ELEMENT_LABELS = {'horizTop': 'Горизонт верхний', 'horizBottom': 
 DERIVED = {
     'ldsp':   {'h', 'hex', 'dep', 'producer', 'l', 'w', 'color', 'texture'},  # всё пишется в сам материал: толщина/hex/производитель, макс. размер детали, имя цвета, текстура
     'ldspm':  {'h', 'hex', 'producer', 'color', 'texture'},  # высота = толщина плиты, hex/производитель — из базы
-    'edge':   {'h', 'dep', 'color'},  # высота = плита 16/32, «от чего зависит» = ключ ЛДСП, цвет = имя материала
+    'edge':   {'h', 'dep', 'color', 'producer'},  # всё берётся из самого материала: плита 16/32, ключ ЛДСП, имя и производитель
     'dfill':  {'hex', 'color'},
     'prof':   {'hex', 'color'},      # hex и название цвета — каталог цветов профиля
     'profcol': {'hex', 'color'},
@@ -245,18 +245,26 @@ def cat_ldsp(d):
 
 
 def cat_edge(d):
-    # Цвет — без слова «ЛДСП» (как у ЛДСП). Сортировка ПО ВЫСОТЕ (все 16, потом все 32).
-    tmp = []  # (plate, row)
+    # Кромка идёт БЛОКАМИ ПО ПРОИЗВОДИТЕЛЯМ (задание 7.08): у каждого свой заголовок и пустая
+    # строка-разделитель, внутри блока — сортировка по высоте (сначала все 16, потом все 32).
+    by_prod = {}   # имя производителя -> [(plate, row)]
     for surf, _label in SURFACES:
         for prod in d[surf]['producers']:
             for c in prod['colors']:
                 for plate, field in ((16, 'edgePerM16'), (32, 'edgePerM32')):
                     if field in c:
                         key = f"edge:{surf}:{prod['id']}:{c['id']}:{plate}"
-                        tmp.append((plate, row(d, key, name='Кромка', color=ldsp_kind_disp(c)[1],
-                                    unit=U_M, price=c[field], h=plate,
-                                    dep=f"ldsp:{ldsp_gid_of(prod, c)}")))
-    rows = [r for _plate, r in sorted(tmp, key=lambda x: x[0])]
+                        by_prod.setdefault(prod['name'], []).append(
+                            (plate, row(d, key, name='Кромка', color=ldsp_kind_disp(c)[1],
+                                        unit=U_M, price=c[field], h=plate,
+                                        producer=prod['name'],
+                                        dep=f"ldsp:{ldsp_gid_of(prod, c)}")))
+    rows = []
+    for pname in sorted(by_prod, key=lambda x: str(x).lower()):
+        if rows:
+            rows.append(BLANK)                      # пустая строка между блоками
+        rows.append(band(f'КРОМКА — {pname}'))
+        rows += [r for _plate, r in sorted(by_prod[pname], key=lambda x: x[0])]
     return dict(title='Кромка', rows=rows)
 
 

@@ -86,7 +86,8 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "tomsk__t01",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "texture": "tomsk_belyy.jpg"
           },
           {
             "id": "t02",
@@ -97,7 +98,8 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "tomsk__t02",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "texture": "tomsk_seryy.jpg"
           },
           {
             "id": "t03",
@@ -108,7 +110,8 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "tomsk__t03",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "texture": "tomsk_venge.jpg"
           },
           {
             "id": "t04",
@@ -133,7 +136,7 @@
             "maxPartW": 1830,
             "kind": "ЛДСП",
             "texture": "dub_votan.jpg",
-            "color": "#a68663",
+            "color": "#a58663",
             "colorAuto": true
           }
         ]
@@ -250,7 +253,8 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "tomsk__t01",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "texture": "tomsk_belyy.jpg"
           },
           {
             "id": "ft02",
@@ -261,7 +265,8 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "tomsk__t02",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "texture": "tomsk_seryy.jpg"
           },
           {
             "id": "ft03",
@@ -272,7 +277,8 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "tomsk__t03",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "texture": "tomsk_venge.jpg"
           },
           {
             "id": "dub_votan",
@@ -286,7 +292,7 @@
             "maxPartW": 1830,
             "kind": "ЛДСП",
             "texture": "dub_votan.jpg",
-            "color": "#a68663",
+            "color": "#a58663",
             "colorAuto": true
           }
         ]
@@ -364,7 +370,8 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "tomsk__t01",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "texture": "tomsk_belyy.jpg"
           },
           {
             "id": "nt04",
@@ -389,7 +396,7 @@
             "maxPartW": 1830,
             "kind": "ЛДСП",
             "texture": "dub_votan.jpg",
-            "color": "#a68663",
+            "color": "#a58663",
             "colorAuto": true
           }
         ]
