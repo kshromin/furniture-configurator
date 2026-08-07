@@ -199,6 +199,8 @@ def new_addon_item(data, e, ctx, kind):
     item = {'id': iid, 'name': item_name, 'price': 0 if manual else p}
     if manual:
         item['manual'] = True
+    if txt(e.get('producer')):     # производитель — поле самой позиции (фильтр в интерфейсе)
+        item['producer'] = txt(e.get('producer'))
     g['items'].append(item)
     return None
 
@@ -868,6 +870,8 @@ def apply_row(data, key, price, extra, errctx, base=None):
                 it['price'] = pval
             if txt(extra.get('name')):                # позиция — в «Названии»
                 it['name'] = txt(extra.get('name'))
+            if txt(extra.get('producer')):
+                it['producer'] = txt(extra.get('producer'))
             if edited(extra, base, 'dep'):            # раздел повторяется в каждой строке группы
                 g['name'] = edited(extra, base, 'dep')
         else:

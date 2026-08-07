@@ -65,7 +65,7 @@ DERIVED = {
     'prof':   {'hex', 'color'},      # hex и название цвета — каталог цветов профиля
     'profcol': {'hex', 'color'},
     'hdf':    {'h', 'hex', 'color', 'dep', 'producer', 'texture'},  # всё в самой позиции; «зависит» — подпись
-    'addon':  {'dep'},               # «от чего зависит» = раздел (хранится группой в extras)
+    'addon':  {'dep', 'producer'},   # раздел = группа extras, производитель — поле самой позиции
     'fitopt': {'dep', 'unit', 'producer'},  # назначение, ед.изм и бренд хранятся в самой позиции
     'mesh':   {'w', 'color'},        # ширина = глубина полки, цвет = цвет полки
     'basket': {'h', 'l', 'w', 'color'},  # высота/длина/ширина и цвет — свойства корзины
@@ -345,7 +345,8 @@ def addon_rows(d, kind):
         for it in grp['items']:
             key = f"addon:{grp['id']}:{it['id']}"
             price = MANUAL if it.get('manual') else it['price']
-            rows.append(row(d, key, name=it['name'], unit=U_PC, price=price, dep=grp['name']))
+            rows.append(row(d, key, name=it['name'], unit=U_PC, price=price, dep=grp['name'],
+                            producer=it.get('producer', '')))
     return rows
 
 

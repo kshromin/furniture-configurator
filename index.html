@@ -622,8 +622,17 @@
 
       <div class="field-group">
         <div class="field">
+          <label>Что добавляем</label>
+          <select id="extraKind"></select>
+        </div>
+        <div class="field">
           <label>Категория</label>
           <select id="extraCategory"></select>
+        </div>
+        <!-- Фильтр по производителю: показывается, только если он у позиций заполнен (extras.js) -->
+        <div class="field" id="extraProducerField" style="display:none">
+          <label>Производитель</label>
+          <select id="extraProducer"></select>
         </div>
         <div class="field">
           <label>Наименование</label>
