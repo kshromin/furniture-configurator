@@ -36,8 +36,8 @@ MANUAL = 'вручную'
 DELETE = 'удалить'
 
 # ЕДИНЫЙ формат колонок — одинаковый на всех листах (см. HEADERS в catalog_export.py), 1-based.
-COLS = dict(key=1, producer=2, name=3, color=4, unit=5, price=6, h=7, l=8, w=9,
-            dep=10, hex=11, korpus=12, fasad=13, fill=14, texture=15)
+COLS = dict(delete=1, key=2, producer=3, name=4, color=5, unit=6, price=7, h=8, l=9, w=10,
+            dep=11, hex=12, korpus=13, fasad=14, fill=15, texture=16)
 SHEET_NAMES = ['МАТЕРИАЛ', 'ЛДСП', 'Кромка', 'Наполнение дверей', 'Профили купе', 'Цвета профилей',
                'Сетчатые полки', 'Корзины', 'Направляющие', 'Фурнитура', 'Услуги', 'Доп.элементы']
 # Поля, которые следуют из самой позиции (в catalogMeta не пишем) — см. DERIVED в catalog_export.py.
@@ -525,7 +525,7 @@ def build_baseline(original):
     base = {}
     for _k, _label, builder in CATEGORIES:
         for r in builder(snap)['rows']:
-            base[str(r[0])] = {f: (r[c - 1] if len(r) >= c else None) for f, c in COLS.items()}
+            base[str(r[COLS['key'] - 1])] = {f: (r[c - 1] if len(r) >= c else None) for f, c in COLS.items()}
     return base
 
 
@@ -1053,8 +1053,10 @@ def main():
             key = extra['key']
             # Цвет можно задать и заливкой ячейки (палитра Excel), не только текстом — см. hex_from_cells.
             extra['hex'] = hex_from_cells(extra, cells, baseline.get(str(key or ''), {}), theme)
-            if str(key or '').startswith('#'):
-                continue  # серая строка-заголовок таблицы внутри листа
+            # Серая строка-заголовок таблицы внутри листа: метка «#» в ПЕРВОЙ ячейке строки
+            # (после 7.08 первая колонка — «Удалить», раньше там был ключ) — проверяем обе.
+            if str(key or '').startswith('#') or str(extra.get('delete') or '').startswith('#'):
+                continue
             if not key and not txt(extra['name']) and extra['price'] in (None, ''):
                 continue  # строка-образец (заполнено только назначение — из неё копируют ячейку)
             if not key:
@@ -1069,7 +1071,10 @@ def main():
                 else:
                     created += 1
                 continue
-            if isinstance(extra['price'], str) and extra['price'].strip().lower() == DELETE:
+            # «Удалить» = «да» в крайнем левом столбце (7.08). Слово «удалить» в «Цене» — старый
+            # способ, понимаем его же, чтобы уже заполненные книги не сломались.
+            del_flag = is_yes(extra.get('delete')) or str(extra.get('delete') or '').strip().lower() == DELETE
+            if del_flag or (isinstance(extra['price'], str) and extra['price'].strip().lower() == DELETE):
                 what, err = delete_position(data, str(key), f'{name}, строка {ri}')
                 if err:
                     errors.append(err)

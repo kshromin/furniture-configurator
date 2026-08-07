@@ -68,12 +68,22 @@ export function requestTexture(file, material) {
 export function scaleBoxUV(geo, w, h, d) {
   const uv = geo.attributes.uv;
   if (!uv) return;
+  // Направление волокон (задание 7.08). На картинках текстур волокна ВСЕГДА вертикальные, то есть
+  // идут по оси V. У деталей, которые стоят вертикально (стойки, фасады — в том числе фасады
+  // ящиков, задние щиты), так и надо: оставляем как есть. У ГОРИЗОНТАЛЬНЫХ деталей (полка, крыша,
+  // дно — у них самый малый размер по высоте) волокна должны идти ВДОЛЬ ДЛИНЫ детали, слева
+  // направо, поэтому развёртку их пласти (верх/низ, грани ±Y) поворачиваем на 90°.
+  const horizontal = h < w && h < d;
   const faceSize = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
   for (let f = 0; f < 6; f++) {
     const [su, sv] = faceSize[f];
+    const rotate = horizontal && (f === 2 || f === 3);   // пласть горизонтальной детали
     for (let i = 0; i < 4; i++) {
       const k = f * 4 + i;
-      uv.setXY(k, uv.getX(k) * su / MM_PER_TILE, uv.getY(k) * sv / MM_PER_TILE);
+      const u = uv.getX(k), v = uv.getY(k);
+      // при повороте оси меняются местами: U идёт по глубине, V (волокна) — по длине детали
+      if (rotate) uv.setXY(k, v * sv / MM_PER_TILE, u * su / MM_PER_TILE);
+      else        uv.setXY(k, u * su / MM_PER_TILE, v * sv / MM_PER_TILE);
     }
   }
   uv.needsUpdate = true;
