@@ -3,7 +3,7 @@ import { getColor } from './materials.js';
 import { fmt } from './pricing.js';
 import { TYPES } from '../types/registry.js';
 import { syncUIFromState } from './tabs.js';
-import { renderSwatches } from './materials.js';
+import { renderColorSelect } from './materials.js';
 import { buildFurniture } from './build.js';
 import { resetHistory } from './history.js';
 import { supabase } from './supabaseClient.js';
@@ -226,7 +226,7 @@ export function loadItemForEdit(id) {
   syncUIFromState();
   ['korpus', 'fasad', 'fill'].forEach(g => {
     document.getElementById(g + 'Producer').value = state[g + 'Producer'];
-    renderSwatches(g, g + 'Swatches');
+    renderColorSelect(g, g + 'ColorSelect');
   });
   buildFurniture();
   document.getElementById('addItemBtn').textContent = '✓ Обновить позицию';
@@ -317,7 +317,7 @@ function doOpenProject(project) {
     syncUIFromState();
     ['korpus', 'fasad', 'fill'].forEach(g => {
       document.getElementById(g + 'Producer').value = state[g + 'Producer'];
-      renderSwatches(g, g + 'Swatches');
+      renderColorSelect(g, g + 'ColorSelect');
     });
     buildFurniture();
     resetHistory(); // другой проект — не откатываться в историю прежнего (см. history.js)
@@ -444,7 +444,7 @@ function doStartNewKit() {
     syncUIFromState();
     ['korpus', 'fasad', 'fill'].forEach(g => {
       document.getElementById(g + 'Producer').value = state[g + 'Producer'];
-      renderSwatches(g, g + 'Swatches');
+      renderColorSelect(g, g + 'ColorSelect');
     });
     buildFurniture();
     resetHistory(); // чистая модель — нельзя откатиться в историю прежней

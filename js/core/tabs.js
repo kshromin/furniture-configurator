@@ -1,7 +1,7 @@
 import { state, ui, materials, newItemId, hasUnsavedChanges, markStateSafe, allPlates16 } from './state.js';
 import { resetHistory } from './history.js';
 import { TYPES } from '../types/registry.js';
-import { renderProducerSelect, renderSwatches, doorFillTypes, doorFillTypeColors, handleOptions, hdfColors } from './materials.js';
+import { renderProducerSelect, renderColorSelect, doorFillTypes, doorFillTypeColors, handleOptions, hdfColors } from './materials.js';
 import { buildFurniture } from './build.js';
 import { buildRoom, WALL_COLORS, FLOOR_COLORS } from './room.js';
 import { showToast, showChoiceDialog } from './toast.js';
@@ -312,7 +312,7 @@ export function syncUIFromState() {
     const sel = document.getElementById(g + 'Producer');
     if (sel) {
       sel.value = state[g + 'Producer'];
-      renderSwatches(g, g + 'Swatches');
+      renderColorSelect(g, g + 'ColorSelect');
     }
   });
 
@@ -731,7 +731,7 @@ export function bindFasadTab() {
     buildFurniture();
   });
 
-  renderProducerSelect('fasad', 'fasadProducer', 'fasadSwatches');
+  renderProducerSelect('fasad', 'fasadProducer', 'fasadColorSelect');
 }
 
 // Цвета профиля дверей купе — круглые свотчи из каталога (data/materials.json →
@@ -797,7 +797,7 @@ export function syncThick32Details() {
 
 // «32 мм» («в две плиты») осмыслено только для 16мм плит — если корпус ИЛИ наполнение не 16,
 // переключатель прячем и снимаем режим 32. Вешается на furniture-rebuilt: смена материала
-// (renderSwatches) зовёт только buildFurniture, не syncUIFromState — иначе блок бы не прятался.
+// (renderColorSelect) зовёт только buildFurniture, не syncUIFromState — иначе блок бы не прятался.
 function syncThicknessBlock() {
   const block = document.getElementById('thicknessBlock');
   if (allPlates16()) {

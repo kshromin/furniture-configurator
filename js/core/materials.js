@@ -75,30 +75,33 @@ export function handleOptionOf(type) {
 
 const SWATCH_NAME_IDS = { korpus: 'korpusColorName', fasad: 'fasadColorName', fill: 'fillColorName' };
 
-export function renderSwatches(group, containerId) {
-  const container = document.getElementById(containerId);
-  container.innerHTML = '';
+// Выбор материала — ВЫПАДАЮЩИМ СПИСКОМ, а не плиткой цветных образцов (решение пользователя
+// 7.08): декоров в реальном прайсе сотни, образцами такой список не читается. Под списком —
+// короткая подпись: тип и толщина. Цену не пишем — она видна только в спецификации.
+export function renderColorSelect(group, selectId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
   const colors = getColors(group, state[group + 'Producer']);
-  colors.forEach(c => {
-    const el = document.createElement('div');
-    el.className = 'swatch' + (c.id === state[group + 'Id'] ? ' selected' : '');
-    el.style.background = c.color;
-    el.title = c.name + ' — ' + c.pricePerM2 + ' ₽/м²';
-    el.addEventListener('click', () => {
-      state[group + 'Id'] = c.id;
-      renderSwatches(group, containerId);
+  sel.innerHTML = colors.map(c =>
+    `<option value="${c.id}"${c.id === state[group + 'Id'] ? ' selected' : ''}>${escHtml(c.name)}</option>`).join('');
+  if (!sel.dataset.bound) {                 // слушатель один на элемент, не на каждый перерендер
+    sel.dataset.bound = '1';
+    sel.addEventListener('change', () => {
+      state[group + 'Id'] = sel.value;
+      renderColorSelect(group, selectId);
       buildFurniture();
     });
-    container.appendChild(el);
-  });
+  }
   const nameEl = document.getElementById(SWATCH_NAME_IDS[group]);
   if (nameEl) {
-    const sel = colors.find(c => c.id === state[group + 'Id']);
-    nameEl.textContent = sel ? sel.name + (sel.pricePerM2 ? '  ·  ' + sel.pricePerM2 + ' ₽/м²' : '') : '';
+    const cur = colors.find(c => c.id === state[group + 'Id']);
+    nameEl.textContent = cur ? [cur.kind, cur.thickness ? cur.thickness + ' мм' : ''].filter(Boolean).join(' · ') : '';
   }
 }
 
-export function renderProducerSelect(group, selectId, swatchesId) {
+const escHtml = s => String(s ?? '').replace(/[&<>"]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
+
+export function renderProducerSelect(group, selectId, colorSelectId) {
   const sel = document.getElementById(selectId);
   sel.innerHTML = '';
   getProducers(group).forEach(p => {
@@ -108,12 +111,15 @@ export function renderProducerSelect(group, selectId, swatchesId) {
     sel.appendChild(opt);
   });
   sel.value = state[group + 'Producer'];
-  sel.addEventListener('change', () => {
-    state[group + 'Producer'] = sel.value;
-    const colors = getColors(group, sel.value);
-    state[group + 'Id'] = colors[0]?.id || null;
-    renderSwatches(group, swatchesId);
-    buildFurniture();
-  });
-  renderSwatches(group, swatchesId);
+  if (!sel.dataset.bound) {
+    sel.dataset.bound = '1';
+    sel.addEventListener('change', () => {
+      state[group + 'Producer'] = sel.value;
+      const colors = getColors(group, sel.value);
+      state[group + 'Id'] = colors[0]?.id || null;
+      renderColorSelect(group, colorSelectId);
+      buildFurniture();
+    });
+  }
+  renderColorSelect(group, colorSelectId);
 }

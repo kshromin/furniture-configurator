@@ -66,9 +66,9 @@ async function init() {
   });
 
   // producer selects + swatches
-  renderProducerSelect('korpus', 'korpusProducer', 'korpusSwatches');
-  renderProducerSelect('fasad',  'fasadProducer',  'fasadSwatches');
-  renderProducerSelect('fill',   'fillProducer',   'fillSwatches');
+  renderProducerSelect('korpus', 'korpusProducer', 'korpusColorSelect');
+  renderProducerSelect('fasad',  'fasadProducer',  'fasadColorSelect');
+  renderProducerSelect('fill',   'fillProducer',   'fillColorSelect');
 
   renderPresets();
   document.getElementById('saveTemplateBtn')?.addEventListener('click', saveCurrentAsTemplate);
