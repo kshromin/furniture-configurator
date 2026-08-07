@@ -125,7 +125,6 @@
             "id": "dub_votan",
             "gid": "tomsk_dub_votan_16",
             "name": "Дуб Вотан",
-            "color": "#ffff00",
             "thickness": 16,
             "pricePerM2": 1600,
             "edgePerM16": 0,
@@ -133,7 +132,9 @@
             "maxPartL": 2750,
             "maxPartW": 1830,
             "kind": "ЛДСП",
-            "texture": "dub_votan.jpg"
+            "texture": "dub_votan.jpg",
+            "color": "#a68663",
+            "colorAuto": true
           }
         ]
       },
@@ -277,7 +278,6 @@
             "id": "dub_votan",
             "gid": "tomsk_dub_votan_16",
             "name": "Дуб Вотан",
-            "color": "#ffff00",
             "thickness": 16,
             "pricePerM2": 1600,
             "edgePerM16": 0,
@@ -285,7 +285,9 @@
             "maxPartL": 2750,
             "maxPartW": 1830,
             "kind": "ЛДСП",
-            "texture": "dub_votan.jpg"
+            "texture": "dub_votan.jpg",
+            "color": "#a68663",
+            "colorAuto": true
           }
         ]
       },
@@ -379,7 +381,6 @@
             "id": "dub_votan",
             "gid": "tomsk_dub_votan_16",
             "name": "Дуб Вотан",
-            "color": "#ffff00",
             "thickness": 16,
             "pricePerM2": 1600,
             "edgePerM16": 0,
@@ -387,7 +388,9 @@
             "maxPartL": 2750,
             "maxPartW": 1830,
             "kind": "ЛДСП",
-            "texture": "dub_votan.jpg"
+            "texture": "dub_votan.jpg",
+            "color": "#a68663",
+            "colorAuto": true
           }
         ]
       },

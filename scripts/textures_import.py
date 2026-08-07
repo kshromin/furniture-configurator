@@ -121,11 +121,11 @@ def pick_folder(initial=None):
 
 
 def prepare(src, dst):
-    """Проверить → сжать → сохранить. Возвращает (ok, сообщение)."""
+    """Проверить → сжать → сохранить. Возвращает (ok, сообщение, средний цвет «#rrggbb»)."""
     try:
         from PIL import Image
     except ImportError:
-        return False, 'нет библиотеки Pillow (установите: python -m pip install Pillow)'
+        return False, 'нет библиотеки Pillow (установите: python -m pip install Pillow)', None
     try:
         im = Image.open(src)
         im.load()
@@ -139,14 +139,69 @@ def prepare(src, dst):
             note += f' → {im.size[0]}×{im.size[1]}'
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         im.save(dst, 'JPEG', quality=JPEG_QUALITY, optimize=True)
-        return True, note + f', {os.path.getsize(dst) // 1024} КБ'
+        return True, note + f', {os.path.getsize(dst) // 1024} КБ', average_hex(im)
     except Exception as e:
-        return False, f'не читается как картинка ({e})'
+        return False, f'не читается как картинка ({e})', None
+
+
+def average_hex(im):
+    """Средний цвет картинки — им красятся места, где текстура не рисуется (2D-редактор двери,
+    мелкие превью) и панель, пока текстура ещё грузится. Считается сам, чтобы пользователю не
+    подбирать hex руками: положил картинку декора — цвет проставился (задание 7.08)."""
+    try:
+        small = im.convert('RGB').resize((1, 1), 1)      # 1 = Image.LANCZOS не нужен на 1px
+        r, g, b = small.getpixel((0, 0))
+        return f'#{r:02x}{g:02x}{b:02x}'
+    except Exception:
+        return None
+
+
+def recolor_from_existing(data):
+    """Пересчитать цвет по УЖЕ залитым текстурам (data/textures) — для материалов, у которых цвет
+    пуст или проставлен автоматически. Нужно, когда картинки залиты раньше, а цвет появился
+    позже (или его почистили): перекладывать файлы заново ради этого не надо."""
+    try:
+        from PIL import Image
+    except ImportError:
+        return []
+    done, cache = [], {}
+    for surf, prod, c in all_materials(data):
+        f = str(c.get('texture') or '').strip()
+        if not f or (c.get('color') and not c.get('colorAuto')):
+            continue
+        if f not in cache:
+            path = os.path.join(TEX_DIR, f)
+            try:
+                with Image.open(path) as im:
+                    im.load()
+                    cache[f] = average_hex(im)
+            except Exception:
+                cache[f] = None
+        avg = cache[f]
+        if avg and c.get('color') != avg:
+            c['color'] = avg
+            c['colorAuto'] = True
+            done.append(f"{prod['name']} · {c.get('name','')} → {avg}")
+    return done
 
 
 def main():
     args = sys.argv[1:]
     dry = '--dry' in args
+    # --recolor: не заливать ничего, только пересчитать цвета по уже лежащим текстурам
+    if '--recolor' in args:
+        original = load()
+        data = copy.deepcopy(original)
+        done = recolor_from_existing(data)
+        print(f'Пересчитано цветов по готовым текстурам: {len(done)}')
+        for line in done:
+            print('  • ' + line)
+        if done and not dry:
+            with open(DST + '.bak', 'w', encoding='utf-8') as f:
+                json.dump(original, f, ensure_ascii=False, indent=2)
+            with open(DST, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        return 0
     src_dir = None
     if '--from' in args:
         i = args.index('--from')
@@ -182,7 +237,7 @@ def main():
     data = copy.deepcopy(original)
     by_stem = {norm(os.path.splitext(f)[0]): f for f in files}   # нормализованное имя файла → файл
 
-    used, bound_a, bound_b, copied, errors, no_tex = set(), 0, 0, [], [], []
+    used, bound_a, bound_b, copied, errors, no_tex, colored = set(), 0, 0, [], [], [], []
     prepared = {}   # исходный файл → готовое имя (один материал лежит в 3 поверхностях — готовим раз)
 
     for surf, prod, c in all_materials(data):
@@ -211,15 +266,24 @@ def main():
             dst = os.path.join(TEX_DIR, target_name)
             if dry:
                 copied.append(f'{chosen} → data/textures/{target_name} (правило {rule})')
+                prepared[chosen] = (target_name, None)
             else:
-                ok, note = prepare(src, dst)
+                ok, note, avg = prepare(src, dst)
                 if ok:
                     copied.append(f'{chosen} → {target_name} ({note}, правило {rule})')
+                    prepared[chosen] = (target_name, avg)
                 else:
                     errors.append(f'{chosen}: {note}')
                     continue
-            prepared[chosen] = target_name
-        c['texture'] = prepared[chosen]
+        name, avg = prepared[chosen]
+        c['texture'] = name
+        # Цвет считаем из самой картинки. Проставленный руками не трогаем — только пустой или
+        # такой же авто-цвет (colorAuto), чтобы перезаливка обновляла его вместе с текстурой.
+        if avg and (not c.get('color') or c.get('colorAuto')):
+            if c.get('color') != avg:
+                colored.append(f"{prod['name']} · {c.get('name','')} → {avg}")
+            c['color'] = avg
+            c['colorAuto'] = True
         if rule == 'А':
             bound_a += 1
         else:
@@ -235,6 +299,10 @@ def main():
     for line in copied[:40]:
         print('  • ' + line)
     print(f'Привязано к материалам: по колонке «Файл текстуры» — {bound_a}, по имени файла — {bound_b}')
+    if colored:
+        print(f'Цвет посчитан из текстуры — {len(colored)} (в Excel заполнять не нужно):')
+        for line in colored[:20]:
+            print('  • ' + line)
     extra = [f for f in files if f not in used]
     if extra:
         print(f'Не пригодились (нет такого материала) — {len(extra)}:')
@@ -266,6 +334,6 @@ def main():
 
 if __name__ == '__main__':
     code = main()
-    if '--from' not in sys.argv:
+    if '--from' not in sys.argv and '--recolor' not in sys.argv:
         input('\nНажмите Enter, чтобы закрыть...')
     sys.exit(code)

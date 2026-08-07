@@ -31,6 +31,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DST = os.path.join(ROOT, 'data', 'materials.json')
 IN_DIR = os.path.normpath(os.path.join(ROOT, '..', 'Выгрузки'))
 MANUAL = 'вручную'
+# Слово в колонке «Цена», которым позиция УДАЛЯЕТСЯ из каталога (задание 7.08). Отдельный маркер
+# нужен потому, что «нет строки в файле» означает «не трогать»: книгу можно грузить частями.
+DELETE = 'удалить'
 
 # ЕДИНЫЙ формат колонок — одинаковый на всех листах (см. HEADERS в catalog_export.py), 1-based.
 COLS = dict(key=1, producer=2, name=3, color=4, unit=5, price=6, h=7, l=8, w=9,
@@ -435,13 +438,55 @@ def txt(v):
     return s or None
 
 
-def cell_fill_hex(cell):
+def theme_colors(wb):
+    """Палитра ТЕМЫ книги (верхний ряд в окне заливки). Excel хранит там не RGB, а номер цвета
+    темы + «оттенок» (tint), поэтому раньше такая заливка не читалась вовсе и пользователь молча
+    оставался без цвета (задание 7.08). Достаём цвета из темы книги; порядок — как его нумерует
+    Excel: у первых двух пар свет/тень переставлены местами относительно XML."""
+    try:
+        import re as _re
+        xml = wb.loaded_theme
+        if not xml:
+            return []
+        if isinstance(xml, bytes):
+            xml = xml.decode('utf-8', 'replace')
+        scheme = _re.search(r'<a:clrScheme.*?</a:clrScheme>', xml, _re.S)
+        if not scheme:
+            return []
+        cols = []
+        for m in _re.finditer(r'<a:(sysClr|srgbClr)[^>]*?(?:lastClr|val)="([0-9A-Fa-f]{6})"', scheme.group(0)):
+            cols.append(m.group(2).lower())
+        if len(cols) >= 4:                       # dk1,lt1,dk2,lt2 → lt1,dk1,lt2,dk2
+            cols[0], cols[1], cols[2], cols[3] = cols[1], cols[0], cols[3], cols[2]
+        return cols
+    except Exception:
+        return []
+
+
+def apply_tint(rgb_hex, tint):
+    """«Оттенок» темы (светлее/темнее базового цвета) — формула Microsoft, через светлоту HLS."""
+    if not tint:
+        return rgb_hex
+    import colorsys
+    r, g, b = (int(rgb_hex[i:i + 2], 16) / 255 for i in (0, 2, 4))
+    h, l, s = colorsys.rgb_to_hls(r, g, b)
+    l = l * (1 + tint) if tint < 0 else l * (1 - tint) + tint
+    r, g, b = colorsys.hls_to_rgb(h, max(0.0, min(1.0, l)), s)
+    return ''.join(f'{round(x * 255):02x}' for x in (r, g, b))
+
+
+def cell_fill_hex(cell, theme=()):
     """Цвет ЗАЛИВКИ ячейки как «#rrggbb» (задание 5.08: цвет материала можно задать, просто закрасив
-    ячейку палитрой Excel). Тема-цвета Excel не отдают RGB — их пропускаем (останется текст)."""
+    ячейку палитрой Excel). Понимает и обычные цвета, и цвета ТЕМЫ (верхний ряд палитры)."""
     try:
         f = getattr(cell, 'fill', None)
         if f is None or f.patternType != 'solid':
             return None
+        fg = f.fgColor
+        if fg is not None and getattr(fg, 'type', '') == 'theme' and theme:
+            idx = int(getattr(fg, 'theme', -1))
+            if 0 <= idx < len(theme):
+                return '#' + apply_tint(theme[idx], float(getattr(fg, 'tint', 0) or 0))
         rgb = getattr(f.start_color, 'rgb', None)
         if isinstance(rgb, str) and len(rgb) in (6, 8) and all(ch in '0123456789abcdefABCDEF' for ch in rgb):
             return '#' + rgb[-6:].lower()
@@ -450,11 +495,11 @@ def cell_fill_hex(cell):
     return None
 
 
-def hex_from_cells(extra, cells, base):
+def hex_from_cells(extra, cells, base, theme=()):
     """Какой цвет применить: правка ТЕКСТА приоритетнее, иначе — новая ЗАЛИВКА ячейки.
     Сравниваем с тем, что было в выгрузке (base), чтобы не принять свою же заливку за правку."""
     idx = COLS['hex'] - 1
-    fh = cell_fill_hex(cells[idx]) if len(cells) > idx else None
+    fh = cell_fill_hex(cells[idx], theme) if len(cells) > idx else None
     if not fh:
         return extra.get('hex')
     t = str(extra.get('hex') or '').strip()
@@ -574,6 +619,88 @@ def create_ldsp_member(data, surf, gid, pname, cname, th, price, texture, hexv, 
     set_max_part(col, maxp)
     set_kind(col, kind)
     prod['colors'].append(col)
+
+
+def delete_position(data, key, errctx):
+    """Удалить позицию по ключу (в «Цене» написано «удалить»). Возвращает (описание, ошибка).
+    Позиции, заведённые в самой программе (FIXED_PRICE_ONLY), удалять нельзя — программа
+    обращается к ним по id и без них считать не сможет."""
+    parts = str(key).split(':')
+    tag = parts[0]
+    if tag in FIXED_PRICE_ONLY:
+        return None, (f'{errctx}: «{key}» заведена в программе — удалить нельзя (можно только цену). '
+                      'Если позиция не нужна, уберите её из прайса компании.')
+    if tag == 'ldsp':
+        gid = parts[1] if len(parts) == 2 else None
+        members = find_ldsp_by_gid(data, gid) if gid else []
+        if not members:
+            return None, f'{errctx}: материал {key} не найден'
+        name = members[0][2].get('name', key)
+        for surf, prod, c in members:
+            prod['colors'].remove(c)
+            if not prod['colors']:
+                data[surf]['producers'].remove(prod)
+        return f'материал «{name}»', None
+    if tag == 'hdf':
+        cols = (data.get('hdf') or {}).get('colors', [])
+        hit = next((c for c in cols if c['id'] == parts[1]), None)
+        if hit is None:
+            return None, f'{errctx}: исполнение ХДФ {key} не найдено'
+        cols.remove(hit)
+        return f"ХДФ «{hit['name']}»", None
+    if tag == 'dfill':
+        fills = data['slidingDoor']['fills']
+        if parts[1] == 'glass':
+            cols = fills['glass']['colors']
+            hit = next((c for c in cols if c['id'] == parts[2]), None)
+        elif parts[1] == 'extra':
+            typ = next((z for z in fills.get('extra', []) if z['id'] == parts[2]), None)
+            cols = typ['colors'] if typ else []
+            hit = next((c for c in cols if c['id'] == parts[3]), None) if typ else None
+        else:
+            return None, f'{errctx}: «{key}» — встроенное наполнение, удалить нельзя'
+        if hit is None:
+            return None, f'{errctx}: наполнение {key} не найдено'
+        cols.remove(hit)
+        # тип, оставшийся без позиций, тоже убираем — пустой пункт в списке не нужен
+        fills['extra'] = [z for z in fills.get('extra', []) if z.get('colors')]
+        if not fills['extra']:
+            fills.pop('extra', None)
+        return f"наполнение «{hit['name']}»", None
+    for tg, coll, fields in (('mesh', 'meshShelf', ('depth', 'color')),
+                             ('basket', 'basket', ('width', 'depth', 'height', 'color')),
+                             ('slide', 'drawerSlide', ('type', 'length'))):
+        if tag == tg:
+            gid = '_'.join(parts[1:])
+            hit = by_gid(data.get(coll) or [], gid)
+            if hit is None:
+                return None, f'{errctx}: позиция {key} не найдена'
+            data[coll].remove(hit)
+            return f"{coll}: {' '.join(str(hit[f]) for f in fields)}", None
+    if tag == 'fitopt':
+        lst = data.get('fittingOptions') or []
+        hit = next((o for o in lst if o['gid'] == parts[1]), None)
+        if hit is None:
+            return None, f'{errctx}: фурнитура {key} не найдена'
+        lst.remove(hit)
+        return f"фурнитура «{hit['name']}»", None
+    if tag == 'addon':
+        g = next((x for x in data['extras'] if x['id'] == parts[1]), None)
+        it = next((y for y in g['items'] if y['id'] == parts[2]), None) if g else None
+        if it is None:
+            return None, f'{errctx}: позиция {key} не найдена'
+        g['items'].remove(it)
+        if not g['items']:                     # категория без позиций в интерфейсе не нужна
+            data['extras'].remove(g)
+        return f"«{it['name']}»", None
+    if tag == 'prof':
+        lst = data['slidingDoor'].get('profilePrices', [])
+        hit = next((p for p in lst if p['element'] == parts[1] and p['color'] == parts[2]), None)
+        if hit is None:
+            return None, f'{errctx}: профиль {key} не найден'
+        lst.remove(hit)
+        return f'профиль {parts[1]}×{parts[2]}', None
+    return None, f'{errctx}: удаление для «{tag}» не поддерживается'
 
 
 def apply_row(data, key, price, extra, errctx, base=None):
@@ -910,7 +1037,8 @@ def main():
     baseline = build_baseline(original)  # как строки выглядели в выгрузке — чтобы видеть, что правили
 
     wb = openpyxl.load_workbook(path, data_only=True)
-    errors, applied, created, skipped_new = [], 0, 0, 0
+    theme = theme_colors(wb)   # палитра темы — чтобы читалась и заливка «верхним рядом» палитры
+    errors, applied, created, skipped_new, removed = [], 0, 0, 0, []
 
     for name in SHEET_NAMES:
         if name not in wb.sheetnames:
@@ -924,7 +1052,7 @@ def main():
             extra = {f: (row[c - 1] if len(row) >= c else None) for f, c in COLS.items()}
             key = extra['key']
             # Цвет можно задать и заливкой ячейки (палитра Excel), не только текстом — см. hex_from_cells.
-            extra['hex'] = hex_from_cells(extra, cells, baseline.get(str(key or ''), {}))
+            extra['hex'] = hex_from_cells(extra, cells, baseline.get(str(key or ''), {}), theme)
             if str(key or '').startswith('#'):
                 continue  # серая строка-заголовок таблицы внутри листа
             if not key and not txt(extra['name']) and extra['price'] in (None, ''):
@@ -940,6 +1068,13 @@ def main():
                     errors.append(err)
                 else:
                     created += 1
+                continue
+            if isinstance(extra['price'], str) and extra['price'].strip().lower() == DELETE:
+                what, err = delete_position(data, str(key), f'{name}, строка {ri}')
+                if err:
+                    errors.append(err)
+                else:
+                    removed.append(what)
                 continue
             err = apply_row(data, str(key), extra['price'], extra, f'{name}, строка {ri}',
                             baseline.get(str(key)))
@@ -971,9 +1106,15 @@ def main():
         print(f'ОШИБКА записи: {e}'); return 1
 
     msg = f'Готово: обновлено {applied}, добавлено новых {created}'
+    if removed:
+        msg += f', УДАЛЕНО {len(removed)}'
     if skipped_new:
         msg += f', пропущено новых строк на нерасширяемых листах {skipped_new}'
     print(msg + '.')
+    if removed:                     # что именно удалили — списком, чтобы это нельзя было проглядеть
+        print('Удалены позиции:')
+        for r in removed:
+            print('  • ' + r)
     print(f'Бэкап прежней версии: {os.path.basename(DST)}.bak')
     return 0
 
