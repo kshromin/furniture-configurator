@@ -14,7 +14,9 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "egger__w980",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "maxPartL": 2800,
+            "maxPartW": 2070
           },
           {
             "id": "u727",
@@ -25,7 +27,9 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "egger__u727",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "maxPartL": 2800,
+            "maxPartW": 2070
           },
           {
             "id": "u961",
@@ -36,7 +40,9 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "egger__u961",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "maxPartL": 2800,
+            "maxPartW": 2070
           },
           {
             "id": "h3840",
@@ -47,7 +53,9 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "egger__h3840",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "maxPartL": 2800,
+            "maxPartW": 2070
           },
           {
             "id": "h1334",
@@ -58,7 +66,9 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "egger__h1334",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "maxPartL": 2800,
+            "maxPartW": 2070
           },
           {
             "id": "pylnyy",
@@ -69,7 +79,9 @@
             "pricePerM2": 1500,
             "edgePerM16": 0,
             "edgePerM32": 0,
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "maxPartL": 2800,
+            "maxPartW": 2070
           }
         ]
       },
@@ -87,7 +99,9 @@
             "thickness": 16,
             "gid": "tomsk__t01",
             "kind": "ЛДСП",
-            "texture": "tomsk_belyy.jpg"
+            "texture": "tomsk_belyy.jpg",
+            "maxPartL": 2750,
+            "maxPartW": 1830
           },
           {
             "id": "t02",
@@ -99,7 +113,9 @@
             "thickness": 16,
             "gid": "tomsk__t02",
             "kind": "ЛДСП",
-            "texture": "tomsk_seryy.jpg"
+            "texture": "tomsk_seryy.jpg",
+            "maxPartL": 2750,
+            "maxPartW": 1830
           },
           {
             "id": "t03",
@@ -111,7 +127,9 @@
             "thickness": 16,
             "gid": "tomsk__t03",
             "kind": "ЛДСП",
-            "texture": "tomsk_venge.jpg"
+            "texture": "tomsk_venge.jpg",
+            "maxPartL": 2750,
+            "maxPartW": 1830
           },
           {
             "id": "t04",
@@ -122,7 +140,9 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "tomsk__t04",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "maxPartL": 2750,
+            "maxPartW": 1830
           },
           {
             "id": "dub_votan",
@@ -154,7 +174,9 @@
             "edgePerM16": 180,
             "edgePerM32": 180,
             "gid": "eterno__mdf_eterno18",
-            "kind": "МДФ"
+            "kind": "МДФ",
+            "maxPartL": 2800,
+            "maxPartW": 2070
           }
         ]
       },
@@ -171,7 +193,9 @@
             "pricePerM2": 1500,
             "edgePerM16": 0,
             "edgePerM32": 0,
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "maxPartL": 2800,
+            "maxPartW": 2070
           }
         ]
       }
@@ -192,7 +216,9 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "egger__w980",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "maxPartL": 2800,
+            "maxPartW": 2070
           },
           {
             "id": "fu727",
@@ -203,7 +229,9 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "egger__u727",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "maxPartL": 2800,
+            "maxPartW": 2070
           },
           {
             "id": "fu961",
@@ -214,7 +242,9 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "egger__u961",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "maxPartL": 2800,
+            "maxPartW": 2070
           },
           {
             "id": "fmirror",
@@ -225,7 +255,9 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "egger__fmirror",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "maxPartL": 2800,
+            "maxPartW": 2070
           },
           {
             "id": "pylnyy",
@@ -236,7 +268,9 @@
             "pricePerM2": 1500,
             "edgePerM16": 0,
             "edgePerM32": 0,
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "maxPartL": 2800,
+            "maxPartW": 2070
           }
         ]
       },
@@ -254,7 +288,9 @@
             "thickness": 16,
             "gid": "tomsk__t01",
             "kind": "ЛДСП",
-            "texture": "tomsk_belyy.jpg"
+            "texture": "tomsk_belyy.jpg",
+            "maxPartL": 2750,
+            "maxPartW": 1830
           },
           {
             "id": "ft02",
@@ -266,7 +302,9 @@
             "thickness": 16,
             "gid": "tomsk__t02",
             "kind": "ЛДСП",
-            "texture": "tomsk_seryy.jpg"
+            "texture": "tomsk_seryy.jpg",
+            "maxPartL": 2750,
+            "maxPartW": 1830
           },
           {
             "id": "ft03",
@@ -278,7 +316,9 @@
             "thickness": 16,
             "gid": "tomsk__t03",
             "kind": "ЛДСП",
-            "texture": "tomsk_venge.jpg"
+            "texture": "tomsk_venge.jpg",
+            "maxPartL": 2750,
+            "maxPartW": 1830
           },
           {
             "id": "dub_votan",
@@ -310,7 +350,9 @@
             "pricePerM2": 1500,
             "edgePerM16": 0,
             "edgePerM32": 0,
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "maxPartL": 2800,
+            "maxPartW": 2070
           }
         ]
       }
@@ -331,7 +373,9 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "egger__w980",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "maxPartL": 2800,
+            "maxPartW": 2070
           },
           {
             "id": "nh3840",
@@ -342,7 +386,9 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "egger__h3840",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "maxPartL": 2800,
+            "maxPartW": 2070
           },
           {
             "id": "pylnyy",
@@ -353,7 +399,9 @@
             "pricePerM2": 1500,
             "edgePerM16": 0,
             "edgePerM32": 0,
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "maxPartL": 2800,
+            "maxPartW": 2070
           }
         ]
       },
@@ -371,7 +419,9 @@
             "thickness": 16,
             "gid": "tomsk__t01",
             "kind": "ЛДСП",
-            "texture": "tomsk_belyy.jpg"
+            "texture": "tomsk_belyy.jpg",
+            "maxPartL": 2750,
+            "maxPartW": 1830
           },
           {
             "id": "nt04",
@@ -382,7 +432,9 @@
             "edgePerM32": 450,
             "thickness": 16,
             "gid": "tomsk__t04",
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "maxPartL": 2750,
+            "maxPartW": 1830
           },
           {
             "id": "dub_votan",
@@ -414,7 +466,9 @@
             "pricePerM2": 1500,
             "edgePerM16": 0,
             "edgePerM32": 0,
-            "kind": "ЛДСП"
+            "kind": "ЛДСП",
+            "maxPartL": 2800,
+            "maxPartW": 2070
           }
         ]
       }
@@ -600,7 +654,27 @@
             "pricePerM2": 2600
           }
         ]
-      }
+      },
+      "extra": [
+        {
+          "id": "zerkalo",
+          "name": "Зеркало",
+          "colors": [
+            {
+              "id": "seroe",
+              "name": "серое",
+              "color": "#a6a6a6",
+              "pricePerM2": 2000
+            },
+            {
+              "id": "sinee",
+              "name": "синее",
+              "color": "#376092",
+              "pricePerM2": 2001
+            }
+          ]
+        }
+      ]
     },
     "profilePrices": [
       {
@@ -1823,5 +1897,15 @@
       "unit": "шт",
       "price": 1000
     }
-  ]
+  ],
+  "catalogMeta": {
+    "hdf:belyy": {
+      "l": 2750,
+      "w": 1830
+    },
+    "hdf:seryy": {
+      "l": 2750,
+      "w": 1830
+    }
+  }
 }
