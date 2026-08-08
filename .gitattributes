@@ -1,0 +1,6 @@
+# Скрипты для сервера всегда с переводами строк Linux (LF).
+# Иначе на Windows они получают CRLF, и на сервере bash падает с «$'\r': command not found» —
+# ошибка выглядит загадочно, а причина именно в этом.
+*.sh text eol=lf
+deploy/Caddyfile text eol=lf
+deploy/env.example text eol=lf
