@@ -6,3 +6,8 @@ scripts/__pycache__/
 
 # Бэкап каталога, который делает загрузка цен (catalog_import.py) — локальный, не в репозиторий
 data/materials.json.bak
+
+# Настоящие ключи сервера. В репозитории только deploy/env.example
+deploy/.env
+deploy/*.env
+!deploy/env.example
