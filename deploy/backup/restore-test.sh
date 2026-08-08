@@ -12,7 +12,10 @@
 set -euo pipefail
 
 DB_CONTAINER="${DB_CONTAINER:-supabase-db}"
-DB_USER="${DB_USER:-postgres}"
+# именно supabase_admin, а не postgres: дамп восстанавливает владельцев объектов, и обычный
+# postgres спотыкается на «must be able to SET ROLE supabase_admin». Настоящее восстановление
+# после аварии делается тем же суперпользователем, так что проверка честная
+DB_USER="${DB_USER:-supabase_admin}"
 LOCAL_DIR="${LOCAL_DIR:-/var/backups/pg}"
 TEST_DB="${TEST_DB:-restore_check}"
 
@@ -38,13 +41,20 @@ echo "Временная база $TEST_DB создана"
 gunzip -c "$dump" | docker exec -i "$DB_CONTAINER" \
   psql -U "$DB_USER" -d "$TEST_DB" -v ON_ERROR_STOP=1 --quiet >/dev/null
 
+# Главный признак живого дампа — восстановились ли служебные схемы Supabase. Там же лежат
+# пользователи (auth.users): без них не войдёт никто, даже если данные приложения целы.
+if ! psql_run -d "$TEST_DB" -tAc "SELECT to_regclass('auth.users');" | grep -q users; then
+  echo "ОШИБКА: нет auth.users — дамп неполный, восстанавливаться из него нечем" >&2
+  exit 1
+fi
+users=$(psql_run -d "$TEST_DB" -tAc "SELECT count(*) FROM auth.users;")
+echo "auth.users: $users учётных записей"
+
 tables=$(psql_run -d "$TEST_DB" -tAc \
   "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';")
 echo "Таблиц в public: $tables"
-
 if [ "$tables" -lt 1 ]; then
-  echo "ОШИБКА: в восстановленной базе нет таблиц — бэкап негодный" >&2
-  exit 1
+  echo "  (пусто — это нормально, пока схема приложения не перенесена)"
 fi
 
 # несколько ключевых таблиц: если их нет, дамп не тот

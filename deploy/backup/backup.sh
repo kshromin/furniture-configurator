@@ -14,8 +14,8 @@ DB_USER="${DB_USER:-postgres}"
 DB_NAME="${DB_NAME:-postgres}"
 LOCAL_DIR="${LOCAL_DIR:-/var/backups/pg}"
 KEEP_DAYS="${KEEP_DAYS:-7}"
-S3_BUCKET="${S3_BUCKET:?не задан S3_BUCKET}"
-S3_ENDPOINT="${S3_ENDPOINT:-https://s3.ru-1.storage.selcloud.ru}"
+S3_BUCKET="${S3_BUCKET:-khrom-backup}"
+S3_ENDPOINT="${S3_ENDPOINT:-https://s3.ru-6.storage.selcloud.ru}"
 S3_PREFIX="${S3_PREFIX:-pg}"
 
 stamp="$(date +%Y%m%d-%H%M)"
@@ -24,8 +24,11 @@ file="$LOCAL_DIR/db-$stamp.sql.gz"
 mkdir -p "$LOCAL_DIR"
 
 echo "[$(date '+%F %T')] дамп -> $file"
-# --clean --if-exists: дамп можно накатить поверх существующей базы
-docker exec "$DB_CONTAINER" pg_dump -U "$DB_USER" -d "$DB_NAME" --clean --if-exists \
+# Без --clean. Он добавляет в начало дампа «DROP ... IF EXISTS» по схемам auth, storage и прочим,
+# и при восстановлении в ЧИСТУЮ базу psql падает на «schema storage does not exist»: IF EXISTS
+# защищает от отсутствующей таблицы, но не от отсутствующей схемы. Восстанавливаем всегда в новую
+# базу, так что --clean не нужен. Поймано проверкой restore-test.sh на живом сервере.
+docker exec "$DB_CONTAINER" pg_dump -U "$DB_USER" -d "$DB_NAME" \
   | gzip -9 > "$file"
 
 # пустой или подозрительно маленький дамп — это не бэкап, а иллюзия
