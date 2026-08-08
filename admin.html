@@ -267,7 +267,13 @@ async function refreshCatalog(companyId) {
     <button class="ghost" data-catseed="${companyId}">${empty ? 'Завести из общего каталога' : 'Перезаписать общим каталогом'}</button>
     <button class="ghost" data-catload="${companyId}">Загрузить JSON…</button>
     ${empty ? '' : `<button class="ghost" data-catsave="${companyId}">Скачать JSON</button>
-                    <button class="warn" data-catclear="${companyId}">Убрать (вернуть на общий)</button>`}`;
+                    <button class="warn" data-catclear="${companyId}">Убрать (вернуть на общий)</button>`}
+    <div class="muted" style="margin-top:8px">
+      Здесь каталог меняется ЦЕЛИКОМ. JSON — это тот же каталог файлом (в нём программа его и хранит);
+      «общий каталог сайта» — <code>data/materials.json</code> из репозитория, на котором работают все,
+      пока у фирмы нет своего.<br>
+      Правка цен и позиций — не здесь, а в Excel: «Выгрузить цены фирмы.bat» → правки → «Загрузить цены фирмы.bat».
+    </div>`;
   bindCatalogActions(companyId, m);
 }
 
