@@ -52,6 +52,9 @@ PasswordAuthentication no
 KbdInteractiveAuthentication no
 PermitRootLogin prohibit-password
 EOF
+# без этого каталога проверка конфига падает с «Missing privilege separation directory»
+# (свежая установка openssh-server создаёт его только при первом запуске службы)
+mkdir -p /run/sshd
 sshd -t
 systemctl restart ssh
 

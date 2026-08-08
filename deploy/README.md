@@ -3,8 +3,8 @@
 Всё, что нужно для подъёма площадки. Инструкция для владельца — как завести сервер и хранилище —
 отдельно: [SELECTEL.md](SELECTEL.md). Здесь техническая часть, её выполняю я.
 
-**Состояние: конфиги написаны, на живом сервере не проверялись.** Проверяются при первом запуске;
-всё, что не сойдётся, правится здесь же.
+**Состояние: сервер поднят и стек работает** (Selectel `khrom-app`, Москва, Ubuntu 24.04, Supabase
+self-hosted v0.7.2, 11 контейнеров healthy). Не сделано: перенос данных, Caddy, бэкапы, домены.
 
 ## Что где
 
@@ -12,8 +12,7 @@
 |---|---|
 | `SELECTEL.md` | Инструкция владельцу: аккаунт, SSH-ключ, сервер, S3 |
 | `server-init.sh` | Базовая настройка Ubuntu: пользователь, фаервол, swap, Docker |
-| `gen-keys.py` | Генерирует секреты Supabase (JWT, ключи, пароль базы) |
-| `supabase-trim.py` | Убирает из официального compose сбор логов, прибивает порты к localhost |
+| `bind-ports.py` | Прибивает порты Supabase к localhost — на ufw тут полагаться нельзя |
 | `Caddyfile` | HTTPS и маршруты: конфигуратор, API, два сайта, панель |
 | `env.example` | Образец переменных, настоящий `.env` живёт только на сервере |
 | `backup/backup.sh` | Дамп базы → S3, по расписанию |
@@ -33,16 +32,40 @@ ssh root@IP "bash /root/server-init.sh"
 
 ### 2. Supabase
 
+У Supabase есть свой `setup.sh` — он ставит зависимости, тянет **стабильный релизный тег** (а не
+HEAD), создаёт проект и генерирует все секреты, включая асимметричные ключи. Пользуемся им:
+
 ```bash
-git clone --depth 1 https://github.com/supabase/supabase /tmp/supabase
-mkdir -p /srv/khrom/supabase && cp -r /tmp/supabase/docker/* /srv/khrom/supabase/
-cd /srv/khrom/supabase
-python3 supabase-trim.py docker-compose.yml
-python3 gen-keys.py            # результат вписать в .env
-docker compose up -d
+sudo apt-get install -y git python3-yaml
+cd /srv/khrom
+git clone --filter=blob:none --no-checkout --depth 1 https://github.com/supabase/supabase supabase-src
+cd supabase-src && git sparse-checkout set --cone docker && git checkout && cd ..
+sh supabase-src/docker/setup.sh -y --project-dir app
 ```
 
-Проверка: `docker compose ps` — все контейнеры `healthy`; `curl -s localhost:8000` отвечает.
+Дальше правим `app/.env` — адреса (`API_EXTERNAL_URL`, `SUPABASE_PUBLIC_URL`, `SITE_URL`,
+`ADDITIONAL_REDIRECT_URLS`) и запускаем:
+
+```bash
+cd /srv/khrom/app
+python3 ../bind-ports.py docker-compose.yml
+sh run.sh start
+```
+
+**Порты трогаем только в compose, через `bind-ports.py`.** Соблазн прописать
+`POSTGRES_PORT=127.0.0.1:5432` в `.env` заканчивается тем, что база не встаёт: та же переменная
+уходит внутрь контейнера как порт самого Postgres.
+
+Проверка:
+
+```bash
+docker compose ps                       # все healthy
+sudo ss -tlnp | grep 0.0.0.0            # наружу только SSH
+curl -s http://127.0.0.1:8000/auth/v1/health -H "apikey: $(grep ^ANON_KEY= .env | cut -d= -f2-)"
+```
+
+Ответ `403 You cannot consume this service` на `/rest/v1/` — это нормально: корневой OpenAPI открыт
+только админскому ключу. Проверять надо запросом к таблице, а не к корню.
 
 ### 3. Схема и данные
 
