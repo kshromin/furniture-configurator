@@ -195,6 +195,8 @@ function renderCompanies() {
     companiesCache.map(c => c.id === editingId ? editRow(c) : viewRow(c)).join('')
     || '<tr><td colspan="6" class="muted">Пока нет компаний</td></tr>';
   bindRowActions();
+  // Каталог тяжёлый — читаем его только для открытой на правку компании, а не для всего списка.
+  if (editingId) refreshCatalog(editingId);
 }
 
 function viewRow(c) {
@@ -229,10 +231,106 @@ function editRow(c) {
       <button class="ghost" data-cancel="1">Отмена</button>
     </div>
 
+    <div class="fieldgroup-title">Каталог компании</div>
+    <div id="catBlock" class="muted">Загрузка каталога...</div>
+    <div id="catMsg" class="msg"></div>
+    <input type="file" id="catFile" accept=".json" hidden>
+
     <div class="fieldgroup-title">Пользователи и админ компании</div>
     <div class="admin-users">${usersBlock(c.id)}</div>
     <div id="adminMsg" class="msg"></div>
   </td></tr>`;
+}
+
+// ── Каталог компании (companies.materials) ──────────────────────────────────────────────────
+// Пустой каталог = компания работает на ОБЩЕМ каталоге сайта (data/materials.json, см.
+// loadMaterials в js/main.js). Как только здесь появится свой — общий её больше не касается,
+// и правится он только отсюда или скриптами с ключом --company.
+function countPositions(m) {
+  if (!m || typeof m !== 'object') return 0;
+  return ['korpus', 'fasad', 'fill'].reduce((sum, surf) =>
+    sum + ((m[surf]?.producers) || []).reduce((s, p) => s + (p.colors || []).length, 0), 0);
+}
+const catalogEmpty = m => !(m && m.korpus?.producers?.length && m.fasad?.producers?.length);
+
+async function refreshCatalog(companyId) {
+  const box = document.getElementById('catBlock');
+  if (!box) return;
+  const { data, error } = await supabase.from('companies').select('materials').eq('id', companyId).single();
+  if (error) { box.textContent = 'Не удалось прочитать каталог: ' + error.message; return; }
+  const m = data?.materials;
+  const empty = catalogEmpty(m);
+  box.innerHTML = `
+    <div style="margin-bottom:8px">${empty
+      ? '<b>Своего каталога нет</b> — компания работает на общем каталоге сайта.'
+      : `<b>Свой каталог:</b> ${countPositions(m)} позиций материалов по поверхностям. Общий каталог сайта на неё больше не влияет.`}</div>
+    <button class="ghost" data-catseed="${companyId}">${empty ? 'Завести из общего каталога' : 'Перезаписать общим каталогом'}</button>
+    <button class="ghost" data-catload="${companyId}">Загрузить JSON…</button>
+    ${empty ? '' : `<button class="ghost" data-catsave="${companyId}">Скачать JSON</button>
+                    <button class="warn" data-catclear="${companyId}">Убрать (вернуть на общий)</button>`}`;
+  bindCatalogActions(companyId, m);
+}
+
+function catMsg(text, cls = '') {
+  const el = document.getElementById('catMsg');
+  if (el) { el.className = 'msg ' + cls; el.textContent = text; }
+}
+
+async function writeCatalog(companyId, materials, okText) {
+  catMsg('Запись...');
+  const { error } = await supabase.from('companies').update({ materials }).eq('id', companyId);
+  if (error) { catMsg('Ошибка: ' + error.message, 'err'); return false; }
+  catMsg(okText, 'ok');
+  refreshCatalog(companyId);
+  return true;
+}
+
+function bindCatalogActions(companyId, current) {
+  const seedBtn = document.querySelector('[data-catseed]');
+  if (seedBtn) seedBtn.addEventListener('click', async () => {
+    if (!confirm('Записать компании копию ОБЩЕГО каталога сайта?\n\nПосле этого компания перестанет '
+                 + 'видеть общий каталог — её ассортимент правится только здесь или скриптами.')) return;
+    catMsg('Читаем общий каталог...');
+    try {
+      const base = await (await fetch('data/materials.json', { cache: 'no-store' })).json();
+      if (catalogEmpty(base)) { catMsg('Общий каталог пуст или битый — не записываю.', 'err'); return; }
+      await writeCatalog(companyId, base, `Каталог заведён: ${countPositions(base)} позиций.`);
+    } catch (e) { catMsg('Не прочитан общий каталог: ' + e.message, 'err'); }
+  });
+
+  const loadBtn = document.querySelector('[data-catload]');
+  const file = document.getElementById('catFile');
+  if (loadBtn && file) {
+    loadBtn.addEventListener('click', () => file.click());
+    file.onchange = async () => {
+      const f = file.files?.[0];
+      if (!f) return;
+      try {
+        const parsed = JSON.parse(await f.text());
+        if (catalogEmpty(parsed)) { catMsg('В файле нет производителей корпуса и фасада — это не каталог.', 'err'); return; }
+        await writeCatalog(companyId, parsed, `Загружено: ${countPositions(parsed)} позиций.`);
+      } catch (e) { catMsg('Файл не читается как JSON: ' + e.message, 'err'); }
+      file.value = '';
+    };
+  }
+
+  const saveBtn = document.querySelector('[data-catsave]');
+  if (saveBtn) saveBtn.addEventListener('click', () => {
+    const c = companiesCache.find(x => x.id === companyId);
+    const blob = new Blob([JSON.stringify(current, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `catalog-${c?.slug || companyId}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  const clearBtn = document.querySelector('[data-catclear]');
+  if (clearBtn) clearBtn.addEventListener('click', async () => {
+    if (!confirm('Убрать свой каталог компании?\n\nОна вернётся на общий каталог сайта. '
+                 + 'Сначала скачайте JSON, если он может понадобиться.')) return;
+    await writeCatalog(companyId, {}, 'Каталог убран — компания снова на общем.');
+  });
 }
 
 function usersBlock(companyId) {

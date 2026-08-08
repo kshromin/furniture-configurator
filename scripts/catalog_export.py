@@ -29,6 +29,8 @@ import os
 import sys
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import cloud   # noqa: E402 — каталог компании в базе (ключ --company)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'data', 'materials.json')
@@ -94,8 +96,17 @@ BAND_ADD_FILL = ('«Название» = ТИП наполнения (Зерка
 # явный `kind`. Первая загрузка проставит `kind` каждой группе, дальше берётся оттуда.
 DEFAULT_SERVICE_GROUPS = {'delivery', 'lift', 'montage'}
 
+# Откуда выгружен каталог — пишется во ВТОРУЮ строку «Справки» и сверяется при загрузке: книги
+# разных фирм выглядят одинаково, и без метки каталог одной компании молча уехал бы в другую.
+SOURCE_LOCAL = 'Источник: общий каталог сайта (data/materials.json)'
+
+
+def source_of_company(c):
+    return f'Источник: каталог компании {c["name"]} [{c["slug"]}]'
+
+
 HELP_TEXT = [
-    'Ассортимент и цены — как пользоваться (единый формат, 4.08)',
+    'Ассортимент и цены — как пользоваться (единый формат, 8.08)',
     '',
     '1. Колонки ОДИНАКОВЫЕ на всех листах; что не относится к категории — пустое. Порядок не менять.',
     '2. Каждая строка — одна позиция. «Артикул/ид/key» — по нему загрузка находит позицию, НЕ МЕНЯТЬ.',
@@ -481,7 +492,7 @@ def pick_save_path():
         return OUT
 
 
-def build_workbook(data, chosen_keys):
+def build_workbook(data, chosen_keys, source_label=SOURCE_LOCAL):
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment
     from openpyxl.utils import get_column_letter
@@ -489,10 +500,12 @@ def build_workbook(data, chosen_keys):
     bold = Font(bold=True)
     price_fill = PatternFill('solid', fgColor='FFF6D5')
     band_fill = PatternFill('solid', fgColor='E4E8EE')
-    # Справка
+    # Справка. Вторая строка — ОТКУДА выгружено (см. SOURCE_LOCAL/source_of_company): книги от
+    # разных фирм выглядят одинаково, и загрузка сверяет эту строку с тем, куда грузят, — иначе
+    # каталог одной компании молча уехал бы в другую.
     ws = wb.active; ws.title = 'Справка'
-    for line in HELP_TEXT:
-        ws.append([line])
+    for i, line in enumerate(HELP_TEXT):
+        ws.append([source_label if i == 1 else line])
     ws.column_dimensions['A'].width = 105
     ws['A1'].font = bold
     # Категории — единые колонки на всех листах
@@ -591,6 +604,21 @@ def add_yes_no_dropdown(ws):
 def main():
     global OUT, OUT_DIR
     args = sys.argv[1:]
+    # --company [slug]: выгружаем каталог КОМПАНИИ из базы, а не общий файл (сессия 77).
+    slug, args, use_cloud = cloud.take_company_arg(args)
+    source_label, company = SOURCE_LOCAL, None
+    if use_cloud:
+        try:
+            _token, _apikey, company = cloud.connect(slug)
+        except RuntimeError as e:
+            return cloud.fail(str(e))
+        if cloud.catalog_is_empty(company.get('materials')):
+            print(f'\nУ компании «{company["name"]}» каталога ещё нет — она работает на общем '
+                  f'каталоге сайта.\nЧтобы завести ей свой: «Загрузить цены.bat» с ключом '
+                  f'--company {company["slug"]} --seed (скопирует общий каталог компании).')
+            return 1
+        source_label = source_of_company(company)
+        OUT = os.path.join(OUT_DIR, f'ассортимент-{company["slug"]}.xlsx')
     if args and args[0] == '--all':
         chosen = [k for k, _, _ in CATEGORIES]
         OUT = args[1] if len(args) > 1 else OUT
@@ -598,7 +626,7 @@ def main():
         # --dir <папка>: куда по умолчанию сохранять (батник передаёт Config\Выгрузки)
         if len(args) >= 2 and args[0] == '--dir':
             OUT_DIR = args[1]
-            OUT = os.path.join(OUT_DIR, 'ассортимент.xlsx')
+            OUT = os.path.join(OUT_DIR, os.path.basename(OUT))
         chosen = choose_categories()
         if not chosen:
             print('Выгрузка отменена.'); return 1
@@ -606,8 +634,8 @@ def main():
         if not picked:
             print('Выгрузка отменена — путь не выбран.'); return 1
         OUT = picked
-    data = load()
-    wb = build_workbook(data, chosen)
+    data = company['materials'] if company else load()
+    wb = build_workbook(data, chosen, source_label)
     os.makedirs(os.path.dirname(os.path.abspath(OUT)) or '.', exist_ok=True)
     try:
         wb.save(OUT)

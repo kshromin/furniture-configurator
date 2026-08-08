@@ -26,6 +26,8 @@ import copy
 import re
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import cloud   # noqa: E402 — каталог компании в базе (ключи --company / --seed)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DST = os.path.join(ROOT, 'data', 'materials.json')
@@ -509,6 +511,21 @@ def hex_from_cells(extra, cells, base, theme=()):
     if t.lower() == b.lower() and fh.lower() != b.lower():
         return fh                      # текст не трогали, а ячейку закрасили — цвет из заливки
     return t                           # текст правили — он главнее
+
+
+def book_source(wb):
+    """Куда книга «прописана» — вторая строка листа «Справка», которую пишет выгрузка:
+    slug компании, '' — общий каталог сайта, None — метки нет (книга выгружена до 8.08)."""
+    ws = wb['Справка'] if 'Справка' in wb.sheetnames else None
+    txt = str((ws.cell(row=2, column=1).value if ws is not None else '') or '')
+    if not txt.startswith('Источник:'):
+        return None
+    m = re.search(r'\[([^\]]+)\]', txt)
+    return m.group(1) if m else ''
+
+
+def source_name(slug):
+    return f'каталог компании [{slug}]' if slug else 'общий каталог сайта'
 
 
 def old_format(ws):
@@ -1015,10 +1032,49 @@ def apply_row(data, key, price, extra, errctx, base=None):
     return None
 
 
+def seed_company(token, apikey, company):
+    """«Завести компании каталог» — копия общего каталога сайта в companies.materials. Дальше её
+    правят обычным циклом: выгрузка --company → Excel → загрузка --company. Пока каталог компании
+    пуст, она работает на общем файле (см. loadMaterials в js/main.js), поэтому засев — осознанный
+    шаг: с этого момента пуш общего каталога компанию больше не касается."""
+    with open(DST, encoding='utf-8') as f:
+        base = json.load(f)
+    have = company.get('materials') or {}
+    if not cloud.catalog_is_empty(have):
+        print(f'У компании «{company["name"]}» УЖЕ есть свой каталог — засев перезапишет его целиком.')
+    print(f'\nБудет записано в «{company["name"]}» [{company["slug"]}]: общий каталог сайта '
+          f'({sum(len(p["colors"]) for s in ("korpus", "fasad", "fill") for p in base[s]["producers"])} '
+          f'позиций материалов по поверхностям).')
+    print('ВАЖНО: с этого момента компания перестаёт видеть общий каталог — её ассортимент правится '
+          'только этим скриптом с ключом --company (или кнопкой в супер-админке).')
+    if input('Записать? (да/нет): ').strip().lower() not in ('да', 'yes', 'y', '1', '+'):
+        print('Отменено — ничего не записано.')
+        return 0
+    bak = cloud.save_catalog(token, apikey, company, base)
+    print(f'Готово: каталог компании заведён. Прежнее содержимое: {os.path.basename(bak)}')
+    return 0
+
+
 def main():
     global IN_DIR
     import openpyxl
     args = sys.argv[1:]
+    # --company [slug] — грузим в каталог КОМПАНИИ (в базу), а не в общий файл (сессия 77).
+    # --seed вместе с ним — не книга, а «завести компании каталог копией общего».
+    slug, args, use_cloud = cloud.take_company_arg(args)
+    seed = '--seed' in args
+    if seed:
+        args = [a for a in args if a != '--seed']
+    token = apikey = company = None
+    if use_cloud:
+        try:
+            token, apikey, company = cloud.connect(slug)
+        except RuntimeError as e:
+            return cloud.fail(str(e))
+        if seed:
+            return seed_company(token, apikey, company)
+    elif seed:
+        return cloud.fail('--seed работает только вместе с --company <slug>.')
     path = None
     if args and args[0] == '--in':
         path = args[1]
@@ -1037,13 +1093,25 @@ def main():
     if not path or not os.path.exists(path):
         print('Загрузка отменена — файл не выбран.'); return 1
 
-    with open(DST, encoding='utf-8') as f:
-        original = json.load(f)
+    if company:
+        original = company.get('materials') or {}
+        if cloud.catalog_is_empty(original):
+            return cloud.fail(f'у компании «{company["name"]}» каталога ещё нет. Сначала заведите: '
+                              f'тот же запуск с ключами --company {company["slug"]} --seed.')
+    else:
+        with open(DST, encoding='utf-8') as f:
+            original = json.load(f)
     data = copy.deepcopy(original)
     ensure_gids(data)  # проставить стабильные gid позициям (для правки по ключу)
     baseline = build_baseline(original)  # как строки выглядели в выгрузке — чтобы видеть, что правили
 
     wb = openpyxl.load_workbook(path, data_only=True)
+    # Книга помнит, ОТКУДА её выгрузили: не даём залить каталог одной компании в другую или в общий.
+    src = book_source(wb)
+    target = company['slug'] if company else ''
+    if src is not None and src != target:
+        return cloud.fail(f'книга выгружена из «{source_name(src)}», а грузите в '
+                          f'«{source_name(target)}». Возьмите свежую выгрузку нужного каталога.')
     theme = theme_colors(wb)   # палитра темы — чтобы читалась и заливка «верхним рядом» палитры
     errors, applied, created, skipped_new, removed = [], 0, 0, 0, []
 
@@ -1109,14 +1177,18 @@ def main():
             print('  • ' + e)
         return 1
 
-    # backup + атомарная запись
+    # backup + запись: в каталог компании (база) или в общий файл
     try:
-        with open(DST + '.bak', 'w', encoding='utf-8') as f:
-            json.dump(original, f, ensure_ascii=False, indent=2)
-        tmp = DST + '.tmp'
-        with open(tmp, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, DST)
+        if company:
+            bak = cloud.save_catalog(token, apikey, company, data)
+        else:
+            with open(DST + '.bak', 'w', encoding='utf-8') as f:
+                json.dump(original, f, ensure_ascii=False, indent=2)
+            bak = DST + '.bak'
+            tmp = DST + '.tmp'
+            with open(tmp, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            os.replace(tmp, DST)
     except Exception as e:
         print(f'ОШИБКА записи: {e}'); return 1
 
@@ -1130,7 +1202,9 @@ def main():
         print('Удалены позиции:')
         for r in removed:
             print('  • ' + r)
-    print(f'Бэкап прежней версии: {os.path.basename(DST)}.bak')
+    if company:
+        print(f'Записано в каталог компании «{company["name"]}» [{company["slug"]}].')
+    print(f'Бэкап прежней версии: {os.path.basename(bak)}')
     return 0
 
 
