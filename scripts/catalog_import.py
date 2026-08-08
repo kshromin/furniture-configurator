@@ -511,6 +511,13 @@ def hex_from_cells(extra, cells, base, theme=()):
     return t                           # текст правили — он главнее
 
 
+def old_format(ws):
+    """True — книга выгружена ДО 7.08: колонки «Удалить» в ней нет, все столбцы сдвинуты на один
+    влево. Смотрим на шапку, а не на дату файла: на руках у пользователя лежат книги обоих
+    форматов, и старую (уже отредактированную) не должно разносить в мусор при загрузке."""
+    return str(ws.cell(row=1, column=1).value or '').strip().lower() != 'удалить'
+
+
 def build_baseline(original):
     """Как выглядела бы выгрузка ДО правок: ключ → значения ячеек. Нужно, чтобы отличать реально
     отредактированную ячейку от повтора того же значения в соседних строках: название элемента
@@ -1044,8 +1051,11 @@ def main():
         if name not in wb.sheetnames:
             continue
         ws = wb[name]
+        shift = old_format(ws)   # книга ДО 7.08 (без колонки «Удалить») — подставляем пустую слева
         for ri, cells in enumerate(ws.iter_rows(min_row=2), start=2):
-            row = [c.value for c in cells]
+            if shift:
+                cells = (None,) + tuple(cells)
+            row = [(c.value if c is not None else None) for c in cells]
             if not row or all(v in (None, '') for v in row):
                 continue
             # Единый формат: колонки одинаковы на всех листах (см. COLS).
