@@ -324,11 +324,18 @@ html, body {
   display: none;
 }
 
-/* «+ Новая» — начать новую прорисовку (order.js startNewKit с предложением сохранить) */
-.kit-new-btn {
+/* Кнопки в полосе комплекта: «Сохранить» (перезаписать открытый проект/заказ) и «+ Новая» */
+.kit-actions {
   position: absolute;
   top: 50%; right: 12px;
   transform: translateY(-50%);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* «+ Новая» — начать новую прорисовку (order.js startNewKit с предложением сохранить) */
+.kit-new-btn {
   padding: 4px 10px;
   border: 1.5px solid #2f6fed;
   border-radius: 6px;
@@ -339,6 +346,23 @@ html, body {
   cursor: pointer;
 }
 .kit-new-btn:hover { background: #eef3ff; }
+
+/* «Сохранить» — перезаписать открытый проект/заказ (order.js saveOpenProject). Заливкой, а не
+   контуром: это основное действие полосы, «+ Новая» рядом — второстепенное. */
+.kit-save-btn {
+  padding: 4px 10px;
+  border: 1.5px solid #2f6fed;
+  border-radius: 6px;
+  background: #2f6fed;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.kit-save-btn:hover { background: #1f5ad6; border-color: #1f5ad6; }
+/* Есть несохранённые правки — кнопка заметнее (оранжевая, как статус «изменён») */
+.kit-save-btn.kit-save-dirty { background: #e08a2b; border-color: #e08a2b; }
+.kit-save-btn.kit-save-dirty:hover { background: #c9761d; border-color: #c9761d; }
 
 /* Типы «в разработке» — заблокированы, приглушены, с подписью */
 .type-btn:disabled { cursor: default; opacity: 0.45; }
@@ -366,6 +390,12 @@ html, body {
   font-size: 12px;
   font-weight: 600;
   color: #6b87c7;
+  /* место под кнопки справа (.kit-actions) — длинное имя заказа обрезаем многоточием,
+     иначе оно уезжало бы под «Сохранить»/«+ Новая» */
+  padding-right: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 #kitBar.kit-editing { color: #1d9a4a; }
 #typeBarName { font-size: 11px; font-weight: 600; margin-top: 1px; }

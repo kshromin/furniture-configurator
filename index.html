@@ -113,7 +113,12 @@
       <div id="typeBarName">Шкаф-купе</div>
       <!-- Начать заново (задание «сохранение заказа 21,07», часть 2) — при несохранённой работе
            спросит: сохранить в проект / в заказ / не сохранять (guardUnsavedItems, order.js) -->
-      <button id="newKitTopBtn" class="kit-new-btn" type="button" title="Начать новую прорисовку">+ Новая</button>
+      <div class="kit-actions">
+        <!-- «Сохранить» — перезаписать ОТКРЫТЫЙ проект/заказ, не заполняя форму заново
+             (просьба 8.08). Ничего не открыто — откроется обычная форма сохранения. -->
+        <button id="saveKitTopBtn" class="kit-save-btn" type="button">Сохранить</button>
+        <button id="newKitTopBtn" class="kit-new-btn" type="button" title="Начать новую прорисовку">+ Новая</button>
+      </div>
     </div>
 
     <!-- 1. Тип изделия -->

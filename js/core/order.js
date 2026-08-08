@@ -102,6 +102,18 @@ function updateProcessIndicator() {
     upBtn.style.display = canUpdate ? '' : 'none';
     if (canUpdate) upBtn.textContent = `✓ Обновить прорисовку #${dispIdx + 1}`;
   }
+
+  // Кнопка «Сохранить» в полосе комплекта (рядом с «+ Новая»): открыт проект/заказ — перезапишет
+  // его же; ничего не открыто — откроет обычную форму. Подсвечивается, когда есть что сохранять.
+  const saveBtn = document.getElementById('saveKitTopBtn');
+  if (saveBtn) {
+    const open = editingProjectId !== null;
+    const dirty = open && (changed || (orderItems.length > 0 && !itemsSavedToProject));
+    saveBtn.classList.toggle('kit-save-dirty', dirty);
+    saveBtn.title = open
+      ? `Сохранить открытый ${editingProjectKind === 'order' ? 'заказ' : 'проект'} (перезаписать)`
+      : 'Сохранить прорисовки в проект';
+  }
 }
 let itemsSavedToProject = false; // текущий комплект уже сохранён (для предупреждения при открытии другого)
 
@@ -477,6 +489,74 @@ function captureThumbnail() {
   }
 }
 
+// Что уходит в строку projects: текущий комплект, а если он пуст — открытая сейчас модель одной
+// позицией (иначе «сохранить» из чистого чертежа не сохраняло бы ничего).
+function currentItems() {
+  return orderItems.length ? orderItems : [{
+    id: Date.now(), label: describeConfig(), total: state.lastTotal || 0,
+    snapshot: JSON.parse(JSON.stringify(state)),
+  }];
+}
+
+function buildProjectRow(kind, title, client, items) {
+  return {
+    kind,
+    title,
+    client_name: client.name || '', client_phone: client.phone || '', client_address: client.address || '',
+    items: items.map(({ id, ...rest }) => rest), // локальные id не сохраняем
+    total: items.reduce((s, it) => s + it.total, 0),
+    item_count: items.length,
+    thumbnail: captureThumbnail(),
+    updated_at: new Date().toISOString(),
+  };
+}
+
+// Кнопка «Сохранить» рядом с «+ Новая» (просьба 8.08: «не понял, как сохранить открытый и
+// изменённый заказ — только новый можно»). Перезаписывает ТУ ЖЕ строку projects и не спрашивает
+// клиента заново: он известен из открытой записи. Ничего не открыто — обычная форма сохранения.
+export async function saveOpenProject() {
+  if (!auth.session) { showToast('Сохранение недоступно без входа.'); return; }
+  if (editingProjectId === null) { openSaveModal('project'); return; }
+  if (editingProjectKind === 'order' && editingOrderLocked) {
+    // «Изменять нельзя» (задание «поделиться 29,07») — перезапись запрещена, только новым.
+    showToast('Заказ помечен «изменять нельзя» — сохраните его новым.');
+    openSaveModal('order');
+    return;
+  }
+  // Правки 3D, не внесённые в комплект, молча потеряться не должны.
+  if (hasUnsavedChanges()) {
+    const dispIdx = orderItems.findIndex(it => it.id === displayedItemId && it.snapshot);
+    if (editingItemId !== null) {
+      addCurrentToOrder();          // открыт режим «Изменить позицию» — применяем в неё
+    } else if (dispIdx !== -1) {
+      updateDisplayedItem();        // показанная прорисовка изменена — обновляем её
+    } else if (orderItems.length) {
+      const choice = await showChoiceDialog(
+        'Текущий чертёж не добавлен в прорисовки. Что с ним сделать?',
+        [
+          { label: 'Отмена', value: null },
+          { label: 'Сохранить без него', value: 'skip' },
+          { label: 'Добавить позицией', value: 'add', primary: true },
+        ],
+      );
+      if (!choice) return;
+      if (choice === 'add') addCurrentToOrder();
+    }
+  }
+  const row = buildProjectRow(editingProjectKind, editingProjectTitle, editingProjectClient || {}, currentItems());
+  const { error } = await supabase.from('projects').update(row).eq('id', editingProjectId);
+  if (error) {
+    console.error('projects save failed:', error);
+    showToast('Ошибка сохранения: ' + error.message);
+    return;
+  }
+  itemsSavedToProject = true;
+  markStateSafe();
+  renderOrderCards();
+  const kindLabel = editingProjectKind === 'order' ? 'Заказ' : 'Проект';
+  showToast(`${kindLabel}${editingProjectCode ? ' № ' + editingProjectCode : ''} сохранён.`);
+}
+
 function openSaveModal(kind) {
   modalKind = kind;
   const overlay = document.getElementById('orderOverlay');
@@ -500,6 +580,7 @@ export function bindOrderForm() {
   document.getElementById('saveOrderBtn').addEventListener('click', () => openSaveModal('order'));
   document.getElementById('newKitBtn').addEventListener('click', startNewKit);
   document.getElementById('newKitTopBtn').addEventListener('click', startNewKit);
+  document.getElementById('saveKitTopBtn').addEventListener('click', saveOpenProject);
   document.getElementById('updateItemBtn').addEventListener('click', updateDisplayedItem);
   // Закрытие модалки без сохранения отменяет и отложенное действие (см. guardUnsavedItems) —
   // прорисовки не сохранены, затирать их молча нельзя.
@@ -535,19 +616,7 @@ export function bindOrderForm() {
     result.textContent = 'Сохранение...';
 
     // Комплект: текущие прорисовки (если пусто — текущая открытая модель одной прорисовкой)
-    const items = orderItems.length ? orderItems
-      : [{ id: Date.now(), label: describeConfig(), total: state.lastTotal || 0, snapshot: JSON.parse(JSON.stringify(state)) }];
-    const total = items.reduce((s, it) => s + it.total, 0);
-    const row = {
-      kind: modalKind,
-      title,
-      client_name: name, client_phone: phone, client_address: address,
-      items: items.map(({ id, ...rest }) => rest), // локальные id не сохраняем
-      total,
-      item_count: items.length,
-      thumbnail: captureThumbnail(),
-      updated_at: new Date().toISOString(),
-    };
+    const row = buildProjectRow(modalKind, title, { name, phone, address }, currentItems());
 
     // Открыт сохранённый проект/заказ — явный вопрос вместо прежней галочки «Сохранить как
     // новый» (её легко не заметить: пользователь менял название и удивлялся, что старый проект
