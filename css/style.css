@@ -1696,3 +1696,11 @@ html, body {
 .order-card-lock { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12px;
                    color: #c0392b; cursor: pointer; }
 .order-card-lock input { cursor: pointer; }
+
+/* Детали, не выходящие из листа материала (js/core/part-limits.js): предупреждение под ценой —
+   размеры не зажимаем, просто показываем, что именно не режется из выбранного материала. */
+.part-limit-warn { margin: 8px 0 0; padding: 8px 10px; border-radius: 6px;
+                   background: #fdf1e7; border: 1px solid #e8b98a; color: #8a4b12;
+                   font-size: 12px; line-height: 1.35; }
+.part-limit-head { font-weight: 600; margin-bottom: 3px; }
+.part-limit-row { opacity: .9; }

@@ -4,6 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { state } from './state.js';
 import { showToast } from './toast.js';
 import { colorSpec, requestTexture, scaleBoxUV } from './textures.js';
+import { checkPart } from './part-limits.js';
 
 const viewport = document.getElementById('viewport');
 export const scene = new THREE.Scene();
@@ -138,6 +139,7 @@ function panelMesh(w, h, d, color, opacity, matOpts) {
 }
 
 export function addPanel(w, h, d, color, pos, opacity, matOpts) {
+  checkPart(w, h, d, color);   // влезает ли деталь в лист материала (part-limits.js)
   const mesh = panelMesh(w, h, d, color, opacity, matOpts);
   mesh.position.set(pos[0], pos[1], pos[2]);
   const edgesGeo = new THREE.EdgesGeometry(mesh.geometry, 15);

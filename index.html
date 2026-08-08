@@ -703,6 +703,8 @@
         </div>
         <div class="price-row current-total"><span>Текущая позиция</span><span id="priceTotal">0 ₽</span></div>
       </div>
+      <!-- Детали, не выходящие из листа материала (обзол 10 мм) — заполняет js/core/part-limits.js -->
+      <div id="partLimitWarn" class="part-limit-warn" style="display:none"></div>
       <div id="orderCounterRow" class="order-counter-row" style="display:none">
         <span id="orderCounterText"></span>
         <button class="order-counter-link" onclick="document.querySelector('[data-tab=order]').click()">Открыть прорисовки →</button>
