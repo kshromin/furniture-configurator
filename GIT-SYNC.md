@@ -15,13 +15,20 @@
 
 ## Где живёт код (с 09.08.2026)
 
-- **Основной репозиторий — GitVerse** (СберТех, `gitverse.ru`), приватный. Туда `push`, оттуда `pull`.
+- **Основной репозиторий — GitVerse** (СберТех), приватный, логин `k.s.hromin`. Туда `push`,
+  оттуда `pull`:
+  `ssh://git@gitverse.ru:2222/k.s.hromin/furniture-configurator.git`
+  Работаем по SSH, а не по HTTPS: с ключом не нужны ни пароли, ни токены. Порт нестандартный — 2222.
   Причина переезда не в законе — код это не персональные данные — а в доступности: GitHub уже
   ограничивал доступ российским пользователям и оплату из РФ не принимает.
 - **GitHub остаётся зеркалом**: `github.com/kshromin/furniture-configurator`. Совсем уйти с него
   нельзя, пока он раздаёт замороженный `config.khrom-in.ru` через GitHub Pages — Pages работают
   только у GitHub. Когда старый адрес перестанет быть нужен, зеркало можно бросить.
-- **База знаний по купе** — свой репозиторий, там та же схема.
+- **База знаний по купе** — `ssh://git@gitverse.ru:2222/k.s.hromin/kupe-kb.git`, та же схема.
+- **Ветка везде `main`.** GitVerse в подсказках предлагает `master` — не переименовывайте, вся
+  история и все инструкции у нас на `main`.
+- **В зеркало на GitHub не пушим.** Оно намеренно заморожено на той версии, что раздаёт старый
+  `config.khrom-in.ru`. Понадобится обновить — `git push github main`, осознанно и вручную.
 
 **Схема при этом не изменилась**: код по-прежнему ездит между компом и ноутом через сервис (теперь
 GitVerse), материалы — через Яндекс, а на боевой сервер код попадает отдельной командой выкладки.
@@ -40,8 +47,8 @@ GitVerse), материалы — через Яндекс, а на боевой 
 
 **Шаг 2 — клонировать с именем машины** (адрес — GitVerse, основной):
 ```
-git clone https://gitverse.ru/<логин>/furniture-configurator.git config_comp   (на компе)
-git clone https://gitverse.ru/<логин>/furniture-configurator.git config_nout   (на ноуте)
+git clone ssh://git@gitverse.ru:2222/k.s.hromin/furniture-configurator.git config_comp   (на компе)
+git clone ssh://git@gitverse.ru:2222/k.s.hromin/furniture-configurator.git config_nout   (на ноуте)
 ```
 Обычный клон, `.git` внутри папки — раз она вне Яндекса, это безопасно, `--separate-git-dir` не нужен.
 
@@ -61,13 +68,19 @@ git clone https://gitverse.ru/<логин>/furniture-configurator.git config_nou
 История никуда не денется — меняется только адрес, куда ходить:
 
 ```
-git remote set-url origin https://gitverse.ru/<логин>/furniture-configurator.git
-git remote add github https://github.com/kshromin/furniture-configurator.git
+git remote rename origin github
+git remote add origin ssh://git@gitverse.ru:2222/k.s.hromin/furniture-configurator.git
 git push -u origin main
 ```
 
-Первая строка переводит основной адрес на GitVerse, вторая оставляет GitHub под именем `github`
-(зеркало для Pages). Толкать в зеркало — `git push github main`, по необходимости, а не каждый раз.
+Прежний адрес переименовывается в `github` (зеркало для Pages), основным становится GitVerse.
+История никуда не уезжает — меняются только адреса.
+
+**На компе понадобится свой SSH-ключ**: `ssh-keygen -t ed25519 -C "khrom-comp"`, открытую половину
+(`~/.ssh/id_ed25519.pub`) добавить в профиль GitVerse. Закрытый ключ между машинами не копируют —
+у каждой свой, так проще отозвать.
+
+Сделано 09.08.2026: конфигуратор (369 коммитов) и база знаний перенесены, вершины сверены.
 
 ## Если садишься за второй компьютер первый раз после этого перехода
 
