@@ -47,6 +47,17 @@ mebel.khrom-in.ru {
 	header @html Cache-Control "no-cache"
 }
 
+# --- Сайт project.khrom-in.ru ----------------------------------------------
+# ВКЛЮЧИТЬ, когда A-запись project будет переведена с GitHub Pages на наш IP.
+# Пока запись смотрит на GitHub, Caddy не сможет выпустить сертификат и будет зря
+# долбиться в Let's Encrypt.
+# project.khrom-in.ru {
+#	root * /srv/khrom/sites/project
+#	encode zstd gzip
+#	file_server
+#	try_files {path} {path}/ {path}.html /index.html
+# }
+
 # --- Панель Supabase Studio ------------------------------------------------
 # Отдельное имя и пароль: внутри неё полный доступ к базе.
 # Хеш пароля:  docker exec caddy caddy hash-password
