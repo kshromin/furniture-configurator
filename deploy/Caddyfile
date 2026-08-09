@@ -48,15 +48,23 @@ mebel.khrom-in.ru {
 }
 
 # --- Сайт project.khrom-in.ru ----------------------------------------------
-# ВКЛЮЧИТЬ, когда A-запись project будет переведена с GitHub Pages на наш IP.
-# Пока запись смотрит на GitHub, Caddy не сможет выпустить сертификат и будет зря
-# долбиться в Let's Encrypt.
-# project.khrom-in.ru {
-#	root * /srv/khrom/sites/project
-#	encode zstd gzip
-#	file_server
-#	try_files {path} {path}/ {path}.html /index.html
-# }
+# A-запись переведена с GitHub Pages на наш сервер 09.08.2026.
+project.khrom-in.ru {
+	root * /srv/khrom/sites/project
+	encode zstd gzip
+	file_server
+
+	# try_files с {path}.html: ссылки вида /mebel открываются как mebel.html —
+	# на GitHub Pages это работало само, у нас надо сказать явно.
+	# Отката на /index.html НЕТ намеренно: с ним любая опечатка в адресе показывала бы
+	# главную страницу с кодом 200, и ни человек, ни поисковик не понимали бы, что страницы нет
+	try_files {path} {path}/ {path}.html
+
+	@static path *.js *.css *.png *.webp *.jpg *.jpeg *.svg *.mp4 *.pdf
+	header @static Cache-Control "public, max-age=604800"
+	@html path *.html /
+	header @html Cache-Control "no-cache"
+}
 
 # --- Панель Supabase Studio ------------------------------------------------
 # Отдельное имя и пароль: внутри неё полный доступ к базе.
