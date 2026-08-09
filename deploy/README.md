@@ -67,16 +67,35 @@ curl -s http://127.0.0.1:8000/auth/v1/health -H "apikey: $(grep ^ANON_KEY= .env 
 Ответ `403 You cannot consume this service` на `/rest/v1/` — это нормально: корневой OpenAPI открыт
 только админскому ключу. Проверять надо запросом к таблице, а не к корню.
 
-### 3. Схема и данные
+### 3. Схема и данные из облака
+
+Строку подключения берём в панели Supabase: кнопка **Connect** → вкладка **Direct / Connection
+string** → **Session pooler** (порт 5432, хост `pooler.supabase.com`). Именно его, а не Direct:
+прямое подключение у Supabase только по IPv6, а на сервере его нет. Transaction pooler (6543) тоже
+не подойдёт — `pg_dump` нужна живая сессия.
+
+Строку кладём в файл на сервере (в ней пароль, в командной строке ей не место):
 
 ```bash
-# схема
-psql ... -f supabase/saas-01-schema.sql
-# данные из облачного Supabase
-pg_dump "postgresql://...облачный..." --data-only | psql -d postgres
+URL=$(cat /srv/khrom/.cloud-url)     # chmod 600
+docker exec supabase-db psql "$URL" -tAc "select version();"   # проверка связи
 ```
 
-Точные строки подключения подставим на месте — они зависят от того, что покажет облачная панель.
+Дамп и восстановление. **Порядок важен**: сначала учётные записи, потом данные приложения —
+`profiles` ссылается на `auth.users`, иначе внешний ключ не даст залить.
+
+```bash
+docker exec supabase-db pg_dump "$URL" --schema=public --no-owner --no-privileges   --quote-all-identifiers > migrate-public.sql
+docker exec supabase-db pg_dump "$URL" --data-only --no-owner   --table=auth.users --table=auth.identities > migrate-auth.sql
+
+sed -i '/^CREATE SCHEMA "public";$/d' migrate-public.sql   # схема public уже есть, иначе psql встанет
+
+docker exec -i supabase-db psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 < migrate-auth.sql
+docker exec -i supabase-db psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 < migrate-public.sql
+```
+
+Сверить построчно: число таблиц, строки в каждой, количество политик RLS и записей в `auth.users`
+должны совпасть с облаком. Файлы Storage переносятся отдельно, если они там появятся.
 
 ### 4. Caddy
 
