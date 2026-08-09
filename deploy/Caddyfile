@@ -1,65 +1,48 @@
-# Caddy — единственное, что смотрит наружу. HTTPS-сертификаты берёт сам
-# (Let's Encrypt), обновляет сам, ничего настраивать не нужно.
+# Caddy — единственное, что смотрит наружу. HTTPS-сертификаты берёт сам (Let's Encrypt),
+# обновляет сам, настраивать нечего.
 #
-# ПЕРЕД ЗАПУСКОМ: домены ниже должны уже указывать A-записью на этот сервер,
-# иначе сертификат не выпустится. Пока A-записи не переключены — держим здесь
-# только те имена, что уже переехали.
+# ГЛАВНОЕ ПРАВИЛО: здесь должны быть ТОЛЬКО те имена, которые уже указывают A-записью на этот
+# сервер. На лишние Caddy будет безуспешно запрашивать сертификат и упрётся в лимиты Let's Encrypt
+# (5 неудач на домен в час), после чего и рабочие имена перестанут выпускаться.
+#
+# Сейчас идёт ПЕРЕХОДНЫЙ ПЕРИОД: боевой config.khrom-in.ru остаётся на GitHub Pages с облачной
+# базой, а рядом работает наша копия. Ничего не ломается, сравнивать можно вживую.
 
 {
-	# почта для уведомлений Let's Encrypt (просрочка сертификата и т.п.)
 	email admin@khrom-in.ru
 }
 
-# --- Конфигуратор ---------------------------------------------------------
-config.khrom-in.ru {
+# --- Наш Supabase (постоянное имя) -----------------------------------------
+api.khrom-in.ru {
+	encode zstd gzip
+	# Kong слушает только localhost, снаружи к нему хода нет — только через Caddy.
+	# Websockets для чатов Caddy проксирует сам, отдельной настройки не нужно.
+	reverse_proxy 127.0.0.1:8000
+}
+
+# --- Конфигуратор на нашем сервере (временное имя на время проверки) -------
+test.khrom-in.ru {
 	root * /srv/khrom/config
 	encode zstd gzip
 	file_server
 
-	# каталог и текстуры отдаём с длинным кэшем, html — без кэша,
-	# иначе после обновления у людей останется старая версия
 	@static path *.js *.css *.png *.webp *.jpg *.bmp
 	header @static Cache-Control "public, max-age=604800"
 	@html path *.html /
 	header @html Cache-Control "no-cache"
 }
 
-# --- API (self-host Supabase, наружу торчит только через Caddy) ------------
-api.khrom-in.ru {
-	encode zstd gzip
-	# Kong из стека Supabase слушает только localhost — снаружи не достать
-	reverse_proxy 127.0.0.1:8000
-
-	# чатам и подпискам нужен websocket; Caddy проксирует его сам,
-	# отдельной настройки не требуется, но таймаут поднимаем
-	@ws {
-		header Connection *Upgrade*
-		header Upgrade websocket
-	}
-	reverse_proxy @ws 127.0.0.1:8000
-}
-
-# --- Сайты ----------------------------------------------------------------
-khrom-in.ru, www.khrom-in.ru {
-	root * /srv/khrom/sites/khrom-in
-	encode zstd gzip
-	file_server
-	try_files {path} {path}/ /index.html
-}
-
-komandor-nsk.ru, www.komandor-nsk.ru {
-	root * /srv/khrom/sites/komandor-nsk
-	encode zstd gzip
-	file_server
-	try_files {path} {path}/ /index.html
-}
-
 # --- Панель Supabase Studio ------------------------------------------------
-# Открыта только по отдельному имени и под паролем: внутри неё полный доступ
-# к базе. Хеш пароля создаётся командой:  docker exec caddy caddy hash-password
-studio.khrom-in.ru {
-	basic_auth {
-		admin ЗАМЕНИТЬ_НА_ХЕШ
-	}
-	reverse_proxy 127.0.0.1:3000
-}
+# Отдельное имя и пароль: внутри неё полный доступ к базе.
+# Хеш пароля:  docker exec caddy caddy hash-password
+# studio.khrom-in.ru {
+#	basic_auth {
+#		admin ЗАМЕНИТЬ_НА_ХЕШ
+#	}
+#	reverse_proxy 127.0.0.1:3000
+# }
+
+# --- Ниже — то, что включаем ПОСЛЕ проверки, когда переключим A-записи ------
+# config.khrom-in.ru — уедет с GitHub Pages сюда
+# khrom-in.ru, www.khrom-in.ru — сайт 1
+# komandor-nsk.ru, www.komandor-nsk.ru — сайт 2
