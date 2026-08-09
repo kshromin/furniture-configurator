@@ -3,8 +3,10 @@
 Всё, что нужно для подъёма площадки. Инструкция для владельца — как завести сервер и хранилище —
 отдельно: [SELECTEL.md](SELECTEL.md). Здесь техническая часть, её выполняю я.
 
-**Состояние: сервер поднят и стек работает** (Selectel `khrom-app`, Москва, Ubuntu 24.04, Supabase
-self-hosted v0.7.2, 11 контейнеров healthy). Не сделано: перенос данных, Caddy, бэкапы, домены.
+**Состояние: площадка работает.** Selectel `khrom-app` (Москва, Ubuntu 24.04), Supabase self-hosted
+v0.7.2, данные из облака перенесены, HTTPS на `mebel.khrom-in.ru` и `api.khrom-in.ru`, бэкапы с
+проверкой восстановления, присмотр, выкладка одной командой. Осталось: полная проверка вживую,
+перенос двух сайтов, переключение старого `config.khrom-in.ru`, отключение облака.
 
 ## Что где
 
@@ -117,7 +119,7 @@ docker run -d --name caddy --network host --restart unless-stopped \
 
 ```bash
 sudo apt install -y awscli
-aws configure   # ключи из панели Selectel, регион ru-1
+aws configure   # ключи из панели Selectel, регион ru-6
 cp deploy/backup/*.sh /srv/khrom/ && chmod +x /srv/khrom/*.sh
 ```
 
